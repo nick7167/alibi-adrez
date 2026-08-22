@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.build/
+.wrangler/
+.dev.vars*
+*.local
+src/lib/paraglide/
+.DS_Store
+coverage/

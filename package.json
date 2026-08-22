@@ -1,0 +1,18 @@
+{
+  "name": "alibi-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.14.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
+    "dev:web": "pnpm --filter web dev",
+    "deploy:rooms": "wrangler deploy --config apps/rooms/wrangler.jsonc",
+    "deploy:web": "wrangler deploy --config apps/web/wrangler.jsonc"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "@types/node": "^24.0.0"
+  }
+}
