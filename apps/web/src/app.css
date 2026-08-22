@@ -1,0 +1,26 @@
+@import '@fontsource/baloo-2/400.css';
+@import '@fontsource/baloo-2/600.css';
+@import '@fontsource/baloo-2/700.css';
+@import '@fontsource/baloo-2/800.css';
+@import 'tailwindcss';
+
+@theme {
+	--color-paper: #fff6ea;
+	--color-ink: #141433;
+	--color-cobalt: #3d50e0;
+	--color-sunshine: #ffc93c;
+	--color-coral: #f95d62;
+	--color-mint: #5fd6a7;
+	--color-grape: #7a3be0;
+	--color-night: #171531;
+
+	--radius-card: 1.75rem;
+
+	--font-sans: 'Baloo 2', 'Comic Sans MS', system-ui, sans-serif;
+}
+
+body {
+	font-family: var(--font-sans);
+	background-color: var(--color-paper);
+	color: var(--color-ink);
+}

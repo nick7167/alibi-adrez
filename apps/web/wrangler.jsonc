@@ -1,0 +1,6 @@
+{
+	"name": "alibi-web",
+	"compatibility_date": "2026-08-01",
+	"assets": { "directory": ".svelte-kit/cloudflare" },
+	"services": [{ "binding": "ROOMS", "service": "alibi-rooms" }]
+}
