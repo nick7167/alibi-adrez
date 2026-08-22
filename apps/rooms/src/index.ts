@@ -43,7 +43,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/health") return Response.json({ ok: true });
-    const wsMatch = /^\/api\/room\/([A-HJ-NP-Z2-9]{4})\/ws$/.exec(url.pathname);
+    const wsMatch = /^\/api\/room\/([A-HJ-KMNP-Z2-9]{4})\/ws$/.exec(url.pathname);
     if (wsMatch) {
       const stub = env.ROOMS_DO.get(env.ROOMS_DO.idFromName(wsMatch[1]!));
       return stub.fetch(new Request("https://do/ws", request));
