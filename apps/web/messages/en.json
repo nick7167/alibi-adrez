@@ -1,0 +1,23 @@
+{
+ "$schema": "https://inlang.com/schema/inlang-message-format",
+ "app.title": "ALIBI",
+ "home.tagline": "A party game of tall tales and busted alibis.",
+ "home.create": "Create room",
+ "home.join": "Join room",
+ "home.joinPrompt": "Enter code",
+ "join.nickname": "Your nickname",
+ "join.pickAvatar": "Pick your avatar",
+ "join.enter": "Enter",
+ "lobby.players": "Players",
+ "lobby.settings.rounds": "Rounds",
+ "lobby.settings.planning": "Planning time (s)",
+ "lobby.settings.answers": "Answer time (s)",
+ "lobby.settings.questions": "Questions",
+ "lobby.start": "Start game",
+ "lobby.waitingHost": "Waiting for host…",
+ "lobby.share": "Share code",
+ "common.cancel": "Cancel",
+ "errors.fullRoom": "This room is full.",
+ "errors.nameTaken": "That nickname is taken.",
+ "errors.generic": "Something went wrong."
+}

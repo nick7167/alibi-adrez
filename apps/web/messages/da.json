@@ -1,0 +1,23 @@
+{
+ "$schema": "https://inlang.com/schema/inlang-message-format",
+ "app.title": "ALIBI",
+ "home.tagline": "Et festspil med skrøner og afslørede alibier.",
+ "home.create": "Opret rum",
+ "home.join": "Deltag i rum",
+ "home.joinPrompt": "Indtast kode",
+ "join.nickname": "Dit kaldenavn",
+ "join.pickAvatar": "Vælg din avatar",
+ "join.enter": "Gå ind",
+ "lobby.players": "Spillere",
+ "lobby.settings.rounds": "Runder",
+ "lobby.settings.planning": "Planlægningstid (s)",
+ "lobby.settings.answers": "Svartid (s)",
+ "lobby.settings.questions": "Spørgsmål",
+ "lobby.start": "Start spillet",
+ "lobby.waitingHost": "Venter på værten…",
+ "lobby.share": "Del kode",
+ "common.cancel": "Annuller",
+ "errors.fullRoom": "Rummet er fuldt.",
+ "errors.nameTaken": "Det kaldenavn er optaget.",
+ "errors.generic": "Noget gik galt."
+}

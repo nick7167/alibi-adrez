@@ -1,5 +1,12 @@
+<script lang="ts">
+	import { m } from '$lib/paraglide/messages';
+	import { currentLocale, setLocale, type Locale } from '$lib/i18n';
+
+	const locales: Locale[] = ['en', 'da'];
+</script>
+
 <svelte:head>
-	<title>ALIBI 🎭</title>
+	<title>{m['app.title']()} 🎭</title>
 	<meta name="theme-color" content="#FFC93C" />
 </svelte:head>
 
@@ -26,13 +33,13 @@
 				class="reveal text-center text-7xl font-extrabold tracking-tight text-ink"
 				style="animation-delay: 0ms"
 			>
-				ALIBI <span class="align-middle">🎭</span>
+				{m['app.title']()} <span class="align-middle">🎭</span>
 			</h1>
 			<p
 				class="reveal mt-4 text-center text-lg font-semibold"
 				style="animation-delay: 100ms"
 			>
-				A party game of tall tales and busted alibis.
+				{m['home.tagline']()}
 			</p>
 		</header>
 
@@ -43,7 +50,7 @@
 				class="reveal flex min-h-14 w-full items-center justify-center rounded-full bg-cobalt px-8 text-lg font-bold text-white shadow-[0_5px_0_rgba(20,20,51,0.25)] transition-shadow active:translate-y-0.5 active:shadow-[0_2px_0_rgba(20,20,51,0.25)]"
 				style="animation-delay: 200ms"
 			>
-				Create room
+				{m['home.create']()}
 			</button>
 			<button
 				type="button"
@@ -51,18 +58,30 @@
 				class="reveal flex min-h-14 w-full items-center justify-center rounded-full border-4 border-cobalt bg-transparent px-8 text-lg font-bold text-cobalt shadow-[0_5px_0_rgba(20,20,51,0.15)] transition-shadow active:translate-y-0.5 active:shadow-[0_2px_0_rgba(20,20,51,0.15)]"
 				style="animation-delay: 300ms"
 			>
-				Join
+				{m['home.join']()}
 			</button>
 		</div>
-
-		<footer
-			class="reveal mt-10 text-center text-sm font-bold tracking-widest opacity-60"
-			style="animation-delay: 400ms"
-		>
-			EN | DA
-		</footer>
 	</div>
 </main>
+
+<footer
+	class="reveal fixed right-4 bottom-4 z-20 flex items-center gap-1 text-sm font-bold tracking-widest opacity-60"
+	style="animation-delay: 400ms"
+>
+	{#each locales as locale, i (locale)}
+		{#if i > 0}<span aria-hidden="true">|</span>{/if}
+		<button
+			type="button"
+			lang={locale}
+			aria-pressed={currentLocale() === locale}
+			class:underline={currentLocale() === locale}
+			class="cursor-pointer uppercase"
+			onclick={() => void setLocale(locale)}
+		>
+			{locale}
+		</button>
+	{/each}
+</footer>
 
 <style>
 	@keyframes rise-in {
