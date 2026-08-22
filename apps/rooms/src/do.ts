@@ -125,8 +125,9 @@ export class RoomDurableObject implements DurableObject {
     let room = await this.loadRoom();
     if (room === undefined) {
       // First joiner claims an empty-host room even if /init never ran.
+      // Kept in memory until applyEvent succeeds; a failed auth attempt
+      // must not materialize persistent state.
       room = createRoom(this.ctx.id.name ?? "");
-      await this.save(room);
     }
     const result = await applyEvent(room, "", msg, eventDeps());
     if (!result.ok) {

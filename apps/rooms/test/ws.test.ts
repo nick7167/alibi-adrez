@@ -60,6 +60,19 @@ describe("lobby websocket", () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(inbox[0]).toMatchObject({ t: "error", code: "BAD_MESSAGE" });
   });
+  it("failed reconnect against an unused code leaves no state behind", async () => {
+    const code = "WSZ";
+    const { ws, inbox } = await openSocket(code);
+    ws.send(JSON.stringify({ v: 1, t: "reconnect", playerId: "ghost", token: "bogus" }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(inbox[0]).toMatchObject({ t: "error", code: "UNKNOWN_PLAYER" });
+    ws.close();
+    await new Promise((r) => setTimeout(r, 50));
+    const meta = (await (
+      await env.ROOMS_DO.get(env.ROOMS_DO.idFromName(code)).fetch("https://do/meta")
+    ).json()) as { exists: boolean };
+    expect(meta.exists).toBe(false);
+  });
   it("reconnect replays same identity", async () => {
     const first = await connectAndJoin("WSC", "A");
     const welcome = first.inbox[0] as any;
