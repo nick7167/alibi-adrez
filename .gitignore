@@ -8,3 +8,5 @@ dist/
 src/lib/paraglide/
 .DS_Store
 coverage/
+test-results/
+playwright-report/

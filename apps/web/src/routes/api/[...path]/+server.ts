@@ -5,12 +5,21 @@ const handler: RequestHandler = async ({ platform, request }) => {
 	if (!binding) return new Response("rooms unavailable", { status: 503 });
 
 	// Same-origin /api/* facade: rewrite only the origin, keep path + query.
-	// Passing the original request as init preserves method, headers, the
-	// streaming body untouched, and WebSocket upgrade headers (service
-	// bindings pass upgrades through fetch).
+	// Called as fetch(url, init) with primitive inputs on purpose: a Request
+	// object built by the Node-side runtime cannot be re-wrapped by the
+	// platform proxy's own Request implementation (it would be stringified),
+	// whereas url + plain init round-trips everywhere — workerd included.
+	// Method, headers and the streaming body carry over, so REST bodies and
+	// WebSocket upgrade handshakes both survive the hop.
 	const incoming = new URL(request.url);
 	const target = new URL(incoming.pathname + incoming.search, "https://rooms.internal");
-	return binding.fetch(new Request(target, request));
+	const init: RequestInit & { duplex?: "half" } = {
+		method: request.method,
+		headers: request.headers,
+		body: request.body
+	};
+	if (init.body) init.duplex = "half";
+	return binding.fetch(target, init);
 };
 
 export const GET = handler;
