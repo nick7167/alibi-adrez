@@ -1,4 +1,4 @@
-import { SELF, env, runInDurableObject } from "cloudflare:test";
+import { SELF, env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { RoomDurableObject } from "../src/do";
 
