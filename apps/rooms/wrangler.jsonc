@@ -1,0 +1,9 @@
+{
+  "name": "alibi-rooms",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS_DO", "class_name": "RoomDurableObject" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomDurableObject"] }]
+}
