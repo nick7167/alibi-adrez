@@ -16,6 +16,7 @@
 
 	/* Share banner: tap-to-copy (+ native share sheet when available) */
 	let copied = $state(false);
+	let copiedTimer: ReturnType<typeof setTimeout> | null = null;
 
 	async function shareCode() {
 		try {
@@ -25,7 +26,8 @@
 			}
 			await navigator.clipboard.writeText(room.code);
 			copied = true;
-			setTimeout(() => (copied = false), 1600);
+			if (copiedTimer !== null) clearTimeout(copiedTimer);
+			copiedTimer = setTimeout(() => (copied = false), 1600);
 		} catch {
 			// share sheet dismissed / clipboard unavailable — no feedback needed
 		}
@@ -98,6 +100,19 @@
 		}, 300);
 	}
 
+	/* On teardown: cancel the debounced patch (dropping it deliberately —
+	   a stray updateSettings must not fire after the phase leaves LOBBY)
+	   and clear the "copied" chip timer. */
+	$effect(() => {
+		return () => {
+			if (patchTimer !== null) clearTimeout(patchTimer);
+			patchTimer = null;
+			pendingPatch = {};
+			if (copiedTimer !== null) clearTimeout(copiedTimer);
+			copiedTimer = null;
+		};
+	});
+
 	const canStart = $derived(room.players.length >= 2);
 
 	/* Move focus to the lobby heading when the form swaps over to this screen. */
@@ -167,7 +182,7 @@
 				{#if player.id === room.hostId}
 					<span
 						class="starburst absolute -top-3 -right-2 grid size-11 rotate-12 place-items-center bg-grape text-lg"
-						title="HOST"
+						title={m['lobby.hostTag']()}
 					>
 						👑
 					</span>

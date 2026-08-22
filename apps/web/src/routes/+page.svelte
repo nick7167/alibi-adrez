@@ -21,6 +21,12 @@
 		toastTimer = setTimeout(() => (toastMsg = null), 4000);
 	}
 
+	$effect(() => {
+		return () => {
+			if (toastTimer !== null) clearTimeout(toastTimer);
+		};
+	});
+
 	async function create() {
 		if (creating) return;
 		creating = true;

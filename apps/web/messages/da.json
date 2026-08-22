@@ -20,6 +20,7 @@
  "lobby.waitingHost": "Venter på værten…",
  "lobby.needTwo": "Der skal være mindst 2 spillere for at starte.",
  "lobby.share": "Del kode",
+ "lobby.hostTag": "Vært",
  "lobby.copyHint": "Tryk for at kopiere",
  "lobby.copied": "Kopieret!",
  "intro.starting": "Starter…",

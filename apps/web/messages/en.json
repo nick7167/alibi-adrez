@@ -20,6 +20,7 @@
  "lobby.waitingHost": "Waiting for the host…",
  "lobby.needTwo": "Need at least 2 players to start.",
  "lobby.share": "Share code",
+ "lobby.hostTag": "Host",
  "lobby.copyHint": "Tap to copy",
  "lobby.copied": "Copied!",
  "intro.starting": "Starting…",
