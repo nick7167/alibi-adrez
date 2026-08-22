@@ -28,6 +28,7 @@
 		"vitest": "^4.1.11"
 	},
 	"dependencies": {
+		"@alibi/shared": "workspace:*",
 		"@inlang/paraglide-js": "^2.24.1"
 	}
 }
