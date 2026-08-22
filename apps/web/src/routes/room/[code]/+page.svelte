@@ -29,6 +29,13 @@
 		toastTimer = setTimeout(() => (toastMsg = null), 4000);
 	}
 
+	/** Show a toast, then navigate once it has been readable. */
+	function toastThen(text: string, go: () => void) {
+		toast(text);
+		if (toastTimer !== null) clearTimeout(toastTimer);
+		toastTimer = setTimeout(go, 1200);
+	}
+
 	$effect(() => {
 		return () => {
 			if (toastTimer !== null) clearTimeout(toastTimer);
@@ -64,10 +71,9 @@
 					toast(m['errors.nameTaken']());
 					screen = 'join';
 					errorNonce++;
-				} else if (msg.code === 'ROOM_FULL') {
-					toast(m['errors.fullRoom']());
-					void goto('/');
-				} else {
+			} else if (msg.code === 'ROOM_FULL') {
+				toastThen(m['errors.fullRoom'](), () => void goto('/'));
+			} else {
 					if (msg.code === 'UNKNOWN_PLAYER') clearIdentity(code);
 					toast(m['errors.generic']());
 					screen = 'join';
@@ -108,14 +114,19 @@
 		sockRef?.send({ v: 1, t: 'updateSettings', patch });
 	}
 
-	/* Offline overlay: connection has been down for over 5 seconds */
+	/* Offline overlay: connection has been down for over 5 seconds.
+	   The very first handshake gets a grace period; once the socket has
+	   been open, any non-open status starts the countdown. */
 	let offlineLong = $state(false);
+	let everOpened = false;
 
 	$effect(() => {
 		if (status === 'open') {
+			everOpened = true;
 			offlineLong = false;
 			return;
 		}
+		if (!everOpened && status === 'connecting') return;
 		const start = Date.now();
 		const tick = () => (offlineLong = Date.now() - start > 5000);
 		tick();
