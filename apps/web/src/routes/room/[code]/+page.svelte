@@ -90,10 +90,13 @@
 		const saved = loadIdentity(code);
 		const sock = openRoomSocket(code, {
 			onStatus,
-			onMessage: (msg) => handleMessage(msg, code, saved)
+			onMessage: (msg) => handleMessage(msg, code, saved),
+			onOpen: () => {
+				const id = loadIdentity(code);
+				if (id) sock.send({ v: 1, t: 'reconnect', playerId: id.playerId, token: id.token });
+			}
 		});
 		sockRef = sock;
-		if (saved) sock.send({ v: 1, t: 'reconnect', playerId: saved.playerId, token: saved.token });
 		return () => {
 			sock.close();
 			sockRef = null;

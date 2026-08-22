@@ -65,6 +65,35 @@ describe("openRoomSocket", () => {
 		expect(FakeSocket.instances.length).toBe(3); // backoff grew 0.5s → 1s
 	});
 
+	it("invokes onOpen on every socket so a replacement gets re-authenticated", async () => {
+		const reconnectFrame = JSON.stringify({
+			v: 1,
+			t: "reconnect",
+			playerId: "p1",
+			token: "tok"
+		});
+		const { openRoomSocket } = await import("../src/lib/api");
+		let client: import("../src/lib/api").RoomSocket | null = null;
+		const onOpen = vi.fn(() => {
+			client?.send({ v: 1, t: "reconnect", playerId: "p1", token: "tok" });
+		});
+		client = openRoomSocket("AB23", { onMessage: vi.fn(), onStatus: vi.fn(), onOpen });
+		const first = lastSocket();
+		first.serverAccept();
+		expect(onOpen).toHaveBeenCalledTimes(1);
+		expect(first.sent).toEqual([reconnectFrame]);
+		first.close(); // abnormal drop (lock screen / network blip)
+		await vi.advanceTimersByTimeAsync(500);
+		const second = lastSocket();
+		expect(second).not.toBe(first);
+		expect(second.readyState).toBe(FakeSocket.CONNECTING);
+		expect(second.sent).toEqual([]); // nothing sent before the new socket opens
+		second.serverAccept();
+		expect(onOpen).toHaveBeenCalledTimes(2);
+		expect(second.sent).toEqual([reconnectFrame]); // replacement socket re-authenticates
+		client?.close();
+	});
+
 	it("forwards valid server frames and ignores non-conforming ones", async () => {
 		const onMessage = vi.fn();
 		const { openRoomSocket } = await import("../src/lib/api");

@@ -26,6 +26,7 @@ const MAX_BACKOFF_MS = 8000;
 export interface RoomSocketOptions {
 	onMessage(msg: ServerMessage): void;
 	onStatus(s: "connecting" | "open" | "closed" | "reconnecting"): void;
+	onOpen?(): void;
 }
 
 export interface RoomSocket {
@@ -93,6 +94,7 @@ export function openRoomSocket(code: string, opts: RoomSocketOptions): RoomSocke
 			if (ws !== sock || closedByCaller) return;
 			attempt = 0;
 			opts.onStatus("open");
+			opts.onOpen?.();
 			const pending = queue;
 			queue = [];
 			for (const msg of pending) sock.send(JSON.stringify(msg));
