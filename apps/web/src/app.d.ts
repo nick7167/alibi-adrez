@@ -4,8 +4,10 @@
 // for information about these interfaces
 declare global {
 	namespace App {
-		interface Locals {
-			runtime?: { env: { ROOMS: Fetcher } };
+		interface Platform {
+			env: {
+				ROOMS: Fetcher;
+			};
 		}
 	}
 }

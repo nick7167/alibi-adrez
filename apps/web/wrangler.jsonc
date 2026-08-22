@@ -1,7 +1,9 @@
-// TODO(task-10): main + ASSETS binding for SSR
 {
 	"name": "alibi-web",
+	"main": ".svelte-kit/cloudflare/_worker.js",
 	"compatibility_date": "2026-08-01",
-	"assets": { "directory": ".svelte-kit/cloudflare" },
+	// Required: SvelteKit's server bundle imports node:async_hooks
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": { "binding": "ASSETS", "directory": ".svelte-kit/cloudflare" },
 	"services": [{ "binding": "ROOMS", "service": "alibi-rooms" }]
 }
