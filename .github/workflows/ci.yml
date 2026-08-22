@@ -37,6 +37,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - name: Deploy rooms worker
         run: pnpm --filter @alibi/rooms exec wrangler deploy
         env:
