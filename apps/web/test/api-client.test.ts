@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 class FakeSocket {
 	static instances: FakeSocket[] = [];
+	static readonly CONNECTING = 0;
+	static readonly OPEN = 1;
+	readyState: number = FakeSocket.CONNECTING;
 	sent: string[] = [];
 	onopen: (() => void) | null = null;
 	onclose: (() => void) | null = null;
@@ -9,7 +12,10 @@ class FakeSocket {
 	constructor(public url: string) { FakeSocket.instances.push(this); }
 	send(data: string) { this.sent.push(data); }
 	close() { this.onclose?.(); }        // simulate abnormal server close
-	serverAccept() { this.onopen?.(); }  // simulate connection established
+	serverAccept() {                     // simulate connection established
+		this.readyState = FakeSocket.OPEN;
+		this.onopen?.();
+	}
 }
 vi.stubGlobal("WebSocket", FakeSocket);
 vi.stubGlobal("location", { protocol: "http:", host: "x.local" });
@@ -27,10 +33,20 @@ describe("openRoomSocket", () => {
 	it("flushes a queued join after the socket opens", async () => {
 		const { openRoomSocket } = await import("../src/lib/api");
 		const client = openRoomSocket("AB23", { onMessage: vi.fn(), onStatus: vi.fn() });
-		client.send({ v: 1, t: "join", name: "Nick", emoji: "🦊" });
 		const sock = lastSocket();
+		expect(sock.readyState).toBe(FakeSocket.CONNECTING);
+		client.send({ v: 1, t: "join", name: "Nick", emoji: "🦊" });
+		client.send({ v: 1, t: "ping" });
+		expect(sock.sent).toEqual([]); // queued while connecting, NOT sent
 		sock.serverAccept();
-		expect(sock.sent).toEqual([JSON.stringify({ v: 1, t: "join", name: "Nick", emoji: "🦊" })]);
+		expect(sock.readyState).toBe(FakeSocket.OPEN);
+		expect(sock.sent).toEqual([
+			JSON.stringify({ v: 1, t: "join", name: "Nick", emoji: "🦊" }),
+			JSON.stringify({ v: 1, t: "ping" }),
+		]); // flushed in order on open
+		client.send({ v: 1, t: "ping" }); // post-open sends go direct
+		expect(sock.sent.length).toBe(3);
+		expect(sock.sent.at(-1)).toBe(JSON.stringify({ v: 1, t: "ping" }));
 		client.close();
 	});
 
