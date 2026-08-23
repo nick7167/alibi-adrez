@@ -28,4 +28,9 @@ Playwright e2e lives in `apps/web/e2e`; run it locally from that workspace. It i
 
 ## Production URLs
 
-TBD — recorded after the first successful pipeline deploy.
+| Service | URL |
+| --- | --- |
+| Web app | https://alibi-web.nicklas-andreasen2000.workers.dev |
+| Rooms worker (health) | https://alibi-rooms.nicklas-andreasen2000.workers.dev/health |
+
+First pipeline deploy: 2026-08-23 (run 32608396401).
