@@ -143,7 +143,7 @@
 	<meta name="theme-color" content="#FFF6EA" />
 </svelte:head>
 
-<main class="relative min-h-dvh bg-paper text-ink">
+<main class="relative flex h-dvh flex-col overflow-hidden bg-paper text-ink">
 	{#if screen === 'join'}
 		<JoinForm pending={joining} errorNonce={errorNonce} onJoin={join} />
 	{:else if view?.room.phase === 'LOBBY'}
@@ -151,7 +151,7 @@
 	{:else}
 		<section
 			data-testid="intro-splash"
-			class="pop-in grid min-h-dvh place-items-center bg-night px-4 text-center"
+			class="pop-in grid h-dvh place-items-center bg-night px-4 text-center"
 		>
 			<div>
 				<div class="pixel-loader mx-auto" aria-hidden="true">

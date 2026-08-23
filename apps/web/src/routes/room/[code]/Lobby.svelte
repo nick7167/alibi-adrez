@@ -123,7 +123,7 @@
 	});
 </script>
 
-<div class="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 pb-8 pt-10">
+<div class="relative mx-auto flex h-dvh w-full max-w-md flex-col px-4 pb-8 pt-10">
 	{#if burstKey > 0}
 		{#key burstKey}
 			<!-- confetti burst (decorative) -->
@@ -142,7 +142,7 @@
 		type="button"
 		data-testid="share-code"
 		onclick={shareCode}
-		class="sticker mt-2 flex min-h-14 flex-col items-center justify-center rounded-card px-6 py-4"
+		class="sticker mt-2 flex min-h-14 shrink-0 flex-col items-center justify-center rounded-card px-6 py-4"
 	>
 		<span class="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-ink/70">
 			{m['lobby.share']()}
@@ -157,14 +157,15 @@
 		</span>
 	</button>
 
-	<h2
-		bind:this={headingEl}
-		data-testid="players-heading"
-		tabindex="-1"
-		class="reveal mt-10 text-2xl font-extrabold text-ink outline-none"
-	>
-		{m['lobby.players']()} <span class="text-ink/50">{room.players.length}/{MAX_PLAYERS}</span>
-	</h2>
+	<div class="-mr-1 min-h-0 flex-1 overflow-y-auto pr-1">
+		<h2
+			bind:this={headingEl}
+			data-testid="players-heading"
+			tabindex="-1"
+			class="reveal mt-10 text-2xl font-extrabold text-ink outline-none"
+		>
+			{m['lobby.players']()} <span class="text-ink/50">{room.players.length}/{MAX_PLAYERS}</span>
+		</h2>
 
 	<ul class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2" role="list">
 		{#each room.players as player, i (player.id)}
@@ -234,8 +235,9 @@
 			</div>
 		</section>
 	{/if}
+	</div>
 
-	<div class="mt-auto pt-8">
+	<div class="mt-auto shrink-0 pt-8">
 		{#if isHost}
 			<button
 				type="button"
