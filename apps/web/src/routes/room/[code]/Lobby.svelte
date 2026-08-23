@@ -170,7 +170,8 @@
 		</span>
 	</button>
 
-	<div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-1">
+	<div class="relative min-h-0 flex-1">
+		<div class="h-full overflow-x-hidden overflow-y-auto px-2">
 		<h2
 			bind:this={headingEl}
 			data-testid="players-heading"
@@ -195,7 +196,7 @@
 				<span class="truncate text-base font-bold">{player.name}</span>
 				{#if player.id === room.hostId}
 					<span
-						class="starburst absolute -top-2 right-0 grid size-8 rotate-12 place-items-center bg-grape text-sm"
+						class="starburst absolute -top-2 right-1 grid size-8 rotate-12 place-items-center bg-grape text-sm"
 						title={m['lobby.hostTag']()}
 					>
 						👑
@@ -248,6 +249,11 @@
 			</div>
 		</section>
 	{/if}
+		</div>
+		<div
+			class="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-b from-transparent to-paper"
+			aria-hidden="true"
+		></div>
 	</div>
 
 	<div class="shrink-0 pt-4">

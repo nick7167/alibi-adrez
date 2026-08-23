@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { m } from '$lib/paraglide/messages';
-	import { openRoomSocket, type RoomSocket } from '$lib/api';
-	import { clearIdentity, loadIdentity, saveIdentity } from '$lib/stores/session.svelte';
-	import type { Identity } from '$lib/stores/session.svelte';
+import { m } from '$lib/paraglide/messages';
+import { openRoomSocket, type RoomSocket } from '$lib/api';
+import { clearIdentity, loadIdentity, saveIdentity } from '$lib/stores/session.svelte';
+import type { Identity } from '$lib/stores/session.svelte';
+import CanvasColor from '$lib/components/CanvasColor.svelte';
 	import type { RoomView, ServerMessage, Settings } from '@alibi/shared';
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';
@@ -153,12 +154,7 @@
 <svelte:head>
 	<title>{m['app.title']()} · {data.code}</title>
 	<meta name="theme-color" content={themeColor} />
-	<style>
-		html,
-		html > body {
-			background-color: {themeColor};
-		}
-	</style>
+	<CanvasColor color={themeColor} />
 </svelte:head>
 
 <main class="relative flex fill-vp flex-col overflow-hidden bg-paper text-ink">
