@@ -8,6 +8,16 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 		return resolve(event, {
 			transformPageChunk: ({ html }) =>
 				html.replace('%lang%', locale).replace('%dir%', getTextDirection(locale))
+		}).then((response) => {
+			// HTML documents must never be reused across deploys: a stale
+			// document references hashed chunks that no longer exist, which
+			// crashes the app on load. Immutable /_app/* assets keep their
+			// own long-lived caching (served by the assets layer, not here).
+			const isHtml = (response.headers.get('content-type') ?? '').includes('text/html');
+			if (isHtml && !response.headers.has('cache-control')) {
+				response.headers.set('cache-control', 'no-store');
+			}
+			return response;
 		});
 	});
 
