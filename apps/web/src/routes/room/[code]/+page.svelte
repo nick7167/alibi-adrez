@@ -154,7 +154,8 @@
 	<title>{m['app.title']()} · {data.code}</title>
 	<meta name="theme-color" content={themeColor} />
 	<style>
-		html {
+		html,
+		html > body {
 			background-color: {themeColor};
 		}
 	</style>

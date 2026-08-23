@@ -67,7 +67,8 @@
 	<title>{m['app.title']()} 🎭</title>
 	<meta name="theme-color" content="#FFC93C" />
 	<style>
-		html {
+		html,
+		html > body {
 			background-color: #ffc93c;
 		}
 	</style>
