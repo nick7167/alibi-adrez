@@ -66,6 +66,11 @@
 <svelte:head>
 	<title>{m['app.title']()} 🎭</title>
 	<meta name="theme-color" content="#FFC93C" />
+	<style>
+		html {
+			background-color: #ffc93c;
+		}
+	</style>
 </svelte:head>
 
 <main class="relative fill-vp overflow-hidden bg-sunshine text-ink">

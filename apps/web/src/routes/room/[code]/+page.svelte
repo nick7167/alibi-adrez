@@ -153,6 +153,11 @@
 <svelte:head>
 	<title>{m['app.title']()} · {data.code}</title>
 	<meta name="theme-color" content={themeColor} />
+	<style>
+		html {
+			background-color: {themeColor};
+		}
+	</style>
 </svelte:head>
 
 <main class="relative flex fill-vp flex-col overflow-hidden bg-paper text-ink">
