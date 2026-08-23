@@ -68,7 +68,7 @@
 	<meta name="theme-color" content="#FFC93C" />
 </svelte:head>
 
-<main class="relative h-dvh overflow-hidden bg-sunshine text-ink">
+<main class="relative fill-vp overflow-hidden bg-sunshine text-ink">
 	<!-- pixel-confetti layer (decorative) -->
 	<div class="pointer-events-none absolute inset-0" aria-hidden="true">
 		<span class="absolute top-[8%] left-[6%] h-3 w-3 rotate-12 bg-cobalt opacity-15"></span>
@@ -84,7 +84,7 @@
 	</div>
 
 	<div
-		class="relative z-10 mx-auto flex h-full w-full max-w-md flex-col px-4 pt-16 pb-8"
+		class="relative z-10 mx-auto flex h-full w-full max-w-md flex-col overflow-y-auto px-4 pt-16 pb-safe"
 	>
 		<header>
 			<h1
@@ -170,8 +170,7 @@
 </main>
 
 <footer
-	class="reveal fixed right-4 bottom-4 z-20 flex items-center gap-1 text-sm font-bold tracking-widest opacity-60"
-	style="animation-delay: 400ms"
+	class="reveal fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 flex items-center gap-1 text-sm font-bold tracking-widest opacity-60"
 >
 	{#each locales as locale, i (locale)}
 		{#if i > 0}<span aria-hidden="true">|</span>{/if}

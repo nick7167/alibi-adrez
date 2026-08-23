@@ -1,6 +1,7 @@
 {
  "$schema": "https://inlang.com/schema/inlang-message-format",
  "app.title": "ALIBI",
+ "nav.back": "Tilbage",
  "home.tagline": "Et festspil med skrøner og afslørede alibier.",
  "home.create": "Opret rum",
  "home.creating": "Opretter…",
@@ -23,6 +24,7 @@
  "lobby.hostTag": "Vært",
  "lobby.copyHint": "Tryk for at kopiere",
  "lobby.copied": "Kopieret!",
+ "lobby.leave": "Forlad rum",
  "intro.starting": "Starter…",
  "offline.title": "Forbindelsen ryger",
  "offline.retry": "Genopretter forbindelse…",

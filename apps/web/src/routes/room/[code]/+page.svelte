@@ -113,6 +113,13 @@
 		sockRef?.send({ v: 1, t: 'startGame' });
 	}
 
+	/** Leave the room politely, drop the local identity, head home. */
+	function leaveRoom() {
+		sockRef?.leave();
+		clearIdentity(data.code);
+		void goto('/');
+	}
+
 	function updateSettings(patch: Partial<Settings>) {
 		sockRef?.send({ v: 1, t: 'updateSettings', patch });
 	}
@@ -143,17 +150,32 @@
 	<meta name="theme-color" content="#FFF6EA" />
 </svelte:head>
 
-<main class="relative flex h-dvh flex-col overflow-hidden bg-paper text-ink">
+<main class="relative flex fill-vp flex-col overflow-hidden bg-paper text-ink">
 	{#if screen === 'join'}
+		<button
+			type="button"
+			data-testid="back-home"
+			aria-label={m['nav.back']()}
+			onclick={() => void goto('/')}
+			class="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 grid size-11 place-items-center rounded-full border-4 border-ink bg-paper text-xl font-bold text-ink"
+		>
+			←
+		</button>
 		<JoinForm pending={joining} errorNonce={errorNonce} onJoin={join} />
 	{:else if view?.room.phase === 'LOBBY'}
-		<Lobby isHost={view.isHost} room={view.room} onStart={startGame} onUpdate={updateSettings} />
+		<Lobby
+			isHost={view.isHost}
+			room={view.room}
+			onStart={startGame}
+			onUpdate={updateSettings}
+			onLeave={leaveRoom}
+		/>
 	{:else}
 		<section
 			data-testid="intro-splash"
-			class="pop-in grid h-dvh place-items-center bg-night px-4 text-center"
+			class="pop-in grid fill-vp place-items-center bg-night px-4 text-center"
 		>
-			<div>
+			<div class="pb-safe">
 				<div class="pixel-loader mx-auto" aria-hidden="true">
 					<span></span><span></span><span></span>
 				</div>

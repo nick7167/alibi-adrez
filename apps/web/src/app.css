@@ -31,3 +31,20 @@ body {
 	overflow: hidden;
 	overscroll-behavior: none;
 }
+
+/* Viewport helpers — edge-to-edge shells that respect device safe areas.
+   Unlayered on purpose: when combined with Tailwind padding/height
+   utilities these intentionally win, so `pb-8 pb-safe` merges instead of
+   depending on source order. */
+.fill-vp {
+	height: 100vh;
+	height: 100dvh;
+}
+
+.pt-safe {
+	padding-top: max(2rem, env(safe-area-inset-top));
+}
+
+.pb-safe {
+	padding-bottom: max(2rem, env(safe-area-inset-bottom));
+}

@@ -32,6 +32,7 @@ export interface RoomSocketOptions {
 export interface RoomSocket {
 	send(msg: ClientMessage): void;
 	close(): void;
+	leave(): void;
 }
 
 function parseServerFrame(raw: unknown): ServerMessage | null {
@@ -73,6 +74,7 @@ export function openRoomSocket(code: string, opts: RoomSocketOptions): RoomSocke
 
 	let ws: WebSocket | null = null;
 	let closedByCaller = false;
+	let authed = false; // flipped when the server sends a welcome frame
 	let attempt = 0;
 	let retryTimer: ReturnType<typeof setTimeout> | null = null;
 	let queue: ClientMessage[] = [];
@@ -109,7 +111,9 @@ export function openRoomSocket(code: string, opts: RoomSocketOptions): RoomSocke
 		sock.onmessage = (e: MessageEvent) => {
 			if (ws !== sock) return;
 			const msg = parseServerFrame(e.data);
-			if (msg) opts.onMessage(msg);
+			if (!msg) return;
+			if (msg.t === "welcome") authed = true;
+			opts.onMessage(msg);
 		};
 	}
 
@@ -121,6 +125,15 @@ export function openRoomSocket(code: string, opts: RoomSocketOptions): RoomSocke
 		retryTimer = setTimeout(connect, delay);
 	}
 
+	function shutdown() {
+		closedByCaller = true;
+		clearRetryTimer();
+		queue = [];
+		ws?.close();
+		ws = null;
+		opts.onStatus("closed");
+	}
+
 	connect();
 
 	return {
@@ -130,12 +143,19 @@ export function openRoomSocket(code: string, opts: RoomSocketOptions): RoomSocke
 			else queue.push(msg);
 		},
 		close(): void {
-			closedByCaller = true;
-			clearRetryTimer();
-			queue = [];
-			ws?.close();
-			ws = null;
-			opts.onStatus("closed");
+			shutdown();
+		},
+		/** Tell the server we're leaving (only if joined + connected), then
+		    close for good. Best-effort by design — never throws. */
+		leave(): void {
+			if (!closedByCaller && authed && ws?.readyState === WebSocket.OPEN) {
+				try {
+					ws.send(JSON.stringify({ v: PROTOCOL_VERSION, t: "leave" }));
+				} catch {
+					// send raced a closing socket — the close below is what matters
+				}
+			}
+			shutdown();
 		},
 	};
 }

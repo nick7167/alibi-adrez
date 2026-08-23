@@ -35,7 +35,10 @@
 	];
 </script>
 
-<div class="flex min-h-dvh items-center justify-center bg-cobalt px-4 py-10">
+<!-- Root fills the viewport as a flex column; the middle section is the
+     screen's single scrollable region, so focus-scrolling can lift the
+     nickname field above the on-screen keyboard. -->
+<div class="fill-vp relative flex flex-col bg-cobalt">
 	<!-- pixel-confetti layer (decorative) -->
 	<div class="pointer-events-none absolute inset-0" aria-hidden="true">
 		<span class="absolute top-[10%] left-[8%] h-3 w-3 rotate-12 bg-sunshine opacity-20"></span>
@@ -45,9 +48,10 @@
 		<span class="absolute top-[46%] left-[4%] h-2 w-2 rotate-45 bg-sunshine opacity-15"></span>
 	</div>
 
-	<section
-		class="pop-in relative z-10 w-full max-w-md rounded-card bg-paper p-6 shadow-[0_8px_0_rgba(23,21,49,0.35)] sm:p-8"
-	>
+	<div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-safe pb-safe">
+		<section
+			class="pop-in relative z-10 mx-auto my-auto w-full max-w-md rounded-card bg-paper p-6 shadow-[0_8px_0_rgba(23,21,49,0.35)] sm:p-8"
+		>
 		<h1 class="text-center text-4xl font-extrabold tracking-tight text-ink">
 			{m['join.title']()}
 		</h1>
@@ -99,6 +103,7 @@
 			</button>
 		</form>
 	</section>
+	</div>
 </div>
 
 <style>

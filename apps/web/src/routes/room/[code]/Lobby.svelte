@@ -6,12 +6,14 @@
 		isHost,
 		room,
 		onStart,
-		onUpdate
+		onUpdate,
+		onLeave
 	}: {
 		isHost: boolean;
 		room: LobbyView;
 		onStart: () => void;
 		onUpdate: (patch: Partial<Settings>) => void;
+		onLeave: () => void;
 	} = $props();
 
 	/* Share banner: tap-to-copy (+ native share sheet when available) */
@@ -123,7 +125,7 @@
 	});
 </script>
 
-<div class="relative mx-auto flex h-dvh w-full max-w-md flex-col px-4 pb-8 pt-10">
+<div class="relative mx-auto flex fill-vp w-full max-w-md flex-col px-4 pt-safe pb-safe">
 	{#if burstKey > 0}
 		{#key burstKey}
 			<!-- confetti burst (decorative) -->
@@ -259,6 +261,15 @@
 				{m['lobby.waitingHost']()}
 			</p>
 		{/if}
+
+		<button
+			type="button"
+			data-testid="leave-room"
+			onclick={onLeave}
+			class="mt-3 flex min-h-11 w-full items-center justify-center rounded-full border-4 border-coral bg-transparent px-6 font-bold text-coral"
+		>
+			{m['lobby.leave']()}
+		</button>
 	</div>
 </div>
 
