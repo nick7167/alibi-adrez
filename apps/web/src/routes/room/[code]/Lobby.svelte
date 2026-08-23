@@ -35,13 +35,13 @@
 		}
 	}
 
-	/* Rotated sticker cards cycling palette fills */
+	/* Compact player chips cycling palette fills */
 	const STICKERS = [
-		'bg-sunshine text-ink -rotate-2',
-		'bg-cobalt text-white rotate-1',
-		'bg-coral text-white -rotate-1',
-		'bg-mint text-ink rotate-2',
-		'bg-grape text-white -rotate-2'
+		'bg-sunshine text-ink',
+		'bg-cobalt text-white',
+		'bg-coral text-white',
+		'bg-mint text-ink',
+		'bg-grape text-white'
 	];
 
 	/* Confetti burst on player join/leave */
@@ -142,6 +142,17 @@
 
 	<button
 		type="button"
+		data-testid="leave-room"
+		aria-label={m['lobby.leave']()}
+		title={m['lobby.leave']()}
+		onclick={onLeave}
+		class="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 grid size-11 place-items-center rounded-full border-4 border-coral bg-paper text-lg font-bold text-coral"
+	>
+		✕
+	</button>
+
+	<button
+		type="button"
 		data-testid="share-code"
 		onclick={shareCode}
 		class="sticker mt-2 flex min-h-14 shrink-0 flex-col items-center justify-center rounded-card px-6 py-4"
@@ -159,32 +170,32 @@
 		</span>
 	</button>
 
-	<div class="-mr-1 min-h-0 flex-1 overflow-y-auto pr-1">
+	<div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
 		<h2
 			bind:this={headingEl}
 			data-testid="players-heading"
 			tabindex="-1"
-			class="reveal mt-10 text-2xl font-extrabold text-ink outline-none"
+			class="reveal mt-6 text-2xl font-extrabold text-ink outline-none"
 		>
 			{m['lobby.players']()} <span class="text-ink/50">{room.players.length}/{MAX_PLAYERS}</span>
 		</h2>
 
-	<ul class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2" role="list">
+	<ul class="mt-3 grid grid-cols-1 gap-2" role="list">
 		{#each room.players as player, i (player.id)}
 			<li
 				data-testid="player-card"
-				class={`pop-in relative flex min-h-16 items-center gap-3 rounded-card px-4 py-3 shadow-[0_4px_0_rgba(23,21,49,0.18)] ${
+				class={`pop-in relative flex min-h-12 items-center gap-3 rounded-xl px-3 py-2 shadow-[0_2px_0_rgba(23,21,49,0.15)] ${
 					STICKERS[i % STICKERS.length]
 				}`}
 				style="animation-delay: {i * 60}ms"
 			>
-				<span class="grid size-12 shrink-0 place-items-center rounded-full bg-white/70 text-2xl">
+				<span class="grid size-9 shrink-0 place-items-center rounded-full bg-white/70 text-xl">
 					{player.emoji}
 				</span>
-				<span class="truncate text-lg font-bold">{player.name}</span>
+				<span class="truncate text-base font-bold">{player.name}</span>
 				{#if player.id === room.hostId}
 					<span
-						class="starburst absolute -top-3 -right-2 grid size-11 rotate-12 place-items-center bg-grape text-lg"
+						class="starburst absolute -top-2 -right-1 grid size-8 rotate-12 place-items-center bg-grape text-sm"
 						title={m['lobby.hostTag']()}
 					>
 						👑
@@ -196,13 +207,13 @@
 
 	{#if isHost}
 		<section
-			class="reveal mt-8 rounded-card border-[3px] border-ink bg-paper p-5 shadow-[0_5px_0_rgba(23,21,49,0.15)]"
+			class="reveal mt-5 rounded-card border-[3px] border-ink bg-paper p-4 shadow-[0_5px_0_rgba(23,21,49,0.15)]"
 			style="animation-delay: {room.players.length * 60}ms"
 		>
 			<h3 class="text-sm font-bold uppercase tracking-widest text-ink/70">{m['lobby.settings.title']()}</h3>
-			<div class="mt-3 flex flex-col divide-y divide-ink/10">
+			<div class="mt-2 flex flex-col divide-y divide-ink/10">
 				{#each NUM_FIELDS as f (f.key)}
-					<div class="flex min-h-14 items-center justify-between gap-3 py-1">
+					<div class="flex min-h-12 items-center justify-between gap-3 py-1">
 						<span class="font-semibold text-ink" id={`setting-${f.key}`}>{m[f.labelKey]()}</span>
 						<span class="flex items-center gap-2" role="group" aria-labelledby={`setting-${f.key}`}>
 							<button
@@ -239,7 +250,7 @@
 	{/if}
 	</div>
 
-	<div class="mt-auto shrink-0 pt-8">
+	<div class="shrink-0 pt-4">
 		{#if isHost}
 			<button
 				type="button"
@@ -261,15 +272,6 @@
 				{m['lobby.waitingHost']()}
 			</p>
 		{/if}
-
-		<button
-			type="button"
-			data-testid="leave-room"
-			onclick={onLeave}
-			class="mt-3 flex min-h-11 w-full items-center justify-center rounded-full border-4 border-coral bg-transparent px-6 font-bold text-coral"
-		>
-			{m['lobby.leave']()}
-		</button>
 	</div>
 </div>
 

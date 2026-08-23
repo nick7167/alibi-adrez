@@ -48,15 +48,15 @@
 		<span class="absolute top-[46%] left-[4%] h-2 w-2 rotate-45 bg-sunshine opacity-15"></span>
 	</div>
 
-	<div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-safe pb-safe">
+	<div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pt-safe">
 		<section
-			class="pop-in relative z-10 mx-auto my-auto w-full max-w-md rounded-card bg-paper p-6 shadow-[0_8px_0_rgba(23,21,49,0.35)] sm:p-8"
+			class="pop-in relative z-10 mx-auto mt-4 w-full max-w-md rounded-card bg-paper p-6 shadow-[0_8px_0_rgba(23,21,49,0.35)] sm:p-8"
 		>
 		<h1 class="text-center text-4xl font-extrabold tracking-tight text-ink">
 			{m['join.title']()}
 		</h1>
 
-		<form class="mt-6" onsubmit={submit}>
+		<form class="mt-6" id="join-fields" onsubmit={submit}>
 			<label for="nickname" class="block text-sm font-bold tracking-wide text-ink">
 				{m['join.nickname']()}
 			</label>
@@ -74,8 +74,8 @@
 				class="mt-2 h-14 w-full rounded-full border-4 border-ink bg-white px-5 text-lg font-bold text-ink caret-ink placeholder:text-ink/40 focus:outline-none focus-visible:ring-4 focus-visible:ring-cobalt"
 			/>
 
-			<p class="mt-6 block text-sm font-bold tracking-wide text-ink">{m['join.pickAvatar']()}</p>
-			<div role="radiogroup" aria-label={m['join.pickAvatar']()} class="mt-3 grid grid-cols-4 gap-3">
+			<p class="mt-5 block text-sm font-bold tracking-wide text-ink">{m['join.pickAvatar']()}</p>
+			<div role="radiogroup" aria-label={m['join.pickAvatar']()} class="mt-3 grid grid-cols-4 gap-2.5">
 				{#each AVATARS as avatar, i (avatar)}
 					<button
 						type="button"
@@ -84,7 +84,7 @@
 						aria-label={avatar}
 						data-testid={`avatar-${i}`}
 						onclick={() => (emoji = avatar)}
-						class={`grid h-16 w-full place-items-center rounded-full text-3xl transition-transform duration-150 focus:outline-none focus-visible:ring-4 focus-visible:ring-cobalt ${
+						class={`grid h-14 w-full place-items-center rounded-full text-2xl transition-transform duration-150 focus:outline-none focus-visible:ring-4 focus-visible:ring-cobalt ${
 							AVATAR_FILLS[i % AVATAR_FILLS.length]
 						} ${emoji === avatar ? 'rotate-6 ring-4 ring-ink' : 'hover:scale-105'}`}
 					>
@@ -92,17 +92,20 @@
 					</button>
 				{/each}
 			</div>
-
-			<button
-				type="submit"
-				data-testid="join-submit"
-				disabled={!canJoin}
-				class="sticker mt-8 flex min-h-14 w-full items-center justify-center rounded-full bg-sunshine px-8 text-lg font-bold text-ink disabled:opacity-40"
-			>
-				{m['join.enter']()}
-			</button>
 		</form>
 	</section>
+	</div>
+
+	<div class="shrink-0 px-4 pt-4 pb-safe">
+		<button
+			type="submit"
+			form="join-fields"
+			data-testid="join-submit"
+			disabled={!canJoin}
+			class="sticker flex min-h-14 w-full items-center justify-center rounded-full bg-sunshine px-8 text-lg font-bold text-ink disabled:opacity-40"
+		>
+			{m['join.enter']()}
+		</button>
 	</div>
 </div>
 

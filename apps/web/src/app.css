@@ -21,8 +21,18 @@
 
 body {
 	font-family: var(--font-sans);
-	background-color: var(--color-paper);
 	color: var(--color-ink);
+}
+
+/* Canvas default for EVERY page, current and future: the html+body canvas
+   must match the active screen's field color or iOS paints exposed system
+   zones (status-bar / home-indicator) in the wrong color. High specificity
+   (html > body) so this beats any later-loaded bundle rule. Full-bleed
+   colored screens override per page with the same selector + their field
+   color (see +page.svelte / room/[code]/+page.svelte). */
+html,
+html > body {
+	background-color: var(--color-paper);
 }
 
 html,
