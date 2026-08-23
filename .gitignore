@@ -2,8 +2,11 @@ node_modules/
 dist/
 .build/
 .wrangler/
+.svelte-kit/
 .dev.vars*
 *.local
 src/lib/paraglide/
 .DS_Store
 coverage/
+test-results/
+playwright-report/
