@@ -26,12 +26,13 @@ body {
 
 /* Canvas default for EVERY page, current and future: the html+body canvas
    must match the active screen's field color or iOS paints exposed system
-   zones (status-bar / home-indicator) in the wrong color. High specificity
-   (html > body) so this beats any later-loaded bundle rule. Full-bleed
-   colored screens override per page with the same selector + their field
-   color (see +page.svelte / room/[code]/+page.svelte). */
-html,
-html > body {
+   zones (status-bar / home-indicator) in the wrong color. :where() = zero
+   specificity ON PURPOSE: this default must NEVER win against a page's own
+   canvas color, no matter whether the CSS bundle loads before or after the
+   page's inline <style> (SSR puts the page style first in <head>).
+   Full-bleed colored pages override with a plain `html, html > body`
+   selector + their field color (see +page.svelte / room/[code]/+page.svelte). */
+:where(html, html > body) {
 	background-color: var(--color-paper);
 }
 
