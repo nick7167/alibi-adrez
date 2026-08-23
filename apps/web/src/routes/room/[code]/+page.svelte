@@ -124,6 +124,11 @@
 		sockRef?.send({ v: 1, t: 'updateSettings', patch });
 	}
 
+	/** Browser-chrome tint matches the active screen's field color. */
+	const themeColor = $derived(
+		screen === 'join' ? '#3d50e0' : view?.room.phase === 'LOBBY' ? '#fff6ea' : '#171531'
+	);
+
 	/* Offline overlay: connection has been down for over 5 seconds.
 	   The very first handshake gets a grace period; once the socket has
 	   been open, any non-open status starts the countdown. */
@@ -147,7 +152,7 @@
 
 <svelte:head>
 	<title>{m['app.title']()} · {data.code}</title>
-	<meta name="theme-color" content="#FFF6EA" />
+	<meta name="theme-color" content={themeColor} />
 </svelte:head>
 
 <main class="relative flex fill-vp flex-col overflow-hidden bg-paper text-ink">
