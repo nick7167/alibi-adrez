@@ -44,7 +44,7 @@
 		</span>
 		<div class="flex flex-col items-end">
 			<span class="field-label-invert">{m['game.timeLeft']()}</span>
-			<Countdown deadline={room.deadline} {offset} class="text-coral" />
+			<Countdown deadline={room.deadline} {offset} class="text-sunshine" />
 		</div>
 	</div>
 {/snippet}

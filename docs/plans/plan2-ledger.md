@@ -13,7 +13,7 @@ what a resumed session reads first.
 | T3 state machine | done | `4fac82c` | Round loop in new `packages/shared/src/round.ts` (`RoundState`, `advance`, `applyRoundMessage`, `handlePlayerLeft`, scoring, pair/scenario rotation), re-exported from `src/index.ts`; `InternalRoom` gains `scores`/`wasSuspect`/`rounds`/`deadline` and `EventDeps` gains `now()`/`random()`; 33 new tests in `test/round.test.ts` |
 | T4 snapshots | done | `30b1ace` | Per-player `lang` (`join` optional `lang`, new `setLang`), app questions store `detailIndex` instead of English text, and `snapshotForPlayer` builds the real per-phase/per-role view in the reader's language; 27 new tests in `test/snapshot.test.ts` |
 | T5 rooms timers/dispatch | done | `a9b2d04` | One alarm slot multiplexes the phase deadline and a `destroyAt` idle key; `alarm()` catches up via `advance` in a loop, self-destructs only when idle is due *and* no sockets are attached, then re-arms for whichever is next; `setLang` + the four round messages routed through `dispatch`; `state` gains `now`; 12 new tests in `apps/rooms/test/round.test.ts` |
-| T6 web plumbing + PLANNING | done | — | `api.ts` gains `submitQuestion`/`suspectChat`/`submitAnswer`/`castVote`/`setLang` send helpers + `computeClockOffset`; `+page.svelte` routes every `Phase` (LOBBY→Lobby, INTRO→splash, PLANNING→new `Planning.svelte`, INTERROGATION/DELIBERATION/REVEAL/FINALE→`TODO(T7)`/`TODO(T8)`/`TODO(T9)` placeholders); new `Countdown.svelte`; canvas/`theme-color` derivation extended to the ledger's 7-phase table |
+| T6 web plumbing + PLANNING | done | `e57e737` | `api.ts` gains `submitQuestion`/`suspectChat`/`submitAnswer`/`castVote`/`setLang` send helpers + `computeClockOffset`; `+page.svelte` routes every `Phase` (LOBBY→Lobby, INTRO→splash, PLANNING→new `Planning.svelte`, INTERROGATION/DELIBERATION/REVEAL/FINALE→`TODO(T7)`/`TODO(T8)`/`TODO(T9)` placeholders); new `Countdown.svelte`; canvas/`theme-color` derivation extended to the ledger's 7-phase table |
 | T7 web INTERROGATION | not started | — | |
 | T8 web DELIBERATION + REVEAL | not started | — | |
 | T9 web FINALE + e2e | not started | — | |
@@ -267,6 +267,17 @@ derivation rather than adding a parallel branch.
     `Planning` receives them. Same pattern for T8 (DELIBERATION, REVEAL) and
     T9 (FINALE) — each just swaps its `{@render placeholder(...)}` call for
     the real component.
+
+### Orchestrator ruling — the evidence accent flips on dark fields (binding on T7-T9)
+
+Coral is the evidence accent on light surfaces (paper, manila, sunshine). On the
+DARK fields — grape PLANNING, night INTERROGATION, cobalt DELIBERATION — coral
+on the field is roughly 1.9:1 and unreadable at a glance; caught on the live
+PLANNING screen where the countdown was coral on grape.
+
+On a dark field the evidence accent is **sunshine** (`text-sunshine`, ~3.9:1,
+which clears AA for the large text it is used on). Coral stamps stay coral
+because they sit on a paper-coloured stamp background, not on the field.
 
 ### Resume point (session checkpoint, 2026-08-24)
 
