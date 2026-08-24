@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
-	import { DEFAULT_SETTINGS, MAX_PLAYERS, type LobbyView, type Settings } from '@alibi/shared';
+	import {
+		DEFAULT_SETTINGS,
+		MAX_PLAYERS,
+		MIN_PLAYERS,
+		type LobbyView,
+		type Settings
+	} from '@alibi/shared';
 
 	let {
 		isHost,
@@ -115,7 +121,7 @@
 		};
 	});
 
-	const canStart = $derived(room.players.length >= 2);
+	const canStart = $derived(room.players.length >= MIN_PLAYERS);
 
 	/* Move focus to the lobby heading when the form swaps over to this screen. */
 	let headingEl = $state<HTMLElement | null>(null);
@@ -333,7 +339,7 @@
 				{m['lobby.start']()}
 			</button>
 			{#if !canStart}
-				<p class="mt-3 text-center font-semibold text-ink/70">{m['lobby.needTwo']()}</p>
+				<p class="mt-3 text-center font-semibold text-ink/70">{m['lobby.needThree']()}</p>
 			{/if}
 		{:else}
 			<p

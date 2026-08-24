@@ -1,5 +1,5 @@
 import { isValidRoomCode, PROTOCOL_VERSION } from "@alibi/shared";
-import type { ClientMessage, ServerMessage } from "@alibi/shared";
+import type { ClientMessage, Lang, ServerMessage, Verdict } from "@alibi/shared";
 
 export async function createRoom(): Promise<{ code: string }> {
 	const res = await fetch("/api/rooms", { method: "POST" });
@@ -33,6 +33,27 @@ export interface RoomSocket {
 	send(msg: ClientMessage): void;
 	close(): void;
 	leave(): void;
+	/** Detective → app: submit a question for the current interrogation slot. */
+	submitQuestion(text: string): void;
+	/** Suspect → suspect: the private two-person planning chat. */
+	suspectChat(text: string): void;
+	/** Suspect → app: answer the question currently on the clock. */
+	submitAnswer(text: string): void;
+	/** Detective → app: cast (or change) a deliberation vote. */
+	castVote(verdict: Verdict): void;
+	/** Either role, any phase: follow the reader to a new language. */
+	setLang(lang: Lang): void;
+}
+
+/**
+ * `offset = now - Date.now()`, from the server's clock on a `state` frame.
+ * Pure so it's trivially testable; the caller stores the result (in Svelte
+ * state) and renders countdowns as `deadline - (Date.now() + offset)`, which
+ * a skewed device clock can't desync. See the ledger's "countdowns are
+ * deadline-based, not ticked" ruling — there is no tick message.
+ */
+export function computeClockOffset(serverNow: number): number {
+	return serverNow - Date.now();
 }
 
 function parseServerFrame(raw: unknown): ServerMessage | null {
@@ -136,12 +157,14 @@ export function openRoomSocket(code: string, opts: RoomSocketOptions): RoomSocke
 
 	connect();
 
+	function send(msg: ClientMessage): void {
+		if (closedByCaller) return;
+		if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+		else queue.push(msg);
+	}
+
 	return {
-		send(msg: ClientMessage): void {
-			if (closedByCaller) return;
-			if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
-			else queue.push(msg);
-		},
+		send,
 		close(): void {
 			shutdown();
 		},
@@ -156,6 +179,21 @@ export function openRoomSocket(code: string, opts: RoomSocketOptions): RoomSocke
 				}
 			}
 			shutdown();
+		},
+		submitQuestion(text: string): void {
+			send({ v: PROTOCOL_VERSION, t: "submitQuestion", text });
+		},
+		suspectChat(text: string): void {
+			send({ v: PROTOCOL_VERSION, t: "suspectChat", text });
+		},
+		submitAnswer(text: string): void {
+			send({ v: PROTOCOL_VERSION, t: "submitAnswer", text });
+		},
+		castVote(verdict: Verdict): void {
+			send({ v: PROTOCOL_VERSION, t: "castVote", verdict });
+		},
+		setLang(lang: Lang): void {
+			send({ v: PROTOCOL_VERSION, t: "setLang", lang });
 		},
 	};
 }

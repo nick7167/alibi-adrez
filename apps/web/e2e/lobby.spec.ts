@@ -1,54 +1,19 @@
-import { expect, test, type Page } from '@playwright/test';
-import { appendFileSync } from 'node:fs';
+import { expect, test } from '@playwright/test';
+import { CODE_RE, clickUntil, joinRoom, open, watch } from './helpers';
 
-const CODE_RE = /\/room\/[A-HJ-KMNP-Z2-9]{4}$/; // shared ROOM_CODE_ALPHABET (no I/L/O/0/1)
-const TRACE_LOG = process.env.ALIBI_E2E_LOG ?? '';
-
-/** Attach console/network diagnostics to a page (written when ALIBI_E2E_LOG is set). */
-function watch(page: Page, label: string) {
-	if (!TRACE_LOG) return;
-	page.on('console', (msg) =>
-		appendFileSync(TRACE_LOG, `${label} CONSOLE ${msg.type()} ${msg.text()}\n`)
-	);
-	page.on('pageerror', (err) => appendFileSync(TRACE_LOG, `${label} PAGEERROR ${err.message}\n`));
-	page.on('requestfailed', (req) =>
-		appendFileSync(TRACE_LOG, `${label} REQFAIL ${req.url()} ${req.failure()?.errorText}\n`)
-	);
-	page.on('response', (res) => {
-		if (!res.ok()) appendFileSync(TRACE_LOG, `${label} HTTP ${res.status()} ${res.url()}\n`);
-	});
-}
-
-/**
- * Navigate and wait until the dev-server module waterfall settles, so
- * SvelteKit has hydrated before interactions begin.
- */
-async function open(page: Page, path: string) {
-	await page.goto(path);
-	await page.waitForLoadState('networkidle').catch(() => {});
-}
-
-/**
- * Click a control and keep re-clicking until its expected effect shows up.
- * Guards against clicks landing before SvelteKit has finished hydrating.
- */
-async function clickUntil(testid: string, page: Page, effect: () => Promise<unknown>) {
-	await expect(async () => {
-		await page.getByTestId(testid).click();
-		await effect();
-	}).toPass({ timeout: 15_000 });
-}
-
-test('create → guest joins → both see 2 players → host starts (INTRO splash)', async ({
+test('create → two guests join → all see 3 players → host starts (INTRO splash)', async ({
 	browser
 }) => {
-	// Host on a phone-sized viewport; guest on a desktop one.
+	// Host on a phone-sized viewport; guests on desktop ones.
 	const hostCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
 	const guestCtx = await browser.newContext();
+	const guest2Ctx = await browser.newContext();
 	const host = await hostCtx.newPage();
 	const guest = await guestCtx.newPage();
+	const guest2 = await guest2Ctx.newPage();
 	watch(host, 'HOST');
 	watch(guest, 'GUEST');
+	watch(guest2, 'GUEST2');
 
 	// 1. Host creates a room on the landing page.
 	await open(host, '/');
@@ -64,39 +29,49 @@ test('create → guest joins → both see 2 players → host starts (INTRO splas
 	);
 
 	// 3. Guest joins via the landing join box (input is uppercased).
-	await open(guest, '/');
-	await clickUntil('join-toggle', guest, () => expect(guest.getByTestId('join-input')).toBeVisible());
-	await guest.getByTestId('join-input').fill(code.toLowerCase());
-	await clickUntil('join-go', guest, () => guest.waitForURL(CODE_RE));
+	await joinRoom(guest, code, 'Guest');
 	expect(new URL(guest.url()).pathname.split('/').at(-1)).toBe(code); // uppercased by the UI
-	await guest.getByTestId('nickname').fill('Guest');
-	await clickUntil('join-submit', guest, () =>
-		expect(guest.getByTestId('players-heading')).toBeVisible()
-	);
 
-	// 4. Both clients see the same two-player lobby.
+	// 4. Both clients see the same two-player lobby — but the game can't
+	// start yet (scope decision 1: 3-player minimum, 2 suspects + a
+	// detective). The host sees the "need 3" note and a disabled button.
 	await expect(host.getByTestId('player-card')).toHaveCount(2);
 	await expect(guest.getByTestId('player-card')).toHaveCount(2);
+	await expect(host.getByTestId('start-game')).toBeDisabled();
+	await expect(host.getByText('Need at least 3 players to start.')).toBeVisible();
+
+	// 5. Second guest joins → three players.
+	await joinRoom(guest2, code, 'Guest2');
+
+	// 6. All three clients see the same three-player lobby.
+	await expect(host.getByTestId('player-card')).toHaveCount(3);
+	await expect(guest.getByTestId('player-card')).toHaveCount(3);
+	await expect(guest2.getByTestId('player-card')).toHaveCount(3);
 	// Target the name explicitly: the host's row also carries a "Host" stamp,
 	// so a bare text lookup matches two elements.
-	await expect(guest.getByTestId('player-name')).toHaveText(['Host', 'Guest']);
-	await expect(host.getByTestId('player-name')).toHaveText(['Host', 'Guest']);
+	await expect(guest.getByTestId('player-name')).toHaveText(['Host', 'Guest', 'Guest2']);
+	await expect(host.getByTestId('player-name')).toHaveText(['Host', 'Guest', 'Guest2']);
 
-	// 5. Only the host sees settings + start; non-host sees the waiting note.
+	// 7. Only the host sees settings + start; non-hosts see the waiting note.
 	await expect(guest.getByTestId('start-game')).toHaveCount(0);
 	await expect(guest.getByTestId('waiting-host')).toBeVisible();
+	await expect(guest2.getByTestId('waiting-host')).toBeVisible();
 
-	// 6. Host tweaks a setting (debounced patch round-trips through the server).
+	// 8. Host tweaks a setting (debounced patch round-trips through the server).
 	await expect(host.getByTestId('value-rounds')).toHaveText('3');
 	await host.getByTestId('inc-rounds').click();
 	await expect(host.getByTestId('value-rounds')).toHaveText('4');
 	await host.waitForTimeout(700); // debounce (300ms) + server broadcast round-trip
 	await expect(host.getByTestId('value-rounds')).toHaveText('4'); // not reverted
 
-	// 7. Host starts the game → INTRO splash on both clients.
+	// 9. Start is now enabled with three players → host starts the game →
+	// INTRO splash on every client.
+	await expect(host.getByTestId('start-game')).toBeEnabled();
 	await clickUntil('start-game', host, () => expect(host.getByTestId('intro-splash')).toBeVisible());
 	await expect(guest.getByTestId('intro-splash')).toBeVisible();
+	await expect(guest2.getByTestId('intro-splash')).toBeVisible();
 
 	await hostCtx.close();
 	await guestCtx.close();
+	await guest2Ctx.close();
 });

@@ -1,4 +1,4 @@
-import { SELF, env, runDurableObjectAlarm } from "cloudflare:test";
+import { SELF, env, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 async function connectAndJoin(code: string, name: string) {
@@ -99,6 +99,7 @@ describe("lobby websocket", () => {
   it("host can start game → INTRO broadcast", async () => {
     const a = await connectAndJoin("WSD", "A");
     const b = await connectAndJoin("WSD", "B");
+    await connectAndJoin("WSD", "C"); // scope decision 1: 3 players minimum
     (a.ws as any).send(JSON.stringify({ v: 1, t: "startGame" }));
     await new Promise((r) => setTimeout(r, 50));
     const last = (b.inbox as any[]).at(-1);
@@ -154,6 +155,14 @@ describe("lobby websocket", () => {
       ws.close();
       await sleep(50); // let server process close + schedule alarm
       const stub = env.ROOMS_DO.get(env.ROOMS_DO.idFromName(code));
+      // The alarm slot is shared with the phase deadline (T5), so the handler
+      // checks the clock instead of assuming any alarm means "self-destruct".
+      // runDurableObjectAlarm fires early, so backdate the idle deadline to
+      // stand in for the ten minutes actually elapsing.
+      await runInDurableObject(stub, async (_instance, state) => {
+        expect(await state.storage.get<number>("destroyAt")).toBeGreaterThan(Date.now());
+        await state.storage.put("destroyAt", Date.now() - 1);
+      });
       expect(await runDurableObjectAlarm(stub)).toBe(true);
       const meta = (await (await stub.fetch("https://do/meta")).json()) as { exists: boolean };
       expect(meta.exists).toBe(false);

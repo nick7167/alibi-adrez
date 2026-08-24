@@ -1,11 +1,17 @@
 import { AVATARS } from "./emojis";
+import type { Lang, ScenarioText } from "../content/scenarios";
 
 export { AVATARS };
+export type { Lang, ScenarioText };
+
+/** Language a client reads when nothing says otherwise. */
+export const DEFAULT_LANG: Lang = "en";
 
 export const PROTOCOL_VERSION = 1;
 export const MAX_PLAYERS = 16;
 export const MAX_NAME_LENGTH = 20;
 export const MAX_MESSAGE_BYTES = 2048;
+export const MAX_TEXT_LENGTH = 240;
 
 export type Phase =
   | "LOBBY" | "INTRO" | "PLANNING"
@@ -13,7 +19,13 @@ export type Phase =
 
 export type EmojiId = string;
 
-export interface Player { id: string; name: string; emoji: EmojiId }
+export interface Player {
+  id: string;
+  name: string;
+  emoji: EmojiId;
+  /** Language this player reads; personalizes their snapshots. */
+  lang: Lang;
+}
 
 export interface Settings {
   rounds: number;
@@ -30,24 +42,121 @@ export const DEFAULT_SETTINGS: Settings = {
 export interface LobbyView {
   phase: "LOBBY"; code: string; hostId: string; players: Player[]; settings: Settings;
 }
-export interface StartingView { phase: "INTRO"; code: string }
-export type RoomView = LobbyView | StartingView;
+
+export type Verdict = "consistent" | "busted";
+export type Role = "suspect" | "detective";
+
+export interface ScoreEntry { playerId: string; score: number }
+export interface ChatLine { playerId: string; text: string }
+export interface AnswerLine { playerId: string; text: string }
+export interface TranscriptEntry { question: string; answers: AnswerLine[] }
+
+/** Fields carried by every in-game (non-LOBBY, non-FINALE) view. */
+interface GameViewCommon {
+  code: string;
+  /** 1-based; 0 before the first round has started. */
+  round: number;
+  roundCount: number;
+  /** Epoch ms when the current phase ends, or null when untimed. */
+  deadline: number | null;
+  players: Player[];
+  scoreboard: ScoreEntry[];
+  /** Empty until a suspect pair has been chosen for the round. */
+  suspectIds: readonly string[];
+}
+
+export interface IntroView extends GameViewCommon { phase: "INTRO" }
+
+export interface PlanningView extends GameViewCommon {
+  phase: "PLANNING";
+  role: Role;
+  /** Suspects only. */
+  scenario?: ScenarioText;
+  /** Suspects only. */
+  chat?: ChatLine[];
+}
+
+export interface InterrogationView extends GameViewCommon {
+  phase: "INTERROGATION";
+  role: Role;
+  questionIndex: number;
+  questionTotal: number;
+  question: string | null;
+  onTheClock: string | null;
+  transcript: TranscriptEntry[];
+  /** Suspects only. */
+  scenario?: ScenarioText;
+  /** Detectives only. */
+  myQuestionsLeft?: number;
+  /** Suspects only. */
+  awaitingMyAnswer?: boolean;
+}
+
+export interface DeliberationView extends GameViewCommon {
+  phase: "DELIBERATION";
+  role: Role;
+  transcript: TranscriptEntry[];
+  votesCast: number;
+  votesNeeded: number;
+  /** Detectives only. */
+  myVote?: Verdict | null;
+}
+
+export interface RevealView extends GameViewCommon {
+  phase: "REVEAL";
+  verdict: Verdict;
+  unanimous: boolean;
+  scenario: ScenarioText;
+  awarded: { playerId: string; points: number }[];
+}
+
+export interface FinaleView {
+  phase: "FINALE";
+  code: string;
+  players: Player[];
+  scoreboard: ScoreEntry[];
+  awards: { key: string; playerId: string }[];
+}
+
+export type RoomView =
+  | LobbyView
+  | IntroView
+  | PlanningView
+  | InterrogationView
+  | DeliberationView
+  | RevealView
+  | FinaleView;
 
 export type ClientMessage =
-  | { v: 1; t: "join"; name: string; emoji: EmojiId }
+  /** `lang` is optional; omitted means `DEFAULT_LANG`, so old clients still work. */
+  | { v: 1; t: "join"; name: string; emoji: EmojiId; lang?: Lang }
   | { v: 1; t: "reconnect"; playerId: string; token: string }
   | { v: 1; t: "updateSettings"; patch: Partial<Settings> }
   | { v: 1; t: "startGame" }
   | { v: 1; t: "leave" }
-  | { v: 1; t: "ping" };
+  | { v: 1; t: "ping" }
+  | { v: 1; t: "submitQuestion"; text: string }
+  | { v: 1; t: "suspectChat"; text: string }
+  | { v: 1; t: "submitAnswer"; text: string }
+  | { v: 1; t: "castVote"; verdict: Verdict }
+  | { v: 1; t: "setLang"; lang: Lang };
 
 export type ErrorCode =
   | "BAD_MESSAGE" | "ROOM_FULL" | "NAME_TAKEN"
-  | "NOT_HOST" | "UNKNOWN_PLAYER" | "GAME_STARTED" | "INTERNAL";
+  | "NOT_HOST" | "UNKNOWN_PLAYER" | "GAME_STARTED" | "INTERNAL"
+  | "NOT_SUSPECT" | "NOT_DETECTIVE" | "WRONG_PHASE"
+  | "ALREADY_ANSWERED" | "ALREADY_VOTED" | "RATE_LIMITED";
 
 export type ServerMessage =
   | { v: 1; t: "welcome"; playerId: string; token: string }
-  | { v: 1; t: "state"; you: string; isHost: boolean; room: RoomView }
+  /**
+   * `now` is the server's clock (epoch ms) at the moment the snapshot was
+   * built. Countdowns are deadline-based, not ticked: the client derives
+   * `offset = now - Date.now()` on receipt and renders
+   * `deadline - (Date.now() + offset)`, so a skewed device clock cannot
+   * desync it and the server never has to broadcast once a second.
+   */
+  | { v: 1; t: "state"; you: string; isHost: boolean; room: RoomView; now: number }
   | { v: 1; t: "error"; code: ErrorCode; message?: string }
   | { v: 1; t: "pong" };
 
@@ -65,15 +174,36 @@ function validEmoji(e: unknown): e is EmojiId {
   return typeof e === "string" && (AVATARS as readonly string[]).includes(e);
 }
 
+function validText(text: unknown): text is string {
+  return typeof text === "string"
+    && text.trim().length > 0
+    && text.trim().length <= MAX_TEXT_LENGTH;
+}
+
+function validVerdict(v: unknown): v is Verdict {
+  return v === "consistent" || v === "busted";
+}
+
+function validLang(v: unknown): v is Lang {
+  return v === "en" || v === "da";
+}
+
 export function parseClientMessage(raw: string): ClientMessage | null {
   if (raw.length > MAX_MESSAGE_BYTES) return null;
   let data: unknown;
   try { data = JSON.parse(raw); } catch { return null; }
   if (!isPlainObject(data) || data.v !== PROTOCOL_VERSION) return null;
   switch (data.t) {
-    case "join":
-      return validName(data.name) && validEmoji(data.emoji)
-        ? { v: 1, t: "join", name: data.name.trim(), emoji: data.emoji } : null;
+    case "join": {
+      if (!validName(data.name) || !validEmoji(data.emoji)) return null;
+      // Absent `lang` stays absent (old clients); present-but-unknown is a
+      // malformed message, same as an unknown emoji.
+      if (data.lang === undefined) {
+        return { v: 1, t: "join", name: data.name.trim(), emoji: data.emoji };
+      }
+      return validLang(data.lang)
+        ? { v: 1, t: "join", name: data.name.trim(), emoji: data.emoji, lang: data.lang } : null;
+    }
     case "reconnect":
       return typeof data.playerId === "string" && typeof data.token === "string"
         ? { v: 1, t: "reconnect", playerId: data.playerId, token: data.token } : null;
@@ -84,6 +214,20 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     case "leave":
     case "ping":
       return { v: 1, t: data.t };
+    case "submitQuestion":
+      return validText(data.text)
+        ? { v: 1, t: "submitQuestion", text: data.text.trim() } : null;
+    case "suspectChat":
+      return validText(data.text)
+        ? { v: 1, t: "suspectChat", text: data.text.trim() } : null;
+    case "submitAnswer":
+      return validText(data.text)
+        ? { v: 1, t: "submitAnswer", text: data.text.trim() } : null;
+    case "castVote":
+      return validVerdict(data.verdict)
+        ? { v: 1, t: "castVote", verdict: data.verdict } : null;
+    case "setLang":
+      return validLang(data.lang) ? { v: 1, t: "setLang", lang: data.lang } : null;
     default:
       return null;
   }
