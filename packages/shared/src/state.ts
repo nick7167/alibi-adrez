@@ -1,7 +1,36 @@
-import type { ClientMessage, ErrorCode, Phase, Player, ServerMessage, Settings } from "./protocol";
-import { DEFAULT_SETTINGS, MAX_PLAYERS } from "./protocol";
+import type { Lang } from "../content/scenarios";
+import { resolveScenario } from "../content/scenarios";
+import type {
+  ClientMessage,
+  DeliberationView,
+  ErrorCode,
+  InterrogationView,
+  Phase,
+  PlanningView,
+  Player,
+  Role,
+  RoomView,
+  ScenarioText,
+  ScoreEntry,
+  ServerMessage,
+  Settings,
+  TranscriptEntry,
+} from "./protocol";
+import { DEFAULT_LANG, DEFAULT_SETTINGS, MAX_PLAYERS } from "./protocol";
 import type { RoundState } from "./round";
-import { MIN_PLAYERS, applyRoundMessage, beginGame, handlePlayerLeft } from "./round";
+import {
+  MIN_PLAYERS,
+  applyRoundMessage,
+  beginGame,
+  currentRound,
+  detectiveIds,
+  finaleAwards,
+  handlePlayerLeft,
+  interrogationPosition,
+  isSuspect,
+  questionFor,
+  questionsLeftFor,
+} from "./round";
 import { hashToken } from "./token";
 
 export interface SessionSecret { playerId: string; tokenHash: string }
@@ -93,7 +122,7 @@ export async function applyEvent(
       const next = structuredClone(room);
       const playerId = deps.newId();
       const token = deps.newToken();
-      next.players.push({ id: playerId, name: msg.name, emoji: msg.emoji });
+      next.players.push({ id: playerId, name: msg.name, emoji: msg.emoji, lang: msg.lang ?? DEFAULT_LANG });
       next.sessions[playerId] = { playerId, tokenHash: await hashToken(token) };
       if (next.hostId === "") next.hostId = playerId;
       return { ok: true, welcome: { playerId, token }, room: next };
@@ -136,6 +165,16 @@ export async function applyEvent(
       handlePlayerLeft(next, senderId, deps);
       return { ok: true, room: next };
     }
+    case "setLang": {
+      // Legal in every phase: the in-app EN/DA toggle follows the player
+      // mid-game, and the next snapshot is rendered in the new language.
+      const idx = room.players.findIndex((p) => p.id === senderId);
+      if (idx === -1) return { ok: false, code: "UNKNOWN_PLAYER", room };
+      if (room.players[idx]!.lang === msg.lang) return { ok: true, room };
+      const next = structuredClone(room);
+      next.players[idx]!.lang = msg.lang;
+      return { ok: true, room: next };
+    }
     case "ping":
       return { ok: true, room };
     case "submitQuestion":
@@ -146,25 +185,155 @@ export async function applyEvent(
   }
 }
 
+// ------------------------------------------------------------------ snapshots
+
+/** Highest score first; ties by playerId so the ordering is stable. */
+function scoreboardFor(room: InternalRoom): ScoreEntry[] {
+  return room.players
+    .map((p) => ({ playerId: p.id, score: room.scores[p.id] ?? 0 }))
+    .sort((a, b) => b.score - a.score || (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0));
+}
+
+const UNKNOWN_SCENARIO: ScenarioText = { story: "", details: ["", "", "", ""] };
+
+function scenarioFor(round: RoundState, lang: Lang): ScenarioText {
+  return structuredClone(resolveScenario(round.scenarioId, lang) ?? UNKNOWN_SCENARIO);
+}
+
+/**
+ * Only *fully* answered questions make the transcript, so the suspect who is
+ * second on the clock never sees what the first one just said, and detectives
+ * only ever read a question once both answers are in.
+ */
+function transcriptFor(room: InternalRoom, round: RoundState, lang: Lang): TranscriptEntry[] {
+  const entries: TranscriptEntry[] = [];
+  for (let i = 0; i < round.questions.length; i++) {
+    const slot = round.answers[i];
+    if (slot === undefined) continue;
+    if (!round.suspectIds.every((id) => Object.prototype.hasOwnProperty.call(slot, id))) continue;
+    entries.push({
+      question: questionFor(round, i, lang) ?? "",
+      answers: round.suspectIds.map((id) => ({ playerId: id, text: slot[id]! })),
+    });
+  }
+  return entries;
+}
+
+/**
+ * The per-player view of the room. Everything a detective must not know — the
+ * scenario before REVEAL and the suspects' private chat, ever — is added only
+ * on the suspect branch, so those keys are *absent* from a detective's object
+ * rather than empty. Scenario text and app-supplied questions are resolved in
+ * the reader's own language.
+ */
+function viewForPlayer(room: InternalRoom, playerId: string): RoomView {
+  const me = room.players.find((p) => p.id === playerId);
+  const lang: Lang = me?.lang ?? DEFAULT_LANG;
+
+  if (room.phase === "LOBBY") {
+    return {
+      phase: "LOBBY",
+      code: room.code,
+      hostId: room.hostId,
+      players: structuredClone(room.players),
+      settings: structuredClone(room.settings),
+    };
+  }
+
+  const scoreboard = scoreboardFor(room);
+  if (room.phase === "FINALE") {
+    return {
+      phase: "FINALE",
+      code: room.code,
+      players: structuredClone(room.players),
+      scoreboard,
+      awards: finaleAwards(room),
+    };
+  }
+
+  const round = currentRound(room);
+  const common = {
+    code: room.code,
+    round: round?.index ?? 0,
+    roundCount: room.settings.rounds,
+    deadline: room.deadline,
+    players: structuredClone(room.players),
+    scoreboard,
+    suspectIds: round === undefined ? [] : [...round.suspectIds],
+  };
+  // A live phase without a round should be impossible; INTRO is the safe view.
+  if (round === undefined) return { phase: "INTRO", ...common };
+
+  const suspect = me !== undefined && isSuspect(round, playerId);
+  const role: Role = suspect ? "suspect" : "detective";
+
+  switch (room.phase) {
+    case "INTRO":
+      return { phase: "INTRO", ...common };
+
+    case "PLANNING": {
+      const view: PlanningView = { phase: "PLANNING", ...common, role };
+      if (suspect) {
+        view.scenario = scenarioFor(round, lang);
+        view.chat = structuredClone(round.chat);
+      }
+      return view;
+    }
+
+    case "INTERROGATION": {
+      const pos = interrogationPosition(room, round);
+      const view: InterrogationView = {
+        phase: "INTERROGATION",
+        ...common,
+        role,
+        questionIndex: pos.questionIndex,
+        questionTotal: room.settings.questionCount,
+        question: questionFor(round, pos.questionIndex, lang),
+        onTheClock: pos.onTheClock,
+        transcript: transcriptFor(room, round, lang),
+      };
+      if (suspect) {
+        view.scenario = scenarioFor(round, lang);
+        view.awaitingMyAnswer = pos.onTheClock === playerId;
+      } else {
+        view.myQuestionsLeft = questionsLeftFor(room, round, playerId);
+      }
+      return view;
+    }
+
+    case "DELIBERATION": {
+      const detectives = detectiveIds(room, round);
+      const view: DeliberationView = {
+        phase: "DELIBERATION",
+        ...common,
+        role,
+        transcript: transcriptFor(room, round, lang),
+        votesCast: detectives.filter((id) => round.votes[id] !== undefined).length,
+        votesNeeded: detectives.length,
+      };
+      if (!suspect) view.myVote = round.votes[playerId] ?? null;
+      return view;
+    }
+
+    case "REVEAL":
+      return {
+        phase: "REVEAL",
+        ...common,
+        verdict: round.verdict ?? "consistent",
+        unanimous: round.unanimous ?? false,
+        // Public from REVEAL on: the whole table is told what the alibi was.
+        scenario: scenarioFor(round, lang),
+        awarded: structuredClone(round.awarded ?? []),
+      };
+  }
+}
+
 export function snapshotForPlayer(room: InternalRoom, playerId: string): ServerMessage {
-  const view =
-    room.phase === "LOBBY"
-      ? {
-          phase: "LOBBY" as const,
-          code: room.code,
-          hostId: room.hostId,
-          players: structuredClone(room.players),
-          settings: structuredClone(room.settings),
-        }
-      : {
-          phase: "INTRO" as const,
-          code: room.code,
-          round: 0,
-          roundCount: room.settings.rounds,
-          deadline: null,
-          players: structuredClone(room.players),
-          scoreboard: room.players.map((p) => ({ playerId: p.id, score: 0 })),
-          suspectIds: [],
-        };
-  return { v: 1, t: "state", you: playerId, isHost: room.hostId === playerId, room: view };
+  return {
+    v: 1,
+    t: "state",
+    you: playerId,
+    isHost: room.hostId === playerId,
+    room: viewForPlayer(room, playerId),
+  };
 }

@@ -1,8 +1,11 @@
 import { AVATARS } from "./emojis";
-import type { ScenarioText } from "../content/scenarios";
+import type { Lang, ScenarioText } from "../content/scenarios";
 
 export { AVATARS };
-export type { ScenarioText };
+export type { Lang, ScenarioText };
+
+/** Language a client reads when nothing says otherwise. */
+export const DEFAULT_LANG: Lang = "en";
 
 export const PROTOCOL_VERSION = 1;
 export const MAX_PLAYERS = 16;
@@ -16,7 +19,13 @@ export type Phase =
 
 export type EmojiId = string;
 
-export interface Player { id: string; name: string; emoji: EmojiId }
+export interface Player {
+  id: string;
+  name: string;
+  emoji: EmojiId;
+  /** Language this player reads; personalizes their snapshots. */
+  lang: Lang;
+}
 
 export interface Settings {
   rounds: number;
@@ -119,7 +128,8 @@ export type RoomView =
   | FinaleView;
 
 export type ClientMessage =
-  | { v: 1; t: "join"; name: string; emoji: EmojiId }
+  /** `lang` is optional; omitted means `DEFAULT_LANG`, so old clients still work. */
+  | { v: 1; t: "join"; name: string; emoji: EmojiId; lang?: Lang }
   | { v: 1; t: "reconnect"; playerId: string; token: string }
   | { v: 1; t: "updateSettings"; patch: Partial<Settings> }
   | { v: 1; t: "startGame" }
@@ -128,7 +138,8 @@ export type ClientMessage =
   | { v: 1; t: "submitQuestion"; text: string }
   | { v: 1; t: "suspectChat"; text: string }
   | { v: 1; t: "submitAnswer"; text: string }
-  | { v: 1; t: "castVote"; verdict: Verdict };
+  | { v: 1; t: "castVote"; verdict: Verdict }
+  | { v: 1; t: "setLang"; lang: Lang };
 
 export type ErrorCode =
   | "BAD_MESSAGE" | "ROOM_FULL" | "NAME_TAKEN"
@@ -166,15 +177,26 @@ function validVerdict(v: unknown): v is Verdict {
   return v === "consistent" || v === "busted";
 }
 
+function validLang(v: unknown): v is Lang {
+  return v === "en" || v === "da";
+}
+
 export function parseClientMessage(raw: string): ClientMessage | null {
   if (raw.length > MAX_MESSAGE_BYTES) return null;
   let data: unknown;
   try { data = JSON.parse(raw); } catch { return null; }
   if (!isPlainObject(data) || data.v !== PROTOCOL_VERSION) return null;
   switch (data.t) {
-    case "join":
-      return validName(data.name) && validEmoji(data.emoji)
-        ? { v: 1, t: "join", name: data.name.trim(), emoji: data.emoji } : null;
+    case "join": {
+      if (!validName(data.name) || !validEmoji(data.emoji)) return null;
+      // Absent `lang` stays absent (old clients); present-but-unknown is a
+      // malformed message, same as an unknown emoji.
+      if (data.lang === undefined) {
+        return { v: 1, t: "join", name: data.name.trim(), emoji: data.emoji };
+      }
+      return validLang(data.lang)
+        ? { v: 1, t: "join", name: data.name.trim(), emoji: data.emoji, lang: data.lang } : null;
+    }
     case "reconnect":
       return typeof data.playerId === "string" && typeof data.token === "string"
         ? { v: 1, t: "reconnect", playerId: data.playerId, token: data.token } : null;
@@ -197,6 +219,8 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     case "castVote":
       return validVerdict(data.verdict)
         ? { v: 1, t: "castVote", verdict: data.verdict } : null;
+    case "setLang":
+      return validLang(data.lang) ? { v: 1, t: "setLang", lang: data.lang } : null;
     default:
       return null;
   }

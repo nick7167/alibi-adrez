@@ -11,7 +11,7 @@ what a resumed session reads first.
 | T1 scenario pack | done | `59fcd9e` | 20 bilingual (en/da) scenarios in `packages/shared/content/scenarios.ts`; exported via `src/index.ts`; `scenarioById`/`resolveScenario` + tests in `test/scenarios.test.ts` |
 | T2 protocol | done | `c6b1aa5` | Added round-loop client messages, error codes, and per-phase views (IntroView replaces StartingView) to `packages/shared/src/protocol.ts`; `snapshotForPlayer` builds a minimal `IntroView`; `applyEvent` stub-rejects the new messages with `WRONG_PHASE` pending T3 |
 | T3 state machine | done | `4fac82c` | Round loop in new `packages/shared/src/round.ts` (`RoundState`, `advance`, `applyRoundMessage`, `handlePlayerLeft`, scoring, pair/scenario rotation), re-exported from `src/index.ts`; `InternalRoom` gains `scores`/`wasSuspect`/`rounds`/`deadline` and `EventDeps` gains `now()`/`random()`; 33 new tests in `test/round.test.ts` |
-| T4 snapshots | not started | — | |
+| T4 snapshots | done | — | Per-player `lang` (`join` optional `lang`, new `setLang`), app questions store `detailIndex` instead of English text, and `snapshotForPlayer` builds the real per-phase/per-role view in the reader's language; 27 new tests in `test/snapshot.test.ts` |
 | T5 rooms timers/dispatch | not started | — | |
 | T6 web plumbing + PLANNING | not started | — | |
 | T7 web INTERROGATION | not started | — | |
@@ -89,3 +89,46 @@ personalized, so the fix belongs in the protocol:
 
 T4 implements this. Later web tasks must send `lang` on join and on locale
 change.
+
+**T4 — per-player language + personalized snapshots**
+
+14. **`lang` is on `Player`, not on the room.** `join` takes an optional
+    `lang` (absent stays absent in the parsed message, so old clients and the
+    existing protocol tests are untouched); `applyEvent` defaults it to
+    `DEFAULT_LANG` (`"en"`). A *present but unknown* `lang` on `join` or
+    `setLang` is a malformed message (`parseClientMessage` -> null -> the DO's
+    `BAD_MESSAGE`), the same treatment an unknown emoji gets.
+15. **`setLang` is legal in every phase** and only ever touches the sender's
+    own `lang`; an unknown sender gets `UNKNOWN_PLAYER`. A no-op change
+    returns the room unchanged (no clone), so the DO can still broadcast
+    safely. **T5 must dispatch `setLang` alongside the four round messages**,
+    and the web tasks must send `lang` on join and on every locale toggle.
+16. **App questions store `detailIndex`.** `RoundQuestion` is now
+    `{ text: string | null; detailIndex: number | null; askedBy: string | null }`
+    — exactly one of `text`/`detailIndex` is set. `questionFor(round, index,
+    lang)` is the only supported way to render a question; never read
+    `question.text` directly. This replaces T3 ruling 5.
+17. **The transcript only contains fully answered questions.** A slot appears
+    once *both* suspects have answered, so the second suspect on the clock
+    cannot read the first one's answer, and detectives never see half a
+    question. Timed-out answers are the empty string and still count as
+    answered.
+18. **REVEAL publishes the scenario to everyone**, detectives included — that
+    is the contract in `protocol.ts` (`RevealView.scenario` is required) and
+    the plan's own wording ("the now-public scenario"). The absence tests
+    therefore assert no `scenario` key in LOBBY/INTRO/PLANNING/INTERROGATION/
+    DELIBERATION/FINALE and assert its *presence* in REVEAL. The `chat` key is
+    absent from a detective's snapshot in **every** phase, and the chat text
+    never appears in the serialized JSON.
+19. **Scoreboard ordering is score descending, then playerId ascending**, in
+    every view that carries one. UI tasks can render it as-is.
+20. **`myQuestionsLeft` is the honest minimum** of the detective's personal cap
+    (5) and the round's remaining question slots (`questionsLeftFor`), so the
+    number never promises a submission that would be `RATE_LIMITED`.
+21. **FINALE awards** (`finaleAwards` in `round.ts`): `mostConvincingLiar`
+    (suspect in the most `consistent` rounds), `sharpestDetective` (most votes
+    matching the resolved verdict), `mostCurious` (most questions submitted;
+    app-supplied questions count for nobody). Fixed key order, ties to the
+    lowest playerId, players who left are ineligible, an award is omitted
+    entirely when nobody qualifies, and one player may win several. New keys
+    can be appended later; T9 must translate them.

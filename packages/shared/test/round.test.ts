@@ -9,6 +9,7 @@ import {
   advance,
   currentRound,
   interrogationPosition,
+  questionFor,
 } from "../src/round";
 import type { ApplyResult, EventDeps, InternalRoom } from "../src/state";
 import { applyEvent, createRoom } from "../src/state";
@@ -125,7 +126,9 @@ describe("round loop — happy path", () => {
 
     // A detective's question lands in the queue and is used for the next slot.
     const queued = ok(await send(interrogation, "p3", { v: 1, t: "submitQuestion", text: "what colour was the foam?" }, deps));
-    expect(round(queued).questions[1]).toEqual({ text: "what colour was the foam?", askedBy: "p3" });
+    // A detective's question keeps its literal text; only app questions store an index.
+    expect(round(queued).questions[1])
+      .toEqual({ text: "what colour was the foam?", detailIndex: null, askedBy: "p3" });
     expect(round(queued).questionsAsked["p3"]).toBe(1);
 
     const a1 = ok(await send(queued, "p1", { v: 1, t: "submitAnswer", text: "pink" }, deps));
@@ -227,9 +230,16 @@ describe("interrogation", () => {
     const questions = round(done).questions;
     expect(questions).toHaveLength(4);
     expect(questions.every((q) => q.askedBy === null)).toBe(true);
+    // App questions store the detail *index* (T4), never resolved text, so they
+    // can be rendered in the reader's language.
+    expect(questions.every((q) => q.text === null)).toBe(true);
     const details = scenarioById(round(done).scenarioId)!.en.details;
-    expect(questions.every((q) => (details as readonly string[]).includes(q.text))).toBe(true);
-    expect(new Set(questions.map((q) => q.text)).size).toBe(4);
+    expect(questions.every((q) => q.detailIndex !== null && q.detailIndex < details.length)).toBe(true);
+    expect(new Set(questions.map((q) => q.detailIndex)).size).toBe(4);
+    // ...and they still resolve to four distinct real details from the pack.
+    const resolved = questions.map((_q, i) => questionFor(round(done), i, "en"));
+    expect(resolved.every((text) => (details as readonly string[]).includes(text!))).toBe(true);
+    expect(new Set(resolved).size).toBe(4);
   });
 
   it("caps a detective at 5 questions per round", async () => {

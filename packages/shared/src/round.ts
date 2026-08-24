@@ -1,4 +1,5 @@
-import { SCENARIOS, scenarioById } from "../content/scenarios";
+import { SCENARIOS, resolveScenario, scenarioById } from "../content/scenarios";
+import type { Lang } from "../content/scenarios";
 import type { ChatLine, ClientMessage, Verdict } from "./protocol";
 import type { ApplyResult, EventDeps, InternalRoom } from "./state";
 
@@ -9,13 +10,27 @@ import type { ApplyResult, EventDeps, InternalRoom } from "./state";
  * `EventDeps` so tests are fully deterministic.
  */
 
+/**
+ * One question in a round's queue. Exactly one of `text`/`detailIndex` is set:
+ * a detective's question carries its literal `text`, an app-supplied one
+ * carries the index of the scenario detail it came from, so it can be rendered
+ * in whatever language the reader has selected (see `questionFor`).
+ */
+export interface RoundQuestion {
+  /** Detective-submitted literal text; null for app-supplied questions. */
+  text: string | null;
+  /** Index into the scenario's `details`; null for detective questions. */
+  detailIndex: number | null;
+  /** `null` means the question was supplied by the app. */
+  askedBy: string | null;
+}
+
 export interface RoundState {
   /** 1-based. */
   index: number;
   suspectIds: [string, string];
   scenarioId: string;
-  /** `askedBy: null` means the question was supplied by the app. */
-  questions: { text: string; askedBy: string | null }[];
+  questions: RoundQuestion[];
   /** questionIndex -> playerId -> text ("" means the answer timer ran out). */
   answers: Record<number, Record<string, string>>;
   chat: ChatLine[];
@@ -101,17 +116,38 @@ function pickScenario(room: InternalRoom, deps: EventDeps): string {
 function ensureQuestion(room: InternalRoom, round: RoundState, index: number, deps: EventDeps): void {
   if (round.questions.length > index) return;
   const scenario = scenarioById(round.scenarioId);
-  const details: readonly string[] = scenario ? scenario.en.details : [];
-  if (details.length === 0) {
-    round.questions.push({ text: "", askedBy: null });
+  const count = scenario ? scenario.en.details.length : 0;
+  if (count === 0) {
+    // Unknown scenario: an empty slot rather than a crash. Reads as "no
+    // question" everywhere downstream.
+    round.questions.push({ text: null, detailIndex: null, askedBy: null });
     return;
   }
+  const all = Array.from({ length: count }, (_, i) => i);
   const used = new Set(
-    round.questions.filter((q) => q.askedBy === null).map((q) => q.text),
+    round.questions.filter((q) => q.detailIndex !== null).map((q) => q.detailIndex),
   );
-  const unused = details.filter((d) => !used.has(d));
-  const pool = unused.length > 0 ? unused : details;
-  round.questions.push({ text: pick(pool, deps), askedBy: null });
+  const unused = all.filter((i) => !used.has(i));
+  const pool = unused.length > 0 ? unused : all;
+  round.questions.push({ text: null, detailIndex: pick(pool, deps), askedBy: null });
+}
+
+/**
+ * The question a reader sees, in their own language: a detective's question
+ * verbatim, an app-supplied one resolved from the scenario detail it stored.
+ * Null when the slot does not exist or cannot be resolved.
+ */
+export function questionFor(
+  round: RoundState,
+  index: number,
+  lang: Lang,
+): string | null {
+  const q = round.questions[index];
+  if (q === undefined) return null;
+  if (q.text !== null) return q.text;
+  if (q.detailIndex === null) return null;
+  const scenario = resolveScenario(round.scenarioId, lang);
+  return scenario?.details[q.detailIndex] ?? null;
 }
 
 /**
@@ -337,7 +373,7 @@ export function applyRoundMessage(
       }
       const next = structuredClone(room);
       const round = currentRound(next)!;
-      round.questions.push({ text: msg.text, askedBy: senderId });
+      round.questions.push({ text: msg.text, detailIndex: null, askedBy: senderId });
       round.questionsAsked[senderId] = asked + 1;
       return { ok: true, room: next };
     }
@@ -411,4 +447,64 @@ export function handlePlayerLeft(room: InternalRoom, leaverId: string, deps: Eve
   if (room.phase === "DELIBERATION" && everyoneVoted(room, round)) {
     resolveDeliberation(room, round, deps);
   }
+}
+
+// -------------------------------------------------------------- finale awards
+
+export interface Award { key: string; playerId: string }
+
+/**
+ * Superlatives derived from the whole game's history. Keys are stable so the
+ * UI can translate them; an award is omitted entirely when nobody qualifies
+ * (no rounds, no votes, no questions) rather than inventing a winner. Ties go
+ * to the lowest playerId so a snapshot is byte-stable, and only players still
+ * in the room can win (a leaver has no scoreboard row to attach to).
+ */
+export function finaleAwards(room: InternalRoom): Award[] {
+  const present = new Set(room.players.map((p) => p.id));
+  const liar: Record<string, number> = {};
+  const sharp: Record<string, number> = {};
+  const curious: Record<string, number> = {};
+  const bump = (tally: Record<string, number>, id: string): void => {
+    if (present.has(id)) tally[id] = (tally[id] ?? 0) + 1;
+  };
+  for (const r of room.rounds) {
+    if (r.verdict === "consistent") for (const id of r.suspectIds) bump(liar, id);
+    if (r.verdict !== undefined) {
+      for (const [id, vote] of Object.entries(r.votes)) if (vote === r.verdict) bump(sharp, id);
+    }
+    for (const q of r.questions) if (q.askedBy !== null) bump(curious, q.askedBy);
+  }
+  const awards: Award[] = [];
+  const add = (key: string, tally: Record<string, number>): void => {
+    let best: string | null = null;
+    let bestCount = 0;
+    // Ascending id order + strict > means the lowest id wins a tie.
+    for (const id of Object.keys(tally).sort()) {
+      const count = tally[id]!;
+      if (count > bestCount) {
+        best = id;
+        bestCount = count;
+      }
+    }
+    if (best !== null) awards.push({ key, playerId: best });
+  };
+  add("mostConvincingLiar", liar);
+  add("sharpestDetective", sharp);
+  add("mostCurious", curious);
+  return awards;
+}
+
+/**
+ * How many more questions a detective may submit this round: their personal
+ * cap and the round's remaining question slots, whichever bites first.
+ */
+export function questionsLeftFor(
+  room: InternalRoom,
+  round: RoundState,
+  detectiveId: string,
+): number {
+  const asked = round.questionsAsked[detectiveId] ?? 0;
+  const slots = room.settings.questionCount - round.questions.length;
+  return Math.max(0, Math.min(MAX_QUESTIONS_PER_DETECTIVE - asked, slots));
 }
