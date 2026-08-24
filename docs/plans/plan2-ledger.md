@@ -14,7 +14,7 @@ what a resumed session reads first.
 | T4 snapshots | done | `30b1ace` | Per-player `lang` (`join` optional `lang`, new `setLang`), app questions store `detailIndex` instead of English text, and `snapshotForPlayer` builds the real per-phase/per-role view in the reader's language; 27 new tests in `test/snapshot.test.ts` |
 | T5 rooms timers/dispatch | done | `a9b2d04` | One alarm slot multiplexes the phase deadline and a `destroyAt` idle key; `alarm()` catches up via `advance` in a loop, self-destructs only when idle is due *and* no sockets are attached, then re-arms for whichever is next; `setLang` + the four round messages routed through `dispatch`; `state` gains `now`; 12 new tests in `apps/rooms/test/round.test.ts` |
 | T6 web plumbing + PLANNING | done | `e57e737` | `api.ts` gains `submitQuestion`/`suspectChat`/`submitAnswer`/`castVote`/`setLang` send helpers + `computeClockOffset`; `+page.svelte` routes every `Phase` (LOBBY→Lobby, INTRO→splash, PLANNING→new `Planning.svelte`, INTERROGATION/DELIBERATION/REVEAL/FINALE→`TODO(T7)`/`TODO(T8)`/`TODO(T9)` placeholders); new `Countdown.svelte`; canvas/`theme-color` derivation extended to the ledger's 7-phase table |
-| T7 web INTERROGATION | not started | — | |
+| T7 web INTERROGATION | done | — | New `Interrogation.svelte` (night field, sunshine countdown/accents): suspects get a big manila question card, turn state ("your turn" vs "X is answering", no input when it isn't their turn), a collapsible scenario reference, and a bottom-pinned answer form only when `awaitingMyAnswer`; detectives get a scrolling transcript of manila cards (paired answers by `suspectIds` order, empty string rendered as a "no answer" stamp) plus a dashed pending-question card for the in-flight `question`, and a bottom-pinned question form gated on `myQuestionsLeft`. `+page.svelte` swaps the placeholder per ruling 33. |
 | T8 web DELIBERATION + REVEAL | not started | — | |
 | T9 web FINALE + e2e | not started | — | |
 
@@ -288,6 +288,30 @@ frame carries `now` (render countdowns from `deadline` locally — never expect 
 tick), and the client must send `lang` on join and `setLang` on every locale
 toggle.
 
+**T7 — web INTERROGATION**
+
+34. **`entry.answers[i]` already lines up with `suspectIds[i]`** — `transcriptFor`
+    (state.ts) builds each answer array via `round.suspectIds.map(...)`, so
+    pairing by index (not by hunting for a role) is safe and stable. T8's
+    `DeliberationView.transcript` is the same `TranscriptEntry[]` shape built
+    by the same function — reuse this pairing, don't re-derive it.
+35. **Empty-string answers are real data, not a loading state.** Render them
+    with a distinct "no answer" stamp (`interrogation.noAnswer`) rather than a
+    blank line — they mean the suspect's timer ran out. Any other screen that
+    renders a transcript (T8's Deliberation) must do the same.
+36. **`submitQuestion` queues ahead, it doesn't require the current slot to be
+    empty.** A detective can submit while a question is mid-answer; it lands in
+    the next open slot. So the question input is gated only on
+    `myQuestionsLeft > 0`, never on `onTheClock`/`question` state.
+37. **New copy keys are under `interrogation.*`** in both `messages/en.json`
+    and `messages/da.json` (progress, turn state, scenario-reference toggle,
+    transcript/pending-question labels, the no-answer stamp, question-left
+    counter). `interrogation.send` is shared by both the answer and the
+    question submit buttons' `aria-label` (same word, same icon). No new route
+    file was added, so `head-canvas.test.ts` (which only walks `src/routes`)
+    needed no changes — `Interrogation.svelte` is a component consumed by the
+    existing `room/[code]/+page.svelte`, same as `Planning.svelte`.
+
 ### Resume point (session checkpoint, 2026-08-24, later)
 
 T1–T6 are done, verified and pushed. The room route now renders every phase
@@ -298,3 +322,15 @@ replace the `TODO(T7)` placeholder per ruling 33, wiring `submitQuestion`
 (detectives) and `submitAnswer` (suspects) through the `RoomSocket` helpers
 already on `api.ts`. Watch for the svelte-check comment gotcha (ruling 28)
 if any new file's script-block comments mention HTML tags by name.
+
+### Resume point (session checkpoint, 2026-08-24, later still)
+
+T1–T7 are done, verified and pushed. `Interrogation.svelte` replaces the
+INTERROGATION placeholder in `room/[code]/+page.svelte` (ruling 33's pattern).
+Next up is **T8 (web: DELIBERATION + REVEAL screens)**. Reuse the
+`TranscriptEntry`/`suspectIds`-index pairing and the empty-string "no answer"
+treatment from T7 (rulings 34–35) — Deliberation shows the same transcript
+shape. Reveal is the one screen whose field is a *light* surface (sunshine,
+ink text) among T7-T9's dark ones, so the evidence accent reverts to coral
+there per the original (non-flipped) rule — don't carry the sunshine-on-dark
+override over by habit.

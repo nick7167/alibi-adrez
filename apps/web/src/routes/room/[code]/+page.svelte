@@ -10,6 +10,7 @@
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';
 	import Planning from './Planning.svelte';
+	import Interrogation from './Interrogation.svelte';
 
 	let { data } = $props();
 
@@ -145,6 +146,14 @@
 
 	function sendChat(text: string) {
 		sockRef?.suspectChat(text);
+	}
+
+	function sendQuestion(text: string) {
+		sockRef?.submitQuestion(text);
+	}
+
+	function sendAnswer(text: string) {
+		sockRef?.submitAnswer(text);
 	}
 
 	/** Which field the room route is showing — the ONE place this branch lives.
@@ -329,8 +338,13 @@
 	{:else if view?.room.phase === 'PLANNING'}
 		<Planning room={view.room} you={view.you} {offset} onSendChat={sendChat} />
 	{:else if view?.room.phase === 'INTERROGATION'}
-		<!-- TODO(T7): replace with the real Interrogation.svelte screen. -->
-		{@render placeholder(view.room.deadline, 'INTERROGATION', 'game.phase.interrogation')}
+		<Interrogation
+			room={view.room}
+			you={view.you}
+			{offset}
+			onSubmitQuestion={sendQuestion}
+			onSubmitAnswer={sendAnswer}
+		/>
 	{:else if view?.room.phase === 'DELIBERATION'}
 		<!-- TODO(T8): replace with the real Deliberation.svelte screen. -->
 		{@render placeholder(view.room.deadline, 'DELIBERATION', 'game.phase.deliberation')}
