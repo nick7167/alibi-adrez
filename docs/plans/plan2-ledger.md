@@ -12,7 +12,7 @@ what a resumed session reads first.
 | T2 protocol | done | `c6b1aa5` | Added round-loop client messages, error codes, and per-phase views (IntroView replaces StartingView) to `packages/shared/src/protocol.ts`; `snapshotForPlayer` builds a minimal `IntroView`; `applyEvent` stub-rejects the new messages with `WRONG_PHASE` pending T3 |
 | T3 state machine | done | `4fac82c` | Round loop in new `packages/shared/src/round.ts` (`RoundState`, `advance`, `applyRoundMessage`, `handlePlayerLeft`, scoring, pair/scenario rotation), re-exported from `src/index.ts`; `InternalRoom` gains `scores`/`wasSuspect`/`rounds`/`deadline` and `EventDeps` gains `now()`/`random()`; 33 new tests in `test/round.test.ts` |
 | T4 snapshots | done | `30b1ace` | Per-player `lang` (`join` optional `lang`, new `setLang`), app questions store `detailIndex` instead of English text, and `snapshotForPlayer` builds the real per-phase/per-role view in the reader's language; 27 new tests in `test/snapshot.test.ts` |
-| T5 rooms timers/dispatch | done | — | One alarm slot multiplexes the phase deadline and a `destroyAt` idle key; `alarm()` catches up via `advance` in a loop, self-destructs only when idle is due *and* no sockets are attached, then re-arms for whichever is next; `setLang` + the four round messages routed through `dispatch`; `state` gains `now`; 12 new tests in `apps/rooms/test/round.test.ts` |
+| T5 rooms timers/dispatch | done | `a9b2d04` | One alarm slot multiplexes the phase deadline and a `destroyAt` idle key; `alarm()` catches up via `advance` in a loop, self-destructs only when idle is due *and* no sockets are attached, then re-arms for whichever is next; `setLang` + the four round messages routed through `dispatch`; `state` gains `now`; 12 new tests in `apps/rooms/test/round.test.ts` |
 | T6 web plumbing + PLANNING | not started | — | |
 | T7 web INTERROGATION | not started | — | |
 | T8 web DELIBERATION + REVEAL | not started | — | |
@@ -194,6 +194,27 @@ This is fewer moving parts, survives hibernation, and is accurate.
 27. **A room orphaned by `/init` with no joiner still has no idle alarm** —
     pre-existing behaviour, unchanged by T5. Worth a cleanup task if orphan
     rooms ever matter.
+
+### Orchestrator ruling — field colour per phase (binding on T6-T9)
+
+Each screen paints the html+body canvas with its field colour (README's canvas
+rule) and `theme-color` must carry the SAME hex — `apps/web/test/head-canvas.test.ts`
+fails the build if they drift. Fixed assignment, do not improvise:
+
+| Phase | Field | Hex | Text |
+|---|---|---|---|
+| LOBBY | paper | `#fff6ea` | ink |
+| INTRO | night | `#171531` | paper |
+| PLANNING | grape | `#7a3be0` | paper |
+| INTERROGATION | night | `#171531` | paper |
+| DELIBERATION | cobalt | `#3d50e0` | paper |
+| REVEAL | sunshine | `#ffc93c` | ink |
+| FINALE | grape | `#7a3be0` | paper |
+
+Colours repeat deliberately (INTRO/INTERROGATION, PLANNING/FINALE) — the phases
+never sit next to each other. The room route already derives a single `field`
+value that drives both `theme-color` and the canvas `<style>`; extend that one
+derivation rather than adding a parallel branch.
 
 ### Resume point (session checkpoint, 2026-08-24)
 
