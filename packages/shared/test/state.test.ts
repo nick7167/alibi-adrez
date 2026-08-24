@@ -5,7 +5,7 @@ import { applyEvent, createRoom, snapshotForPlayer } from "../src/state";
 function makeDeps() {
   let i = 0;
   let t = 0;
-  return { newId: () => `p${++i}`, newToken: () => `tok${++t}` };
+  return { newId: () => `p${++i}`, newToken: () => `tok${++t}`, now: () => 0, random: () => 0 };
 }
 
 async function lobbyWithPlayers(n: number) {
@@ -72,17 +72,20 @@ describe("lobby state machine", () => {
       .toEqual(["answerSec", "planningSec", "questionCount", "rounds", "scenarioSource"]);
     expect(({} as { polluted?: unknown }).polluted).toBeUndefined();
   });
-  it("startGame requires host and 2+ players, moves to INTRO", async () => {
+  it("startGame requires host and 3+ players, moves to INTRO", async () => {
     const deps = makeDeps();
     const solo = await lobbyWithPlayers(1);
     expect(await applyEvent(solo, "p1", { v: 1, t: "startGame" }, deps)).toMatchObject({ ok: false });
-    const room = await lobbyWithPlayers(2);
+    const pair = await lobbyWithPlayers(2);
+    expect(await applyEvent(pair, "p1", { v: 1, t: "startGame" }, deps))
+      .toMatchObject({ ok: false, code: "BAD_MESSAGE" });
+    const room = await lobbyWithPlayers(3);
     const r = await applyEvent(room, "p1", { v: 1, t: "startGame" }, deps);
     expect(r.ok && r.room.phase).toBe("INTRO");
   });
   it("rejects joining after the game has started", async () => {
     const deps = makeDeps();
-    const room = await lobbyWithPlayers(2);
+    const room = await lobbyWithPlayers(3);
     const started = await applyEvent(room, "p1", { v: 1, t: "startGame" }, deps);
     if (!started.ok) throw new Error("setup failed");
     const r = await applyEvent(started.room, "", { v: 1, t: "join", name: "late", emoji: "🦊" }, deps);

@@ -99,6 +99,7 @@ describe("lobby websocket", () => {
   it("host can start game → INTRO broadcast", async () => {
     const a = await connectAndJoin("WSD", "A");
     const b = await connectAndJoin("WSD", "B");
+    await connectAndJoin("WSD", "C"); // scope decision 1: 3 players minimum
     (a.ws as any).send(JSON.stringify({ v: 1, t: "startGame" }));
     await new Promise((r) => setTimeout(r, 50));
     const last = (b.inbox as any[]).at(-1);

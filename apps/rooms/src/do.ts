@@ -18,6 +18,8 @@ type WsAttachment = { authed: false } | { authed: true; playerId: string };
 const eventDeps = (): EventDeps => ({
   newId: () => crypto.randomUUID(),
   newToken: () => crypto.randomUUID(),
+  now: () => Date.now(),
+  random: () => Math.random(),
 });
 
 export class RoomDurableObject implements DurableObject {

@@ -1,5 +1,7 @@
 import type { ClientMessage, ErrorCode, Phase, Player, ServerMessage, Settings } from "./protocol";
 import { DEFAULT_SETTINGS, MAX_PLAYERS } from "./protocol";
+import type { RoundState } from "./round";
+import { MIN_PLAYERS, applyRoundMessage, beginGame, handlePlayerLeft } from "./round";
 import { hashToken } from "./token";
 
 export interface SessionSecret { playerId: string; tokenHash: string }
@@ -7,15 +9,27 @@ export interface SessionSecret { playerId: string; tokenHash: string }
 export interface InternalRoom {
   code: string;
   hostId: string;
-  phase: Extract<Phase, "LOBBY" | "INTRO">;
+  phase: Phase;
   players: Player[];
   settings: Settings;
   sessions: Record<string /*playerId*/, SessionSecret>;
+  /** playerId -> running score. */
+  scores: Record<string, number>;
+  /** playerId -> has already been a suspect in the current rotation. */
+  wasSuspect: Record<string, boolean>;
+  /** Every round played so far; the last entry is the live one. */
+  rounds: RoundState[];
+  /** Epoch ms when the current phase ends, or null when untimed. */
+  deadline: number | null;
 }
 
 export interface EventDeps {
   newId(): string;
   newToken(): string;
+  /** Epoch ms. Injected so phase timing is deterministic in tests. */
+  now(): number;
+  /** 0 <= random() < 1. Injected so pair/scenario choice is deterministic. */
+  random(): number;
 }
 
 export type ApplyResult =
@@ -30,6 +44,10 @@ export function createRoom(code: string): InternalRoom {
     players: [],
     settings: structuredClone(DEFAULT_SETTINGS),
     sessions: {},
+    scores: {},
+    wasSuspect: {},
+    rounds: [],
+    deadline: null,
   };
 }
 
@@ -89,16 +107,19 @@ export async function applyEvent(
       return { ok: true, room };
     }
     case "updateSettings": {
+      if (room.phase !== "LOBBY") return { ok: false, code: "WRONG_PHASE", room };
       if (senderId !== room.hostId) return { ok: false, code: "NOT_HOST", room };
       const next = structuredClone(room);
       next.settings = nextSettings(room.settings, msg.patch);
       return { ok: true, room: next };
     }
     case "startGame": {
+      if (room.phase !== "LOBBY") return { ok: false, code: "WRONG_PHASE", room };
       if (senderId !== room.hostId) return { ok: false, code: "NOT_HOST", room };
-      if (room.players.length < 2) return { ok: false, code: "BAD_MESSAGE", room };
+      // Scope decision 1: two suspects plus at least one detective.
+      if (room.players.length < MIN_PLAYERS) return { ok: false, code: "BAD_MESSAGE", room };
       const next = structuredClone(room);
-      next.phase = "INTRO";
+      beginGame(next, deps);
       return { ok: true, room: next };
     }
     case "leave": {
@@ -112,17 +133,16 @@ export async function applyEvent(
       } else if (senderId === next.hostId) {
         next.hostId = next.players[0]!.id;
       }
+      handlePlayerLeft(next, senderId, deps);
       return { ok: true, room: next };
     }
     case "ping":
       return { ok: true, room };
-    // Round-loop messages: the state machine lands in T3. Stub rejection
-    // here only keeps applyEvent's switch exhaustive and the tree green.
     case "submitQuestion":
     case "suspectChat":
     case "submitAnswer":
     case "castVote":
-      return { ok: false, code: "WRONG_PHASE", room };
+      return applyRoundMessage(room, senderId, msg, deps);
   }
 }
 
