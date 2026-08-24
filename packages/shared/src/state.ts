@@ -328,12 +328,22 @@ function viewForPlayer(room: InternalRoom, playerId: string): RoomView {
   }
 }
 
-export function snapshotForPlayer(room: InternalRoom, playerId: string): ServerMessage {
+/**
+ * `now` is stamped on every snapshot so clients can render the phase
+ * countdown from `deadline` alone (see the `state` message in `protocol.ts`).
+ * It defaults to the wall clock; callers with an injected clock pass theirs.
+ */
+export function snapshotForPlayer(
+  room: InternalRoom,
+  playerId: string,
+  now: number = Date.now(),
+): ServerMessage {
   return {
     v: 1,
     t: "state",
     you: playerId,
     isHost: room.hostId === playerId,
     room: viewForPlayer(room, playerId),
+    now,
   };
 }

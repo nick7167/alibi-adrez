@@ -12,7 +12,7 @@ what a resumed session reads first.
 | T2 protocol | done | `c6b1aa5` | Added round-loop client messages, error codes, and per-phase views (IntroView replaces StartingView) to `packages/shared/src/protocol.ts`; `snapshotForPlayer` builds a minimal `IntroView`; `applyEvent` stub-rejects the new messages with `WRONG_PHASE` pending T3 |
 | T3 state machine | done | `4fac82c` | Round loop in new `packages/shared/src/round.ts` (`RoundState`, `advance`, `applyRoundMessage`, `handlePlayerLeft`, scoring, pair/scenario rotation), re-exported from `src/index.ts`; `InternalRoom` gains `scores`/`wasSuspect`/`rounds`/`deadline` and `EventDeps` gains `now()`/`random()`; 33 new tests in `test/round.test.ts` |
 | T4 snapshots | done | `30b1ace` | Per-player `lang` (`join` optional `lang`, new `setLang`), app questions store `detailIndex` instead of English text, and `snapshotForPlayer` builds the real per-phase/per-role view in the reader's language; 27 new tests in `test/snapshot.test.ts` |
-| T5 rooms timers/dispatch | not started | — | |
+| T5 rooms timers/dispatch | done | — | One alarm slot multiplexes the phase deadline and a `destroyAt` idle key; `alarm()` catches up via `advance` in a loop, self-destructs only when idle is due *and* no sockets are attached, then re-arms for whichever is next; `setLang` + the four round messages routed through `dispatch`; `state` gains `now`; 12 new tests in `apps/rooms/test/round.test.ts` |
 | T6 web plumbing + PLANNING | not started | — | |
 | T7 web INTERROGATION | not started | — | |
 | T8 web DELIBERATION + REVEAL | not started | — | |
@@ -152,9 +152,54 @@ and each client renders the countdown locally:
 
 This is fewer moving parts, survives hibernation, and is accurate.
 
+**T5 — rooms: timers, alarms and dispatch**
+
+22. **Two deadlines, one alarm.** The idle self-destruct time lives in its own
+    storage key `destroyAt` (set when the last socket closes, deleted on any
+    successful `join`/`reconnect`); the phase deadline is `room.deadline`.
+    `rescheduleAlarm()` arms `ctx.storage.setAlarm` for the *earlier* of the
+    two, or deletes the alarm when neither exists. `alarm()` is therefore a
+    general wake-up, not "time to die": it catches the room up, then destroys
+    only if `destroyAt` is due **and** `ctx.getWebSockets()` is empty. A
+    hibernated socket counts as attached, so a room is never destroyed out
+    from under a connected player.
+23. **`catchUp()` runs before every client message**, not only in the alarm. An
+    alarm can be delivered late, and a socket message wakes the object just
+    the same, so a message must never be judged against a phase whose time is
+    already up. It loops `advance` until it reports no change (bounded by
+    `MAX_ADVANCE_STEPS = 16`, unreachable in practice since `advance`
+    re-bases every deadline off `now`), saves once and broadcasts once.
+24. **`rescheduleAlarm` is called after every mutating dispatch**, including
+    the failure branch (catch-up may have moved the phase even though the
+    message was rejected), after `startGame`, after `leave`, and after any
+    round message. `setLang` is routed alongside the four round messages, so
+    T4's obligation is discharged.
+25. **`state` carries `now`** (`snapshotForPlayer(room, playerId, now =
+    Date.now())`). The extra parameter is optional so the existing shared
+    tests are untouched; the DO stamps one `now` per broadcast. This is the
+    only protocol change T5 needed — no tick message exists and none should
+    be added (see the orchestrator ruling above). **T6 must compute
+    `offset = now - Date.now()` on receipt and render the countdown from
+    `deadline`.**
+26. **Time cannot be faked in `vitest-pool-workers`.** `runDurableObjectAlarm`
+    fires the handler immediately regardless of when the alarm was scheduled,
+    and there is no supported clock control. Tests therefore *backdate the
+    deadline the alarm is waiting on* (`room.deadline`, or `destroyAt`) via
+    `runInDurableObject` and then run the alarm — the handler still makes its
+    real decision from the real `Date.now()`. `expirePhase()` also refreshes
+    the DO's in-memory `room` cache so storage and cache stay consistent. The
+    existing "destroys storage when alarm fires with zero connections" test in
+    `ws.test.ts` was updated the same way: it used to rely on the old alarm
+    destroying unconditionally.
+27. **A room orphaned by `/init` with no joiner still has no idle alarm** —
+    pre-existing behaviour, unchanged by T5. Worth a cleanup task if orphan
+    rooms ever matter.
+
 ### Resume point (session checkpoint, 2026-08-24)
 
-T1–T4 are done, verified and pushed. Next up is **T5 (rooms: timers, alarms and
-dispatch)** exactly as written in the plan, plus one obligation T4 discovered:
-`setLang` is not routed in `apps/rooms/src/do.ts` yet, so a client sending it is
-silently dropped. T5 owns that file and must wire it.
+T1–T5 are done, verified and pushed. The server now drives the whole loop:
+sockets in, phases on an alarm, personalized snapshots out. Next up is **T6
+(web: round plumbing + PLANNING screen)**. Two things T6 inherits: the `state`
+frame carries `now` (render countdowns from `deadline` locally — never expect a
+tick), and the client must send `lang` on join and `setLang` on every locale
+toggle.

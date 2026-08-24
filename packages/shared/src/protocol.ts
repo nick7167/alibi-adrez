@@ -149,7 +149,14 @@ export type ErrorCode =
 
 export type ServerMessage =
   | { v: 1; t: "welcome"; playerId: string; token: string }
-  | { v: 1; t: "state"; you: string; isHost: boolean; room: RoomView }
+  /**
+   * `now` is the server's clock (epoch ms) at the moment the snapshot was
+   * built. Countdowns are deadline-based, not ticked: the client derives
+   * `offset = now - Date.now()` on receipt and renders
+   * `deadline - (Date.now() + offset)`, so a skewed device clock cannot
+   * desync it and the server never has to broadcast once a second.
+   */
+  | { v: 1; t: "state"; you: string; isHost: boolean; room: RoomView; now: number }
   | { v: 1; t: "error"; code: ErrorCode; message?: string }
   | { v: 1; t: "pong" };
 

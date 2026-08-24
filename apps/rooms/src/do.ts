@@ -1,4 +1,5 @@
 import {
+  advance,
   applyEvent,
   createRoom,
   parseClientMessage,
@@ -12,6 +13,19 @@ import type { Env } from "./env";
 
 const SELF_DESTRUCT_MS = 600_000;
 const WS_READY_STATE_OPEN = 1;
+const STATE_KEY = "state";
+/**
+ * Epoch ms at which an abandoned room deletes itself. Stored in its own key
+ * rather than inferred from the alarm, because the single alarm slot is now
+ * shared with the phase deadline (see `rescheduleAlarm`).
+ */
+const DESTROY_AT_KEY = "destroyAt";
+/**
+ * Safety bound on the catch-up loop. `advance` re-bases every deadline off the
+ * current clock, so it always terminates after one step in practice; the cap
+ * just guarantees a bug upstream can never spin a Durable Object forever.
+ */
+const MAX_ADVANCE_STEPS = 16;
 
 type WsAttachment = { authed: false } | { authed: true; playerId: string };
 
@@ -32,7 +46,7 @@ export class RoomDurableObject implements DurableObject {
     const url = new URL(request.url);
     if (url.pathname === "/ping") return Response.json({ pong: this.ctx.id.name ?? "unknown" });
     if (url.pathname === "/meta") {
-      const state = await this.ctx.storage.get<InternalRoom>("state");
+      const state = await this.ctx.storage.get<InternalRoom>(STATE_KEY);
       return Response.json({
         exists: state !== undefined,
         open: state?.phase === "LOBBY",
@@ -45,9 +59,9 @@ export class RoomDurableObject implements DurableObject {
       // storage.get() and storage.put() that let two concurrent /init calls
       // both succeed and merge two lobbies into one identity.
       const created = await this.ctx.blockConcurrencyWhile(async () => {
-        const existing = await this.ctx.storage.get<InternalRoom>("state");
+        const existing = await this.ctx.storage.get<InternalRoom>(STATE_KEY);
         if (existing !== undefined) return false;
-        await this.ctx.storage.put("state", createRoom(code));
+        await this.ctx.storage.put(STATE_KEY, createRoom(code));
         return true;
       });
       return created
@@ -84,16 +98,32 @@ export class RoomDurableObject implements DurableObject {
         (socket) => socket !== ws && socket.readyState === WS_READY_STATE_OPEN,
       );
       if (stillConnected.length === 0) {
-        await this.ctx.storage.setAlarm(Date.now() + SELF_DESTRUCT_MS);
+        await this.ctx.storage.put(DESTROY_AT_KEY, Date.now() + SELF_DESTRUCT_MS);
+        await this.rescheduleAlarm(await this.loadRoom());
       }
     });
   }
 
+  /**
+   * One alarm slot, two timers. The alarm is a general wake-up: whichever of
+   * the phase deadline and the idle self-destruct is due gets serviced, and
+   * the alarm is then re-armed for whichever comes next (or cleared).
+   */
   async alarm(): Promise<void> {
-    if (this.ctx.getWebSockets().length === 0) {
-      await this.ctx.storage.deleteAll();
-      this.room = undefined;
-    }
+    await this.serialized(async () => {
+      const now = Date.now();
+      const room = await this.catchUp();
+      const destroyAt = await this.ctx.storage.get<number>(DESTROY_AT_KEY);
+      // Never destroy a room somebody is still attached to, even a hibernated
+      // socket: the idle clock is restarted the moment they all drop off.
+      if (destroyAt !== undefined && now >= destroyAt && this.ctx.getWebSockets().length === 0) {
+        await this.ctx.storage.deleteAll();
+        await this.ctx.storage.deleteAlarm();
+        this.room = undefined;
+        return;
+      }
+      await this.rescheduleAlarm(room);
+    });
   }
 
   // Serialize socket events through an in-instance promise chain so that
@@ -103,6 +133,46 @@ export class RoomDurableObject implements DurableObject {
     const run = this.tail.then(fn);
     this.tail = run.catch(() => undefined);
     return run;
+  }
+
+  /**
+   * Runs every phase transition whose deadline has passed, then broadcasts
+   * once. `advance` moves at most one phase per call and re-bases the next
+   * deadline off the current clock, so a Durable Object that slept through a
+   * phase resumes on a fresh timer instead of fast-forwarding to the finale.
+   *
+   * Called from the alarm *and* before every client message, so a message can
+   * never be judged against a phase whose time is already up (an alarm can be
+   * delivered late; a socket message wakes the object just the same).
+   */
+  private async catchUp(): Promise<InternalRoom | undefined> {
+    let room = await this.loadRoom();
+    if (room === undefined) return undefined;
+    let changed = false;
+    for (let step = 0; step < MAX_ADVANCE_STEPS; step++) {
+      const result = advance(room, eventDeps());
+      if (!result.changed) break;
+      room = result.room;
+      changed = true;
+    }
+    if (changed) {
+      await this.save(room);
+      this.broadcastState(room);
+    }
+    return room;
+  }
+
+  /** Arms the single alarm for the earlier of the two deadlines, if any. */
+  private async rescheduleAlarm(room: InternalRoom | undefined): Promise<void> {
+    const destroyAt = await this.ctx.storage.get<number>(DESTROY_AT_KEY);
+    const candidates: number[] = [];
+    if (destroyAt !== undefined) candidates.push(destroyAt);
+    if (room?.deadline != null) candidates.push(room.deadline);
+    if (candidates.length === 0) {
+      await this.ctx.storage.deleteAlarm();
+      return;
+    }
+    await this.ctx.storage.setAlarm(Math.min(...candidates));
   }
 
   private async handleSocketMessage(ws: WebSocket, raw: string | ArrayBuffer): Promise<void> {
@@ -124,7 +194,7 @@ export class RoomDurableObject implements DurableObject {
   }
 
   private async authenticate(ws: WebSocket, msg: ClientMessage & ({ t: "join" } | { t: "reconnect" })): Promise<void> {
-    let room = await this.loadRoom();
+    let room = await this.catchUp();
     if (room === undefined) {
       // First joiner claims an empty-host room even if /init never ran.
       // Kept in memory until applyEvent succeeds; a failed auth attempt
@@ -137,7 +207,10 @@ export class RoomDurableObject implements DurableObject {
       return;
     }
     await this.save(result.room);
-    await this.ctx.storage.deleteAlarm();
+    // Somebody is here again: cancel the idle countdown, but keep (or arm)
+    // the phase alarm for a game already in progress.
+    await this.ctx.storage.delete(DESTROY_AT_KEY);
+    await this.rescheduleAlarm(result.room);
     if (msg.t === "join") {
       const { playerId, token } = result.welcome!;
       ws.serializeAttachment({ authed: true, playerId });
@@ -146,7 +219,7 @@ export class RoomDurableObject implements DurableObject {
     } else {
       ws.serializeAttachment({ authed: true, playerId: msg.playerId });
       ws.send(JSON.stringify({ v: 1, t: "welcome", playerId: msg.playerId, token: msg.token }));
-      ws.send(JSON.stringify(snapshotForPlayer(result.room, msg.playerId)));
+      ws.send(JSON.stringify(snapshotForPlayer(result.room, msg.playerId, Date.now())));
     }
   }
 
@@ -157,8 +230,15 @@ export class RoomDurableObject implements DurableObject {
         return;
       case "leave":
       case "updateSettings":
-      case "startGame": {
-        const room = await this.loadRoom();
+      case "startGame":
+      case "setLang":
+      case "submitQuestion":
+      case "suspectChat":
+      case "submitAnswer":
+      case "castVote": {
+        // catchUp() first: the phase this message is judged against must be
+        // the phase the clock says we are in, not the one we went to sleep in.
+        const room = await this.catchUp();
         if (room === undefined) {
           this.rejectAndClose(ws, "INTERNAL");
           return;
@@ -166,10 +246,16 @@ export class RoomDurableObject implements DurableObject {
         const result = await applyEvent(room, playerId, msg, eventDeps());
         if (!result.ok) {
           ws.send(JSON.stringify({ v: 1, t: "error", code: result.code } satisfies ServerError));
+          // catchUp may have moved the phase on even though the message failed.
+          await this.rescheduleAlarm(room);
           return;
         }
         await this.save(result.room);
         this.broadcastState(result.room);
+        // Starting the game, a deliberation resolved early by the last vote,
+        // an answer handing the clock to the other suspect, a leave that ends
+        // the game — any of these moves the phase deadline.
+        await this.rescheduleAlarm(result.room);
         if (msg.t === "leave") ws.close(1000, "left");
         return;
       }
@@ -181,11 +267,12 @@ export class RoomDurableObject implements DurableObject {
   }
 
   private broadcastState(room: InternalRoom): void {
+    const now = Date.now();
     for (const socket of this.ctx.getWebSockets()) {
       const attachment = socket.deserializeAttachment() as WsAttachment | null;
       if (attachment === null || !attachment.authed) continue;
       if (!room.players.some((p) => p.id === attachment.playerId)) continue;
-      socket.send(JSON.stringify(snapshotForPlayer(room, attachment.playerId)));
+      socket.send(JSON.stringify(snapshotForPlayer(room, attachment.playerId, now)));
     }
   }
 
@@ -195,13 +282,13 @@ export class RoomDurableObject implements DurableObject {
   }
 
   private async loadRoom(): Promise<InternalRoom | undefined> {
-    if (this.room === undefined) this.room = await this.ctx.storage.get<InternalRoom>("state");
+    if (this.room === undefined) this.room = await this.ctx.storage.get<InternalRoom>(STATE_KEY);
     return this.room;
   }
 
   private async save(room: InternalRoom): Promise<void> {
     this.room = room;
-    await this.ctx.storage.put("state", room);
+    await this.ctx.storage.put(STATE_KEY, room);
   }
 }
 
