@@ -3,7 +3,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import { currentLocale, setLocale, type Locale } from '$lib/i18n';
 	import { createRoom, isValidCodeInput } from '$lib/api';
-	import CanvasColor from '$lib/components/CanvasColor.svelte';
 
 	const locales: Locale[] = ['en', 'da'];
 
@@ -67,7 +66,13 @@
 <svelte:head>
 	<title>{m['app.title']()} 🎭</title>
 	<meta name="theme-color" content="#FFC93C" />
-	<CanvasColor color="#ffc93c" />
+	<!-- Static style text only: dynamic/{@html} styles in svelte:head break hydration and Svelte detaches the CSS links. -->
+	<style>
+		html,
+		html > body {
+			background-color: #ffc93c;
+		}
+	</style>
 </svelte:head>
 
 <main class="relative fill-vp overflow-hidden bg-sunshine text-ink">

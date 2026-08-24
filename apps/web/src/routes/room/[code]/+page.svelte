@@ -4,7 +4,6 @@ import { m } from '$lib/paraglide/messages';
 import { openRoomSocket, type RoomSocket } from '$lib/api';
 import { clearIdentity, loadIdentity, saveIdentity } from '$lib/stores/session.svelte';
 import type { Identity } from '$lib/stores/session.svelte';
-import CanvasColor from '$lib/components/CanvasColor.svelte';
 	import type { RoomView, ServerMessage, Settings } from '@alibi/shared';
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';
@@ -125,9 +124,14 @@ import CanvasColor from '$lib/components/CanvasColor.svelte';
 		sockRef?.send({ v: 1, t: 'updateSettings', patch });
 	}
 
+	/** Which field the room route is showing — the ONE place this branch lives.
+	    Both the browser-chrome tint and the canvas style block below key off it,
+	    so they can never drift apart. */
+	const field = $derived(screen === 'join' ? 'join' : view?.room.phase === 'LOBBY' ? 'lobby' : 'night');
+
 	/** Browser-chrome tint matches the active screen's field color. */
 	const themeColor = $derived(
-		screen === 'join' ? '#3d50e0' : view?.room.phase === 'LOBBY' ? '#fff6ea' : '#171531'
+		field === 'join' ? '#3d50e0' : field === 'lobby' ? '#fff6ea' : '#171531'
 	);
 
 	/* Offline overlay: connection has been down for over 5 seconds.
@@ -154,7 +158,32 @@ import CanvasColor from '$lib/components/CanvasColor.svelte';
 <svelte:head>
 	<title>{m['app.title']()} · {data.code}</title>
 	<meta name="theme-color" content={themeColor} />
-	<CanvasColor color={themeColor} />
+	<!-- Static style blocks only (see landing page note): each branch's text is
+	    fully static so Svelte renders it inline instead of compiling it into a
+	    scoped stylesheet that could never match html/body. Hexes must match
+	    themeColor above — test/head-canvas.test.ts fails the build if they drift. -->
+	{#if field === 'join'}
+		<style>
+			html,
+			html > body {
+				background-color: #3d50e0;
+			}
+		</style>
+	{:else if field === 'lobby'}
+		<style>
+			html,
+			html > body {
+				background-color: #fff6ea;
+			}
+		</style>
+	{:else}
+		<style>
+			html,
+			html > body {
+				background-color: #171531;
+			}
+		</style>
+	{/if}
 </svelte:head>
 
 <main class="relative flex fill-vp flex-col overflow-hidden bg-paper text-ink">
