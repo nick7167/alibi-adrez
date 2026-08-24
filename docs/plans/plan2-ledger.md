@@ -11,7 +11,7 @@ what a resumed session reads first.
 | T1 scenario pack | done | `59fcd9e` | 20 bilingual (en/da) scenarios in `packages/shared/content/scenarios.ts`; exported via `src/index.ts`; `scenarioById`/`resolveScenario` + tests in `test/scenarios.test.ts` |
 | T2 protocol | done | `c6b1aa5` | Added round-loop client messages, error codes, and per-phase views (IntroView replaces StartingView) to `packages/shared/src/protocol.ts`; `snapshotForPlayer` builds a minimal `IntroView`; `applyEvent` stub-rejects the new messages with `WRONG_PHASE` pending T3 |
 | T3 state machine | done | `4fac82c` | Round loop in new `packages/shared/src/round.ts` (`RoundState`, `advance`, `applyRoundMessage`, `handlePlayerLeft`, scoring, pair/scenario rotation), re-exported from `src/index.ts`; `InternalRoom` gains `scores`/`wasSuspect`/`rounds`/`deadline` and `EventDeps` gains `now()`/`random()`; 33 new tests in `test/round.test.ts` |
-| T4 snapshots | done | — | Per-player `lang` (`join` optional `lang`, new `setLang`), app questions store `detailIndex` instead of English text, and `snapshotForPlayer` builds the real per-phase/per-role view in the reader's language; 27 new tests in `test/snapshot.test.ts` |
+| T4 snapshots | done | `30b1ace` | Per-player `lang` (`join` optional `lang`, new `setLang`), app questions store `detailIndex` instead of English text, and `snapshotForPlayer` builds the real per-phase/per-role view in the reader's language; 27 new tests in `test/snapshot.test.ts` |
 | T5 rooms timers/dispatch | not started | — | |
 | T6 web plumbing + PLANNING | not started | — | |
 | T7 web INTERROGATION | not started | — | |
@@ -132,3 +132,10 @@ change.
     lowest playerId, players who left are ineligible, an award is omitted
     entirely when nobody qualifies, and one player may win several. New keys
     can be appended later; T9 must translate them.
+
+### Resume point (session checkpoint, 2026-08-24)
+
+T1–T4 are done, verified and pushed. Next up is **T5 (rooms: timers, alarms and
+dispatch)** exactly as written in the plan, plus one obligation T4 discovered:
+`setLang` is not routed in `apps/rooms/src/do.ts` yet, so a client sending it is
+silently dropped. T5 owns that file and must wire it.
