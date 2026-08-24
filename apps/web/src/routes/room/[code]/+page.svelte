@@ -1,20 +1,28 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-import { m } from '$lib/paraglide/messages';
-import { openRoomSocket, type RoomSocket } from '$lib/api';
-import { clearIdentity, loadIdentity, saveIdentity } from '$lib/stores/session.svelte';
-import type { Identity } from '$lib/stores/session.svelte';
-	import type { RoomView, ServerMessage, Settings } from '@alibi/shared';
+	import { m } from '$lib/paraglide/messages';
+	import { computeClockOffset, openRoomSocket, type RoomSocket } from '$lib/api';
+	import { clearIdentity, loadIdentity, saveIdentity } from '$lib/stores/session.svelte';
+	import type { Identity } from '$lib/stores/session.svelte';
+	import { currentLocale } from '$lib/i18n';
+	import type { Phase, RoomView, ServerMessage, Settings } from '@alibi/shared';
+	import Countdown from '$lib/components/Countdown.svelte';
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';
+	import Planning from './Planning.svelte';
 
 	let { data } = $props();
 
-	type Screen = 'join' | 'lobby' | 'intro';
+	type Screen = 'join' | Phase;
 
 	let screen = $state<Screen>('join');
 	let status = $state<'connecting' | 'open' | 'closed' | 'reconnecting'>('connecting');
 	let view = $state<{ you: string; isHost: boolean; room: RoomView } | null>(null);
+	/** `now - Date.now()` from the latest `state` frame's server clock. Every
+	    countdown on this route renders `deadline - (Date.now() + offset)` so a
+	    skewed device clock can't desync it. No tick message exists — see the
+	    ledger's "countdowns are deadline-based, not ticked" ruling. */
+	let offset = $state(0);
 	let joining = $state(false);
 	let errorNonce = $state(0);
 	let toastMsg = $state<string | null>(null);
@@ -61,8 +69,9 @@ import type { Identity } from '$lib/stores/session.svelte';
 			}
 			case 'state': {
 				view = msg;
+				offset = computeClockOffset(msg.now);
 				joining = false;
-				screen = msg.room.phase === 'LOBBY' ? 'lobby' : 'intro';
+				screen = msg.room.phase;
 				break;
 			}
 			case 'error': {
@@ -93,7 +102,17 @@ import type { Identity } from '$lib/stores/session.svelte';
 			onMessage: (msg) => handleMessage(msg, code, saved),
 			onOpen: () => {
 				const id = loadIdentity(code);
-				if (id) sock.send({ v: 1, t: 'reconnect', playerId: id.playerId, token: id.token });
+				if (id) {
+					sock.send({ v: 1, t: 'reconnect', playerId: id.playerId, token: id.token });
+					// `setLocale` (landing page's EN/DA switcher, or any future
+					// in-room one) reloads the document by default, so a locale
+					// change surfaces here as a fresh socket open, not an
+					// in-place reactive change. Re-announcing on every open is a
+					// harmless no-op for a plain network-drop reconnect and is
+					// what actually delivers "locale change while in a room" —
+					// see the T6 report for why there's no in-room switcher yet.
+					sock.send({ v: 1, t: 'setLang', lang: currentLocale() });
+				}
 			}
 		});
 		sockRef = sock;
@@ -106,7 +125,7 @@ import type { Identity } from '$lib/stores/session.svelte';
 	function join(name: string, emoji: string) {
 		joining = true;
 		pendingIdentity = { name, emoji };
-		sockRef?.send({ v: 1, t: 'join', name, emoji });
+		sockRef?.send({ v: 1, t: 'join', name, emoji, lang: currentLocale() });
 	}
 
 	function startGame() {
@@ -124,15 +143,47 @@ import type { Identity } from '$lib/stores/session.svelte';
 		sockRef?.send({ v: 1, t: 'updateSettings', patch });
 	}
 
-	/** Which field the room route is showing — the ONE place this branch lives.
-	    Both the browser-chrome tint and the canvas style block below key off it,
-	    so they can never drift apart. */
-	const field = $derived(screen === 'join' ? 'join' : view?.room.phase === 'LOBBY' ? 'lobby' : 'night');
+	function sendChat(text: string) {
+		sockRef?.suspectChat(text);
+	}
 
-	/** Browser-chrome tint matches the active screen's field color. */
+	/** Which field the room route is showing — the ONE place this branch lives.
+	    The browser-chrome tint, the canvas style block, and the placeholder
+	    phase screens below all key off it, so they can never drift apart. */
+	const field = $derived(screen);
+
+	/** Field colours per the ledger's fixed table (deliberately repeated for
+	    INTRO/INTERROGATION and PLANNING/FINALE — those phases never sit next
+	    to each other). Kept as one literal ternary (not a lookup object) so
+	    apps/web/test/head-canvas.test.ts can statically diff this against the
+	    canvas style blocks below (see the svelte:head block for why literal
+	    "style" tag text can't appear in a comment up here — it confuses
+	    svelte-check's tag scanner into reporting a bogus unclosed script). */
 	const themeColor = $derived(
-		field === 'join' ? '#3d50e0' : field === 'lobby' ? '#fff6ea' : '#171531'
+		field === 'join'
+			? '#3d50e0'
+			: field === 'LOBBY'
+				? '#fff6ea'
+				: field === 'REVEAL'
+					? '#ffc93c'
+					: field === 'DELIBERATION'
+						? '#3d50e0'
+						: field === 'PLANNING' || field === 'FINALE'
+							? '#7a3be0'
+							: '#171531' // INTRO, INTERROGATION
 	);
+
+	/** Text/background utility classes for full-bleed phase screens that
+	    aren't Lobby/JoinForm (which manage their own). Matches themeColor
+	    above 1:1 but isn't read by the canvas test (Tailwind classes, not
+	    hexes), so it can live as a lookup. */
+	const PHASE_SURFACE: Partial<Record<Phase, string>> = {
+		INTRO: 'bg-night text-paper',
+		INTERROGATION: 'bg-night text-paper',
+		DELIBERATION: 'bg-cobalt text-paper',
+		REVEAL: 'bg-sunshine text-ink',
+		FINALE: 'bg-grape text-paper'
+	};
 
 	/* Offline overlay: connection has been down for over 5 seconds.
 	   The very first handshake gets a grace period; once the socket has
@@ -155,6 +206,23 @@ import type { Identity } from '$lib/stores/session.svelte';
 	});
 </script>
 
+{#snippet placeholder(
+	deadline: number | null,
+	phase: Phase,
+	labelKey: 'game.phase.interrogation' | 'game.phase.deliberation' | 'game.phase.reveal'
+)}
+	<section
+		data-testid="phase-placeholder"
+		class="pop-in grid fill-vp place-items-center px-4 text-center {PHASE_SURFACE[phase] ??
+			'bg-night text-paper'}"
+	>
+		<div class="flex flex-col items-center gap-5 pb-safe">
+			<span class="stamp">{m[labelKey]()}</span>
+			<Countdown {deadline} {offset} class="text-coral" />
+		</div>
+	</section>
+{/snippet}
+
 <svelte:head>
 	<title>{m['app.title']()} · {data.code}</title>
 	<meta name="theme-color" content={themeColor} />
@@ -169,11 +237,32 @@ import type { Identity } from '$lib/stores/session.svelte';
 				background-color: #3d50e0;
 			}
 		</style>
-	{:else if field === 'lobby'}
+	{:else if field === 'LOBBY'}
 		<style>
 			html,
 			html > body {
 				background-color: #fff6ea;
+			}
+		</style>
+	{:else if field === 'REVEAL'}
+		<style>
+			html,
+			html > body {
+				background-color: #ffc93c;
+			}
+		</style>
+	{:else if field === 'DELIBERATION'}
+		<style>
+			html,
+			html > body {
+				background-color: #3d50e0;
+			}
+		</style>
+	{:else if field === 'PLANNING' || field === 'FINALE'}
+		<style>
+			html,
+			html > body {
+				background-color: #7a3be0;
 			}
 		</style>
 	{:else}
@@ -218,7 +307,7 @@ import type { Identity } from '$lib/stores/session.svelte';
 			onUpdate={updateSettings}
 			onLeave={leaveRoom}
 		/>
-	{:else}
+	{:else if view?.room.phase === 'INTRO'}
 		<section
 			data-testid="intro-splash"
 			class="pop-in grid fill-vp place-items-center bg-night px-4 text-center"
@@ -237,9 +326,30 @@ import type { Identity } from '$lib/stores/session.svelte';
 				</span>
 			</div>
 		</section>
+	{:else if view?.room.phase === 'PLANNING'}
+		<Planning room={view.room} you={view.you} {offset} onSendChat={sendChat} />
+	{:else if view?.room.phase === 'INTERROGATION'}
+		<!-- TODO(T7): replace with the real Interrogation.svelte screen. -->
+		{@render placeholder(view.room.deadline, 'INTERROGATION', 'game.phase.interrogation')}
+	{:else if view?.room.phase === 'DELIBERATION'}
+		<!-- TODO(T8): replace with the real Deliberation.svelte screen. -->
+		{@render placeholder(view.room.deadline, 'DELIBERATION', 'game.phase.deliberation')}
+	{:else if view?.room.phase === 'REVEAL'}
+		<!-- TODO(T8): replace with the real Reveal.svelte screen. -->
+		{@render placeholder(view.room.deadline, 'REVEAL', 'game.phase.reveal')}
+	{:else if view?.room.phase === 'FINALE'}
+		<!-- TODO(T9): replace with the real Finale.svelte screen. FinaleView
+		     carries no deadline (the round loop is over), so this placeholder
+		     shows the phase stamp only, no countdown. -->
+		<section
+			data-testid="phase-placeholder"
+			class="pop-in grid fill-vp place-items-center px-4 text-center bg-grape text-paper"
+		>
+			<span class="stamp">{m['game.phase.finale']()}</span>
+		</section>
 	{/if}
 
-	{#if offlineLong && screen !== 'intro'}
+	{#if offlineLong && screen !== 'INTRO'}
 		<div
 			data-testid="offline-overlay"
 			class="fixed inset-0 z-50 grid place-items-center bg-paper/95"

@@ -13,7 +13,7 @@ what a resumed session reads first.
 | T3 state machine | done | `4fac82c` | Round loop in new `packages/shared/src/round.ts` (`RoundState`, `advance`, `applyRoundMessage`, `handlePlayerLeft`, scoring, pair/scenario rotation), re-exported from `src/index.ts`; `InternalRoom` gains `scores`/`wasSuspect`/`rounds`/`deadline` and `EventDeps` gains `now()`/`random()`; 33 new tests in `test/round.test.ts` |
 | T4 snapshots | done | `30b1ace` | Per-player `lang` (`join` optional `lang`, new `setLang`), app questions store `detailIndex` instead of English text, and `snapshotForPlayer` builds the real per-phase/per-role view in the reader's language; 27 new tests in `test/snapshot.test.ts` |
 | T5 rooms timers/dispatch | done | `a9b2d04` | One alarm slot multiplexes the phase deadline and a `destroyAt` idle key; `alarm()` catches up via `advance` in a loop, self-destructs only when idle is due *and* no sockets are attached, then re-arms for whichever is next; `setLang` + the four round messages routed through `dispatch`; `state` gains `now`; 12 new tests in `apps/rooms/test/round.test.ts` |
-| T6 web plumbing + PLANNING | not started | — | |
+| T6 web plumbing + PLANNING | done | — | `api.ts` gains `submitQuestion`/`suspectChat`/`submitAnswer`/`castVote`/`setLang` send helpers + `computeClockOffset`; `+page.svelte` routes every `Phase` (LOBBY→Lobby, INTRO→splash, PLANNING→new `Planning.svelte`, INTERROGATION/DELIBERATION/REVEAL/FINALE→`TODO(T7)`/`TODO(T8)`/`TODO(T9)` placeholders); new `Countdown.svelte`; canvas/`theme-color` derivation extended to the ledger's 7-phase table |
 | T7 web INTERROGATION | not started | — | |
 | T8 web DELIBERATION + REVEAL | not started | — | |
 | T9 web FINALE + e2e | not started | — | |
@@ -216,6 +216,58 @@ never sit next to each other. The room route already derives a single `field`
 value that drives both `theme-color` and the canvas `<style>`; extend that one
 derivation rather than adding a parallel branch.
 
+**T6 — web plumbing + PLANNING**
+
+28. **Svelte-check has a false-positive "`<script>` was left open" bug**:
+    if a JSDoc/comment *inside* `<script lang="ts">` contains literal tag-like
+    text that also appears as a real tag later in the same file (e.g. a
+    comment mentioning `<style>` in a file that also has real `<style>`
+    blocks in `<svelte:head>`), svelte-check's tag scanner gets confused and
+    fails the whole file with a bogus parse error — even though
+    `svelte/compiler`'s own `compile()` accepts the file fine and the bug
+    reproduces with a two-line minimal repro. `pnpm -r build`/`vitest` are
+    unaffected; only `svelte-check` (i.e. `pnpm typecheck`) trips on it. Never
+    write `<style>`, `<script>`, or `<svelte:head>` literally inside a
+    `<script>` comment — say "style block"/"script tag" instead, or wrap the
+    word in a way that doesn't read as a tag.
+29. **No in-room EN/DA switcher exists yet.** The landing page's switcher is
+    unchanged; `setLocale` there reloads the document, so a locale change
+    surfaces as a fresh socket open rather than an in-place update. `join`
+    now sends `lang: currentLocale()`, and the room route's `onOpen` handler
+    resends `setLang` on every socket open (fresh join, reconnect after a
+    drop, or a reload from a future locale change) — a harmless no-op per
+    ruling 15 when the language didn't actually change. If T7-T9 add an
+    in-room switcher, wire its click straight to `setLocale`; the resulting
+    reload will deliver `setLang` through this same path, no new plumbing
+    needed. Placing such a switcher needs care: it must not collide with a
+    screen's own top-right content (Planning's countdown already lives
+    there).
+30. **`+page.svelte`'s `field`/`themeColor` `$derived` is the one place phase
+    colours live** (ruling above) — it's one literal ternary, not a lookup
+    object, because `head-canvas.test.ts` statically extracts hex literals
+    from inside the `$derived(...)` call. `PHASE_SURFACE` (a `Partial<Record
+    <Phase, string>>` of Tailwind bg/text classes, matching the same table)
+    is a separate, ordinary lookup for body content — the canvas test doesn't
+    read it, so it's fine as an object. Extend both together; keep the
+    ternary literal.
+31. **`Countdown.svelte` contract**: props `deadline: number | null`,
+    `offset: number`, optional `class`. Renders nothing when `deadline` is
+    null. Text is bare seconds under a minute (`"42"`), `m:ss` at/above a
+    minute (`"1:05"`), and a hard-coded `"0:00"` floor at/below zero — never
+    negative. Updates on a 250ms interval (~4x/sec), cleaned up on
+    unmount/deadline change. No animation, so `prefers-reduced-motion` is
+    moot by construction.
+32. **`FinaleView` has no `deadline`** (it's not part of `GameViewCommon`) —
+    T9's real Finale screen can't feed one to `Countdown`. The current
+    placeholder renders the phase stamp only, no timer; keep that when
+    replacing it.
+33. **T7's placeholder → real screen swap**: replace the `{:else if
+    view?.room.phase === 'INTERROGATION'}` branch in `+page.svelte`, passing
+    `view.room.deadline` and `offset` to the new component the same way
+    `Planning` receives them. Same pattern for T8 (DELIBERATION, REVEAL) and
+    T9 (FINALE) — each just swaps its `{@render placeholder(...)}` call for
+    the real component.
+
 ### Resume point (session checkpoint, 2026-08-24)
 
 T1–T5 are done, verified and pushed. The server now drives the whole loop:
@@ -224,3 +276,14 @@ sockets in, phases on an alarm, personalized snapshots out. Next up is **T6
 frame carries `now` (render countdowns from `deadline` locally — never expect a
 tick), and the client must send `lang` on join and `setLang` on every locale
 toggle.
+
+### Resume point (session checkpoint, 2026-08-24, later)
+
+T1–T6 are done, verified and pushed. The room route now renders every phase
+(LOBBY/INTRO/PLANNING for real, INTERROGATION/DELIBERATION/REVEAL/FINALE as
+labelled placeholders) and a shared `Countdown.svelte` renders every timer
+from `deadline`+`offset`. Next up is **T7 (web: INTERROGATION screen)** —
+replace the `TODO(T7)` placeholder per ruling 33, wiring `submitQuestion`
+(detectives) and `submitAnswer` (suspects) through the `RoomSocket` helpers
+already on `api.ts`. Watch for the svelte-check comment gotcha (ruling 28)
+if any new file's script-block comments mention HTML tags by name.
