@@ -133,6 +133,25 @@ change.
     entirely when nobody qualifies, and one player may win several. New keys
     can be appended later; T9 must translate them.
 
+### Orchestrator ruling — countdowns are deadline-based, not ticked (before T5)
+
+The design spec (§4.4) says phase countdowns broadcast a tick every second. Do
+not build that. A Durable Object would need an alarm per second per room, it
+fights hibernation, it multiplies socket traffic by the player count, and the
+countdown still drifts.
+
+Instead the server sends `deadline` (already in every view) plus its own clock,
+and each client renders the countdown locally:
+
+- the `state` server message gains `now: number` — the server's clock when the
+  snapshot was built;
+- the client computes `offset = now - Date.now()` on receipt and renders
+  `deadline - (Date.now() + offset)`, so a skewed device clock cannot desync it;
+- the DO sets exactly one alarm, for the phase deadline, and broadcasts only
+  when the phase actually changes.
+
+This is fewer moving parts, survives hibernation, and is accurate.
+
 ### Resume point (session checkpoint, 2026-08-24)
 
 T1–T4 are done, verified and pushed. Next up is **T5 (rooms: timers, alarms and
