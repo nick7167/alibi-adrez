@@ -28,6 +28,13 @@ players, with curated scenarios and no AI.
   body` with its field colour via *static* `<style>` text in `<svelte:head>` —
   never `{@html}`, never interpolation. `apps/web/test/head-canvas.test.ts`
   enforces it and will fail the build otherwise.
+- **Every new user-facing screen also goes on the design canvas.** The canvas
+  artifact ("Alibi Screen Concepts") is meant to stay a complete picture of the
+  app's screens, because that is where the screens get reviewed. When a screen
+  lands, it is recreated as a 390x844 `.dc.html` artboard on the app-screens
+  page and the canvas is republished. The orchestrator does this — task agents
+  do not need to, but should not assume a screen is "done" until it is there.
+
 - **All UI copy goes through Paraglide** with both `messages/en.json` and
   `messages/da.json` populated. Danish is authored, not machine-translated.
 - **Secrets never leave the DO unpersonalized.** Detectives must never receive
