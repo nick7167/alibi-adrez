@@ -8,7 +8,7 @@ what a resumed session reads first.
 
 | Task | Status | Commit | Notes |
 |---|---|---|---|
-| T1 scenario pack | not started | — | |
+| T1 scenario pack | done | ae0476f | 20 bilingual (en/da) scenarios in `packages/shared/content/scenarios.ts`; exported via `src/index.ts`; `scenarioById`/`resolveScenario` + tests in `test/scenarios.test.ts` |
 | T2 protocol | not started | — | |
 | T3 state machine | not started | — | |
 | T4 snapshots | not started | — | |
