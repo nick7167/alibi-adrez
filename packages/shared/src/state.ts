@@ -116,6 +116,13 @@ export async function applyEvent(
     }
     case "ping":
       return { ok: true, room };
+    // Round-loop messages: the state machine lands in T3. Stub rejection
+    // here only keeps applyEvent's switch exhaustive and the tree green.
+    case "submitQuestion":
+    case "suspectChat":
+    case "submitAnswer":
+    case "castVote":
+      return { ok: false, code: "WRONG_PHASE", room };
   }
 }
 
@@ -129,6 +136,15 @@ export function snapshotForPlayer(room: InternalRoom, playerId: string): ServerM
           players: structuredClone(room.players),
           settings: structuredClone(room.settings),
         }
-      : { phase: "INTRO" as const, code: room.code };
+      : {
+          phase: "INTRO" as const,
+          code: room.code,
+          round: 0,
+          roundCount: room.settings.rounds,
+          deadline: null,
+          players: structuredClone(room.players),
+          scoreboard: room.players.map((p) => ({ playerId: p.id, score: 0 })),
+          suspectIds: [],
+        };
   return { v: 1, t: "state", you: playerId, isHost: room.hostId === playerId, room: view };
 }

@@ -9,7 +9,7 @@ what a resumed session reads first.
 | Task | Status | Commit | Notes |
 |---|---|---|---|
 | T1 scenario pack | done | `59fcd9e` | 20 bilingual (en/da) scenarios in `packages/shared/content/scenarios.ts`; exported via `src/index.ts`; `scenarioById`/`resolveScenario` + tests in `test/scenarios.test.ts` |
-| T2 protocol | not started | — | |
+| T2 protocol | done | — | Added round-loop client messages, error codes, and per-phase views (IntroView replaces StartingView) to `packages/shared/src/protocol.ts`; `snapshotForPlayer` builds a minimal `IntroView`; `applyEvent` stub-rejects the new messages with `WRONG_PHASE` pending T3 |
 | T3 state machine | not started | — | |
 | T4 snapshots | not started | — | |
 | T5 rooms timers/dispatch | not started | — | |
