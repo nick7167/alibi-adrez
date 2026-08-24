@@ -21,6 +21,21 @@ import { SCENARIOS } from "@alibi/shared";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Waits for `check` to become true rather than sleeping a fixed span. A fixed
+ * sleep passes on an idle machine and loses the race under load — it made this
+ * file flake in exactly that way, so socket frames are always awaited, never
+ * assumed to have arrived.
+ */
+async function until(check: () => boolean, what: string, timeoutMs = 3000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (check()) return;
+    await sleep(10);
+  }
+  expect.fail(`timed out after ${timeoutMs}ms waiting for ${what}`);
+}
+
 type Peer = { ws: WebSocket; inbox: any[]; id: string };
 
 const stubFor = (code: string) => env.ROOMS_DO.get(env.ROOMS_DO.idFromName(code));
@@ -37,9 +52,8 @@ async function join(code: string, name: string, lang?: "en" | "da"): Promise<Pee
   const msg: Record<string, unknown> = { v: 1, t: "join", name, emoji: "🦊" };
   if (lang !== undefined) msg.lang = lang;
   ws.send(JSON.stringify(msg));
-  await sleep(50);
+  await until(() => inbox.some((m) => m.t === "welcome"), `a welcome frame for ${name}`);
   const welcome = inbox.find((m) => m.t === "welcome");
-  expect(welcome).toBeDefined();
   return { ws, inbox, id: welcome.playerId };
 }
 
@@ -55,8 +69,11 @@ function frame(peer: Peer): any {
 }
 
 async function send(peer: Peer, msg: Record<string, unknown>): Promise<void> {
+  const before = peer.inbox.length;
   peer.ws.send(JSON.stringify({ v: 1, ...msg }));
-  await sleep(50);
+  // Every accepted message broadcasts a snapshot and every rejected one sends
+  // an error, so exactly one new frame is the settled signal.
+  await until(() => peer.inbox.length > before, `a reply to ${String(msg.t)}`);
 }
 
 /**

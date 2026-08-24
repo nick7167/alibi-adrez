@@ -15,7 +15,7 @@ what a resumed session reads first.
 | T5 rooms timers/dispatch | done | `a9b2d04` | One alarm slot multiplexes the phase deadline and a `destroyAt` idle key; `alarm()` catches up via `advance` in a loop, self-destructs only when idle is due *and* no sockets are attached, then re-arms for whichever is next; `setLang` + the four round messages routed through `dispatch`; `state` gains `now`; 12 new tests in `apps/rooms/test/round.test.ts` |
 | T6 web plumbing + PLANNING | done | `e57e737` | `api.ts` gains `submitQuestion`/`suspectChat`/`submitAnswer`/`castVote`/`setLang` send helpers + `computeClockOffset`; `+page.svelte` routes every `Phase` (LOBBY→Lobby, INTRO→splash, PLANNING→new `Planning.svelte`, INTERROGATION/DELIBERATION/REVEAL/FINALE→`TODO(T7)`/`TODO(T8)`/`TODO(T9)` placeholders); new `Countdown.svelte`; canvas/`theme-color` derivation extended to the ledger's 7-phase table |
 | T7 web INTERROGATION | done | `c4dae82` | New `Interrogation.svelte` (night field, sunshine countdown/accents): suspects get a big manila question card, turn state ("your turn" vs "X is answering", no input when it isn't their turn), a collapsible scenario reference, and a bottom-pinned answer form only when `awaitingMyAnswer`; detectives get a scrolling transcript of manila cards (paired answers by `suspectIds` order, empty string rendered as a "no answer" stamp) plus a dashed pending-question card for the in-flight `question`, and a bottom-pinned question form gated on `myQuestionsLeft`. `+page.svelte` swaps the placeholder per ruling 33. |
-| T8 web DELIBERATION + REVEAL | done | — | New `Deliberation.svelte` (cobalt, paper text) and `Reveal.svelte` (sunshine, ink text) replace the T6 placeholders; `+page.svelte` wires `castVote` as `sendVote` and drops the now-unused `placeholder` snippet |
+| T8 web DELIBERATION + REVEAL | done | `583a57b` | New `Deliberation.svelte` (cobalt, paper text) and `Reveal.svelte` (sunshine, ink text) replace the T6 placeholders; `+page.svelte` wires `castVote` as `sendVote` and drops the now-unused `placeholder` snippet |
 | T9 web FINALE + e2e | not started | — | |
 
 ## Rulings
@@ -389,3 +389,13 @@ override over by habit.
     `unanimous`, awarded/scoreboard section titles, the suspect role tag).
     `reveal.*` deliberately does *not* duplicate `planning.scenario.title`/
     `planning.details.title` — see ruling 39.
+
+### Orchestrator ruling — never sleep for a socket frame (binding on T9)
+
+`apps/rooms/test/round.test.ts` used `await sleep(50)` after sending a frame.
+That passes on an idle machine and loses the race under load — it failed twice
+here while dev workers were running, and would have flaked in CI eventually.
+
+Tests now wait for the condition (`until(...)`, polling to a 3s deadline) rather
+than sleeping a guessed span. Any new socket or e2e test does the same: wait for
+the frame, the element or the phase, never a fixed sleep.
