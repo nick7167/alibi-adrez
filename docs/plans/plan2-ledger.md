@@ -16,7 +16,7 @@ what a resumed session reads first.
 | T6 web plumbing + PLANNING | done | `e57e737` | `api.ts` gains `submitQuestion`/`suspectChat`/`submitAnswer`/`castVote`/`setLang` send helpers + `computeClockOffset`; `+page.svelte` routes every `Phase` (LOBBY→Lobby, INTRO→splash, PLANNING→new `Planning.svelte`, INTERROGATION/DELIBERATION/REVEAL/FINALE→`TODO(T7)`/`TODO(T8)`/`TODO(T9)` placeholders); new `Countdown.svelte`; canvas/`theme-color` derivation extended to the ledger's 7-phase table |
 | T7 web INTERROGATION | done | `c4dae82` | New `Interrogation.svelte` (night field, sunshine countdown/accents): suspects get a big manila question card, turn state ("your turn" vs "X is answering", no input when it isn't their turn), a collapsible scenario reference, and a bottom-pinned answer form only when `awaitingMyAnswer`; detectives get a scrolling transcript of manila cards (paired answers by `suspectIds` order, empty string rendered as a "no answer" stamp) plus a dashed pending-question card for the in-flight `question`, and a bottom-pinned question form gated on `myQuestionsLeft`. `+page.svelte` swaps the placeholder per ruling 33. |
 | T8 web DELIBERATION + REVEAL | done | `583a57b` | New `Deliberation.svelte` (cobalt, paper text) and `Reveal.svelte` (sunshine, ink text) replace the T6 placeholders; `+page.svelte` wires `castVote` as `sendVote` and drops the now-unused `placeholder` snippet |
-| T9 web FINALE + e2e | not started | — | |
+| T9 web FINALE + e2e | done | — | New `Finale.svelte` (grape field, paper text): podium (top 3, scoreboard-sorted) then full scoreboard, `awards` rendered via a fixed key→copy lookup with a non-raw fallback for unknown future keys, and a `finale-leave` button that leaves + goes home (no server "return to lobby" capability exists, so FINALE's exit reuses the same `leaveRoom()` as Lobby's, not a dead-end control). `+page.svelte` swaps the placeholder per ruling 33/40. Lobby's minimum raised to 3 (`MIN_PLAYERS` import, `lobby.needThree` replaces `lobby.needTwo`, en+da). New `apps/web/e2e/round.spec.ts`: 4 browser contexts play a full round LOBBY→FINALE, shortening rounds/planningSec/questionCount to their minimums via the lobby steppers (settings sync confirmed by sniffing the host's own `state` websocket frames, not a guessed sleep); asserts the security property (no story text reaches a detective's DOM at any point before REVEAL) at three checkpoints. `e2e/lobby.spec.ts` now seats three players and asserts start is disabled at two. Common e2e scaffolding (`watch`/`open`/`clickUntil`/`joinRoom`) factored into new `e2e/helpers.ts`, shared by both specs. |
 
 ## Rulings
 
@@ -399,3 +399,117 @@ here while dev workers were running, and would have flaked in CI eventually.
 Tests now wait for the condition (`until(...)`, polling to a 3s deadline) rather
 than sleeping a guessed span. Any new socket or e2e test does the same: wait for
 the frame, the element or the phase, never a fixed sleep.
+
+**T9 — FINALE, 3-player minimum, e2e**
+
+42. **No server "return to lobby" capability exists** — `round.ts` has no
+    FINALE → LOBBY transition and the protocol has no message that would ask
+    for one (`ClientMessage` stops at `setLang`). Rather than a button that
+    would silently do nothing, `Finale.svelte`'s single exit control
+    (`finale-leave`) reuses `+page.svelte`'s existing `leaveRoom()` — the same
+    "send `leave`, clear the saved identity, `goto('/')`" flow Lobby's own
+    leave button already uses. A future plan that wants "play again" needs a
+    new server capability first (a `restartGame` message and a FINALE → LOBBY
+    or FINALE → INTRO transition); this task did not add one.
+43. **Award keys get a non-raw fallback.** `FinaleView.awards[].key` is an
+    untyped `string` on the wire (ruling 21 says more keys can be appended
+    later), so `Finale.svelte` looks the key up in a fixed
+    key→translation table and falls back to a generic
+    `finale.award.other` ("Special mention") for anything unrecognized,
+    rather than ever interpolating the raw key into the DOM.
+44. **Lobby's minimum is `MIN_PLAYERS` (3), imported from `@alibi/shared`**,
+    not a hardcoded literal — `canStart` and the copy key
+    (`lobby.needThree`, replacing `lobby.needTwo`) both read off it, so the
+    UI can't drift from `startGame`'s own server-side floor again.
+45. **The e2e settings-shortening step confirms the patch server-side before
+    starting**, instead of sleeping past the 300ms debounce and hoping the
+    round trip landed (ledger ruling directly above, "never sleep for a
+    socket frame"). `round.spec.ts` attaches a `page.on('websocket', ...)`
+    listener on the host's page *before* its first navigation (the
+    `websocket` page event only fires once, at creation, so attaching it
+    late would miss the room socket), sniffs `state` frames off it, and
+    polls the last-seen frame's `room.settings` until it matches the
+    shortened values. Only then does it click `start-game`.
+46. **Round-loop settings shortened to their lobby-stepper minimums**:
+    `rounds` → 1, `planningSec` → 15, `questionCount` → 3 (`answerSec` is
+    left at its default — nothing in the test waits on it, since every
+    answer is submitted the instant the UI shows it's that suspect's turn).
+    Even shortened, `INTRO` (5s), `PLANNING` (15s) and `REVEAL` (10s) are
+    real, server-timed phases with no skip control (scope decision 4 has no
+    exception for PLANNING or INTRO either), so the test still spends ~30s
+    in forced real-time waits — all of them expressed as `expect(...).toPass`
+    /`toBeVisible` polls against the actual UI state, never a bare sleep.
+47. **Turn order in INTERROGATION is discovered, not assumed.** Suspect
+    pairing (`pickPair`) and who answers first within a pair
+    (`suspectIds[0]`) are both server-chosen and not derivable from which
+    browser context joined in which order. `round.spec.ts` sorts its four
+    pages into `suspects`/`detectives` by which branch of `Planning.svelte`
+    they actually render (ruling 34's pairing-by-index doesn't help here —
+    this is about identifying which *page* is which role at all), then polls
+    both suspect pages for whichever currently shows the answer form rather
+    than hardcoding an alternation.
+48. **The security assertion is a live DOM check, not a static review.**
+    `round.spec.ts` captures the suspects' exact story text from the DOM
+    during PLANNING, then asserts a detective page's `<body>` never contains
+    that string at three checkpoints spanning PLANNING, INTERROGATION and
+    DELIBERATION — the three phases before REVEAL publishes the scenario
+    (ruling 18). It also asserts the positive case at REVEAL (the scenario
+    *does* appear on a detective's page once it's public), so the absence
+    checks are known to be meaningful rather than passing by accident (e.g.
+    a broken selector that never finds the text anywhere).
+49. **e2e test-input elements without their own `data-testid`** (the chat,
+    answer and question `<input>`s — only their wrapping `<form>` and submit
+    `<button>` carry one) are targeted by their existing `id` selector
+    (`#planning-chat-input` etc.) instead of adding new testids purely for
+    the test.
+
+## Plan 2 complete
+
+All nine tasks (T1–T9) are done, verified (`pnpm -r typecheck` / `pnpm -r
+test` / `pnpm -r build` green after every task) and pushed to
+`feat/plan2-round-loop`. What now works, end to end, for 3–16 players:
+
+- **Full round loop**: LOBBY → INTRO → PLANNING → INTERROGATION →
+  DELIBERATION → REVEAL → (next round, or) FINALE, entirely server-timed
+  (deadline + client-rendered countdown, never a client-decided phase end)
+  and alarm-driven so a Durable Object restart mid-round resumes correctly.
+- **Curated scenarios** (20, bilingual EN/DA) with suspect-pair rotation that
+  avoids repeats until everyone has been a suspect, and scenario rotation
+  that avoids repeats while unused ones remain.
+- **The full protocol surface**: planning chat (suspects only, capped at 200
+  lines), detective questions (5/detective/round, app-supplied questions fill
+  any slot a detective doesn't), suspect answers (one per suspect per
+  question, empty string on timeout), deliberation votes (majority of votes
+  *cast* decides, a tie favors the suspects, unanimous is measured over votes
+  cast), scoring (+2/+3 suspects, +2 matching detectives), and FINALE
+  superlative awards derived from the whole game's history.
+- **Per-player language**: each player reads the scenario and app-supplied
+  questions in their own language (`lang` on `Player`, `setLang` message);
+  Danish is fully authored (not machine-translated) across every screen
+  added in Plan 2.
+- **The secrecy guarantee**: detectives never receive the scenario or the
+  suspects' private chat in any phase before REVEAL, enforced by absence
+  tests at the snapshot level (T4) and now also end-to-end at the DOM level
+  (T9's `round.spec.ts`).
+- **Every screen** (LOBBY, INTRO, PLANNING, INTERROGATION, DELIBERATION,
+  REVEAL, FINALE) is built to the "Party File" design system, paints its own
+  full-bleed canvas color, and is covered by unit tests plus, for the whole
+  loop, a Playwright e2e (`apps/web/e2e/round.spec.ts`, not part of CI — run
+  it locally per the README).
+- **The 3-player minimum** (2 suspects + at least 1 detective) is enforced
+  both server-side (`startGame`, scope decision 1) and in the lobby UI
+  (`canStart`, `lobby.needThree`).
+
+Explicitly still out of scope (unchanged from the plan's own "Out of scope"
+section, restated here since this is the natural place a resuming session
+looks first):
+
+- **AI scenario generation and the AI detective** — `scenarioSource` exists
+  in `Settings` but every value behaves as `curated` (scope decision 2).
+- **The 2p/3p AI-detective modes and the 9+ parallel-pair mode** — only the
+  classic rotation (3+ players, one suspect pair at a time) is implemented
+  (scope decision 3).
+- Spectators, PWA install-prompt work, and profanity filtering (unchanged
+  from the plan's original "Out of scope" list).
+- **"Play again" / return-to-lobby after FINALE** — no server capability for
+  it exists yet (ruling 42 above); FINALE's only exit today is home.

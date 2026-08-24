@@ -13,6 +13,7 @@
 	import Interrogation from './Interrogation.svelte';
 	import Deliberation from './Deliberation.svelte';
 	import Reveal from './Reveal.svelte';
+	import Finale from './Finale.svelte';
 
 	let { data } = $props();
 
@@ -339,15 +340,7 @@
 	{:else if view?.room.phase === 'REVEAL'}
 		<Reveal room={view.room} you={view.you} {offset} />
 	{:else if view?.room.phase === 'FINALE'}
-		<!-- TODO(T9): replace with the real Finale.svelte screen. FinaleView
-		     carries no deadline (the round loop is over), so this placeholder
-		     shows the phase stamp only, no countdown. -->
-		<section
-			data-testid="phase-placeholder"
-			class="pop-in grid fill-vp place-items-center px-4 text-center bg-grape text-paper"
-		>
-			<span class="stamp">{m['game.phase.finale']()}</span>
-		</section>
+		<Finale room={view.room} you={view.you} onLeave={leaveRoom} />
 	{/if}
 
 	{#if offlineLong && screen !== 'INTRO'}
