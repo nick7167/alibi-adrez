@@ -10,7 +10,7 @@ what a resumed session reads first.
 |---|---|---|---|
 | T1 scenario pack | done | `59fcd9e` | 20 bilingual (en/da) scenarios in `packages/shared/content/scenarios.ts`; exported via `src/index.ts`; `scenarioById`/`resolveScenario` + tests in `test/scenarios.test.ts` |
 | T2 protocol | done | `c6b1aa5` | Added round-loop client messages, error codes, and per-phase views (IntroView replaces StartingView) to `packages/shared/src/protocol.ts`; `snapshotForPlayer` builds a minimal `IntroView`; `applyEvent` stub-rejects the new messages with `WRONG_PHASE` pending T3 |
-| T3 state machine | done | — | Round loop in new `packages/shared/src/round.ts` (`RoundState`, `advance`, `applyRoundMessage`, `handlePlayerLeft`, scoring, pair/scenario rotation), re-exported from `src/index.ts`; `InternalRoom` gains `scores`/`wasSuspect`/`rounds`/`deadline` and `EventDeps` gains `now()`/`random()`; 33 new tests in `test/round.test.ts` |
+| T3 state machine | done | `4fac82c` | Round loop in new `packages/shared/src/round.ts` (`RoundState`, `advance`, `applyRoundMessage`, `handlePlayerLeft`, scoring, pair/scenario rotation), re-exported from `src/index.ts`; `InternalRoom` gains `scores`/`wasSuspect`/`rounds`/`deadline` and `EventDeps` gains `now()`/`random()`; 33 new tests in `test/round.test.ts` |
 | T4 snapshots | not started | — | |
 | T5 rooms timers/dispatch | not started | — | |
 | T6 web plumbing + PLANNING | not started | — | |
@@ -70,3 +70,22 @@ Decisions made mid-flight that later tasks must respect.
 13. **Scope decision 1 broke two existing tests** (2-player `startGame`); they
     now seat three: `packages/shared/test/state.test.ts` and
     `apps/rooms/test/ws.test.ts`. The lobby's own minimum is still T9.
+
+### Orchestrator ruling — per-player language (added before T4)
+
+The plan never said how the server learns which language a player reads, so T3
+had to hardcode English for app-supplied questions (`round.ts:104`), and T4
+would have had to do the same for the scenario itself. The design spec (§7)
+requires scenario language to follow the reader, and snapshots are already
+personalized, so the fix belongs in the protocol:
+
+- `Player` carries `lang: Lang` (default `"en"`).
+- `join` accepts an optional `lang`; a new `setLang { lang }` client message
+  lets the in-app EN/DA toggle update it mid-game.
+- App-supplied questions are stored as a `detailIndex`, not resolved text, so
+  they can be rendered in the reader's language.
+- `snapshotForPlayer` resolves both the scenario and any app-supplied question
+  through `resolveScenario(scenarioId, player.lang)`.
+
+T4 implements this. Later web tasks must send `lang` on join and on locale
+change.

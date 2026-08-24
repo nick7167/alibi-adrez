@@ -102,14 +102,21 @@ awards derived from round stats. Pure functions only — no Cloudflare imports.
 Tests must cover every legal and illegal transition, the scoring maths, the tie
 rule, and pair rotation across rounds.
 
-### T4 — shared: personalized snapshots
+### T4 — shared: per-player language + personalized snapshots
 → `packages/shared/src/state.ts`, `packages/shared/test/snapshot.test.ts`
 
-`snapshotForPlayer` returns the right view per phase and per role. Suspects see
-the scenario and their private chat; detectives see the sanitized transcript
-only. Tests assert the *absence* of `scenario` and `chat` keys from every
-detective snapshot in every phase, via deep key-walking rather than shallow
-checks.
+First close the language gap (see the ruling in the ledger): `Player` gains
+`lang`, `join` accepts an optional `lang`, a new `setLang { lang }` message
+updates it, and app-supplied questions are stored as a `detailIndex` rather
+than pre-resolved English text.
+
+Then `snapshotForPlayer` returns the right view per phase and per role,
+resolving the scenario and any app-supplied question in the reader's own
+language. Suspects see the scenario and their private chat; detectives see the
+sanitized transcript only. Tests assert the *absence* of `scenario` and `chat`
+keys from every detective snapshot in every phase, via deep key-walking rather
+than shallow checks, and that two players reading different languages get the
+same round in their own language.
 
 ### T5 — rooms: timers, alarms and dispatch
 → `apps/rooms/src/do.ts`, `apps/rooms/test/round.test.ts`
