@@ -15,7 +15,7 @@ what a resumed session reads first.
 | T5 rooms timers/dispatch | done | `a9b2d04` | One alarm slot multiplexes the phase deadline and a `destroyAt` idle key; `alarm()` catches up via `advance` in a loop, self-destructs only when idle is due *and* no sockets are attached, then re-arms for whichever is next; `setLang` + the four round messages routed through `dispatch`; `state` gains `now`; 12 new tests in `apps/rooms/test/round.test.ts` |
 | T6 web plumbing + PLANNING | done | `e57e737` | `api.ts` gains `submitQuestion`/`suspectChat`/`submitAnswer`/`castVote`/`setLang` send helpers + `computeClockOffset`; `+page.svelte` routes every `Phase` (LOBBY→Lobby, INTRO→splash, PLANNING→new `Planning.svelte`, INTERROGATION/DELIBERATION/REVEAL/FINALE→`TODO(T7)`/`TODO(T8)`/`TODO(T9)` placeholders); new `Countdown.svelte`; canvas/`theme-color` derivation extended to the ledger's 7-phase table |
 | T7 web INTERROGATION | done | `c4dae82` | New `Interrogation.svelte` (night field, sunshine countdown/accents): suspects get a big manila question card, turn state ("your turn" vs "X is answering", no input when it isn't their turn), a collapsible scenario reference, and a bottom-pinned answer form only when `awaitingMyAnswer`; detectives get a scrolling transcript of manila cards (paired answers by `suspectIds` order, empty string rendered as a "no answer" stamp) plus a dashed pending-question card for the in-flight `question`, and a bottom-pinned question form gated on `myQuestionsLeft`. `+page.svelte` swaps the placeholder per ruling 33. |
-| T8 web DELIBERATION + REVEAL | not started | — | |
+| T8 web DELIBERATION + REVEAL | done | — | New `Deliberation.svelte` (cobalt, paper text) and `Reveal.svelte` (sunshine, ink text) replace the T6 placeholders; `+page.svelte` wires `castVote` as `sendVote` and drops the now-unused `placeholder` snippet |
 | T9 web FINALE + e2e | not started | — | |
 
 ## Rulings
@@ -334,3 +334,58 @@ shape. Reveal is the one screen whose field is a *light* surface (sunshine,
 ink text) among T7-T9's dark ones, so the evidence accent reverts to coral
 there per the original (non-flipped) rule — don't carry the sunshine-on-dark
 override over by habit.
+
+**T8 — web DELIBERATION + REVEAL**
+
+38. **`Deliberation.svelte`** (cobalt field, paper text) is one component, not
+    role-branched top-to-bottom: everyone sees the same transcript (built the
+    same way as T7's, `entry.answers` already ordered by `suspectIds` per
+    ruling 34 — iterate it directly, no re-deriving), with an avatar+name
+    header per answer block (avatar is new here, strengthens the pairing per
+    the task brief) and the same `interrogation.noAnswer`/
+    `interrogation.transcriptEmpty` stamps reused verbatim (ruling 35 — don't
+    invent a second "no answer" treatment). Only the footer branches on
+    `room.role`: detectives get two `.sticker` pill buttons (`bg-mint` for
+    Consistent, `bg-coral` for Busted — the color difference *is* the
+    differentiation, no separate icon set) that disappear once `myVote` is
+    set, replaced by a locked-in readout naming their choice; suspects get a
+    static "the detectives are deciding" message. `votesCast`/`votesNeeded`
+    render as a `.stamp` under the header for both roles.
+39. **`Reveal.svelte`** (sunshine field, ink text) has no `role` branch at all
+    — `RevealView` carries no `role` key (unlike Planning/Interrogation/
+    Deliberation), the scenario and awards are public to everyone. The
+    verdict is a large rotated "stamp" card (custom CSS, not the small
+    `.stamp` primitive — that one is sized for labels, not a headline):
+    `bg-mint`/ink, rotated -4deg for `consistent`; `bg-coral`/white, rotated
+    +3deg for `busted`. Opposite rotation + opposite color is the whole
+    differentiation mechanism; `unanimous` adds a small `.stamp` badge below
+    it, shown only when true. The scenario card below it is the *exact same
+    markup* as Planning's suspect-only scenario card, reusing
+    `planning.scenario.title`/`planning.details.title` rather than new copy
+    keys — it is literally the same content, now public. `awarded` renders as
+    `+N` in coral mono for positive deltas and a dimmed plain number for zero
+    (never a bare `-` or blank — "including zero" per the brief), tagged
+    `.stamp` "Suspect" for the two suspects. The scoreboard below it trusts
+    `scoreboard`'s existing sort (ruling 19) and just renders it. Both list
+    sections ring-highlight the viewer's own row (`entry.playerId === you`) —
+    a nicety, not a requirement, but cheap and makes "how did I do" scannable
+    at a 10-second glance.
+40. **The `placeholder` snippet in `+page.svelte` is gone** — T7 already
+    stopped using it for INTERROGATION, T8 removed the DELIBERATION/REVEAL
+    calls, so nothing rendered it anymore. `PHASE_SURFACE` (ruling 30) is
+    left in place (still documents the phase→surface-class table per that
+    ruling, and every real phase component hardcodes its own field colour
+    classes directly on its root element rather than reading it — same
+    pattern `Deliberation`/`Reveal` follow as `Interrogation`/`Planning`).
+    **T9 note:** FINALE's placeholder in `+page.svelte` was never wired to
+    the `placeholder` snippet — it's always been its own inline `<section>`
+    with a literal `bg-grape text-paper` class and no countdown (ruling 32:
+    `FinaleView` has no `deadline`). Swap that whole block for the real
+    `Finale.svelte`, same as ruling 33's pattern for the other phases; there
+    is no snippet left to reuse.
+41. **New copy keys** are under `deliberation.*` and `reveal.*` in both
+    `messages/en.json` and `messages/da.json` (vote prompt/labels/locked
+    state, suspect-waiting copy, verdict headline/subline per outcome,
+    `unanimous`, awarded/scoreboard section titles, the suspect role tag).
+    `reveal.*` deliberately does *not* duplicate `planning.scenario.title`/
+    `planning.details.title` — see ruling 39.

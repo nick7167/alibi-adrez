@@ -5,12 +5,14 @@
 	import { clearIdentity, loadIdentity, saveIdentity } from '$lib/stores/session.svelte';
 	import type { Identity } from '$lib/stores/session.svelte';
 	import { currentLocale } from '$lib/i18n';
-	import type { Phase, RoomView, ServerMessage, Settings } from '@alibi/shared';
+	import type { Phase, RoomView, ServerMessage, Settings, Verdict } from '@alibi/shared';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';
 	import Planning from './Planning.svelte';
 	import Interrogation from './Interrogation.svelte';
+	import Deliberation from './Deliberation.svelte';
+	import Reveal from './Reveal.svelte';
 
 	let { data } = $props();
 
@@ -156,6 +158,10 @@
 		sockRef?.submitAnswer(text);
 	}
 
+	function sendVote(verdict: Verdict) {
+		sockRef?.castVote(verdict);
+	}
+
 	/** Which field the room route is showing — the ONE place this branch lives.
 	    The browser-chrome tint, the canvas style block, and the placeholder
 	    phase screens below all key off it, so they can never drift apart. */
@@ -214,23 +220,6 @@
 		return () => clearInterval(t);
 	});
 </script>
-
-{#snippet placeholder(
-	deadline: number | null,
-	phase: Phase,
-	labelKey: 'game.phase.interrogation' | 'game.phase.deliberation' | 'game.phase.reveal'
-)}
-	<section
-		data-testid="phase-placeholder"
-		class="pop-in grid fill-vp place-items-center px-4 text-center {PHASE_SURFACE[phase] ??
-			'bg-night text-paper'}"
-	>
-		<div class="flex flex-col items-center gap-5 pb-safe">
-			<span class="stamp">{m[labelKey]()}</span>
-			<Countdown {deadline} {offset} class="text-coral" />
-		</div>
-	</section>
-{/snippet}
 
 <svelte:head>
 	<title>{m['app.title']()} · {data.code}</title>
@@ -346,11 +335,9 @@
 			onSubmitAnswer={sendAnswer}
 		/>
 	{:else if view?.room.phase === 'DELIBERATION'}
-		<!-- TODO(T8): replace with the real Deliberation.svelte screen. -->
-		{@render placeholder(view.room.deadline, 'DELIBERATION', 'game.phase.deliberation')}
+		<Deliberation room={view.room} you={view.you} {offset} onCastVote={sendVote} />
 	{:else if view?.room.phase === 'REVEAL'}
-		<!-- TODO(T8): replace with the real Reveal.svelte screen. -->
-		{@render placeholder(view.room.deadline, 'REVEAL', 'game.phase.reveal')}
+		<Reveal room={view.room} you={view.you} {offset} />
 	{:else if view?.room.phase === 'FINALE'}
 		<!-- TODO(T9): replace with the real Finale.svelte screen. FinaleView
 		     carries no deadline (the round loop is over), so this placeholder
