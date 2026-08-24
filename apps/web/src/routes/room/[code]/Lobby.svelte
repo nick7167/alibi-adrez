@@ -125,7 +125,7 @@
 	});
 </script>
 
-<div class="relative mx-auto flex fill-vp w-full max-w-md flex-col px-4 pt-safe pb-safe">
+<div class="relative mx-auto flex fill-vp w-full max-w-md flex-col px-5 pt-safe pb-safe">
 	{#if burstKey > 0}
 		{#key burstKey}
 			<!-- confetti burst (decorative) -->
@@ -146,109 +146,174 @@
 		aria-label={m['lobby.leave']()}
 		title={m['lobby.leave']()}
 		onclick={onLeave}
-		class="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 grid size-11 place-items-center rounded-full border-4 border-coral bg-paper text-lg font-bold text-coral"
+		class="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 grid size-11 place-items-center rounded-full border-4 border-coral bg-paper text-coral"
 	>
-		✕
+		<svg
+			width="18"
+			height="18"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="3.5"
+			stroke-linecap="round"
+			aria-hidden="true"
+		>
+			<path d="M6 6l12 12M18 6L6 18" />
+		</svg>
 	</button>
 
+	<!-- The room code is evidence: mono, coral, stamped. -->
 	<button
 		type="button"
 		data-testid="share-code"
 		onclick={shareCode}
-		class="sticker mt-2 flex min-h-14 shrink-0 flex-col items-center justify-center rounded-card px-6 py-4"
+		class="flex shrink-0 flex-col items-center justify-center px-6 py-2"
 	>
-		<span class="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-ink/70">
+		<span class="field-label flex items-center gap-2">
+			<svg
+				width="15"
+				height="15"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2.4"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"
+			>
+				<path d="M12 3v12" /><path d="m8 7 4-4 4 4" /><path
+					d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"
+				/>
+			</svg>
 			{m['lobby.share']()}
 			{#if copied}
-				<span class="rounded-full bg-mint px-2 py-0.5 text-xs font-bold normal-case tracking-normal text-ink" role="status">
+				<span
+					class="rounded-full bg-mint px-2 py-0.5 font-mono text-[10px] tracking-normal text-ink normal-case"
+					role="status"
+				>
 					{m['lobby.copied']()}
 				</span>
 			{/if}
 		</span>
-		<span class="mt-1 text-6xl leading-none font-extrabold tracking-[0.18em] text-cobalt tabular-nums sm:text-7xl">
+		<span
+			class="stamp-frame mt-2 bg-paper px-4 pt-1.5 pb-1 font-mono text-[42px] leading-tight font-bold tracking-[0.12em] text-coral tabular-nums"
+		>
 			{room.code}
 		</span>
+		<span class="mt-1.5 font-mono text-xs text-ink/50">{m['lobby.copyHint']()}</span>
 	</button>
 
 	<div class="relative min-h-0 flex-1">
-		<div class="h-full overflow-x-hidden overflow-y-auto px-2">
-		<h2
-			bind:this={headingEl}
-			data-testid="players-heading"
-			tabindex="-1"
-			class="reveal mt-6 text-2xl font-extrabold text-ink outline-none"
-		>
-			{m['lobby.players']()} <span class="text-ink/50">{room.players.length}/{MAX_PLAYERS}</span>
-		</h2>
-
-	<ul class="mt-3 grid grid-cols-1 gap-2" role="list">
-		{#each room.players as player, i (player.id)}
-			<li
-				data-testid="player-card"
-				class={`pop-in relative flex min-h-12 items-center gap-3 rounded-xl px-3 py-2 shadow-[0_2px_0_rgba(23,21,49,0.15)] ${
-					STICKERS[i % STICKERS.length]
-				}`}
-				style="animation-delay: {i * 60}ms"
-			>
-				<span class="grid size-9 shrink-0 place-items-center rounded-full bg-white/70 text-xl">
-					{player.emoji}
+		<div class="h-full overflow-x-hidden overflow-y-auto px-1">
+			<div class="mt-5 flex items-baseline justify-between">
+				<h2
+					bind:this={headingEl}
+					data-testid="players-heading"
+					tabindex="-1"
+					class="reveal text-2xl font-extrabold text-ink outline-none"
+				>
+					{m['lobby.players']()}
+				</h2>
+				<span class="font-mono text-[13px] font-bold text-ink/55 tabular-nums">
+					{room.players.length}/{MAX_PLAYERS}
 				</span>
-				<span class="truncate text-base font-bold">{player.name}</span>
-				{#if player.id === room.hostId}
-					<span
-						class="starburst absolute -top-2 right-1 grid size-8 rotate-12 place-items-center bg-grape text-sm"
-						title={m['lobby.hostTag']()}
-					>
-						👑
-					</span>
-				{/if}
-			</li>
-		{/each}
-	</ul>
-
-	{#if isHost}
-		<section
-			class="reveal mt-5 rounded-card border-[3px] border-ink bg-paper p-4 shadow-[0_5px_0_rgba(23,21,49,0.15)]"
-			style="animation-delay: {room.players.length * 60}ms"
-		>
-			<h3 class="text-sm font-bold uppercase tracking-widest text-ink/70">{m['lobby.settings.title']()}</h3>
-			<div class="mt-2 flex flex-col divide-y divide-ink/10">
-				{#each NUM_FIELDS as f (f.key)}
-					<div class="flex min-h-12 items-center justify-between gap-3 py-1">
-						<span class="font-semibold text-ink" id={`setting-${f.key}`}>{m[f.labelKey]()}</span>
-						<span class="flex items-center gap-2" role="group" aria-labelledby={`setting-${f.key}`}>
-							<button
-								type="button"
-								data-testid={`dec-${f.key}`}
-								aria-label={`− ${m[f.labelKey]()}`}
-								disabled={draft[f.key] <= f.min}
-								onclick={() => bump(f, -1)}
-								class="grid size-11 place-items-center rounded-full bg-cobalt text-xl font-bold text-white disabled:opacity-30"
-							>
-								−
-							</button>
-							<span
-								class="w-9 text-center text-lg font-extrabold tabular-nums"
-								data-testid={`value-${f.key}`}
-							>
-								{draft[f.key]}
-							</span>
-							<button
-								type="button"
-								data-testid={`inc-${f.key}`}
-								aria-label={`+ ${m[f.labelKey]()}`}
-								disabled={draft[f.key] >= f.max}
-								onclick={() => bump(f, 1)}
-								class="grid size-11 place-items-center rounded-full bg-cobalt text-xl font-bold text-white disabled:opacity-30"
-							>
-								+
-							</button>
-						</span>
-					</div>
-				{/each}
 			</div>
-		</section>
-	{/if}
+
+			<ul class="mt-3 flex flex-col gap-2" role="list">
+				{#each room.players as player, i (player.id)}
+					<li
+						data-testid="player-card"
+						class={`pop-in relative flex min-h-[52px] items-center gap-2.5 rounded-[14px] px-3 py-2 shadow-[0_2px_0_rgba(23,21,49,0.15)] ${
+							STICKERS[i % STICKERS.length]
+						}`}
+						style="animation-delay: {i * 60}ms"
+					>
+						<span class="font-mono text-xs font-bold opacity-70 tabular-nums" aria-hidden="true">
+							{String(i + 1).padStart(2, '0')}
+						</span>
+						<span class="grid size-9 shrink-0 place-items-center rounded-full bg-white/70 text-xl">
+							{player.emoji}
+						</span>
+						<span data-testid="player-name" class="flex-1 truncate text-base font-bold">{player.name}</span>
+						{#if player.id === room.hostId}
+							<span class="stamp shrink-0" title={m['lobby.hostTag']()}>
+								{m['lobby.hostTag']()}
+							</span>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+
+			{#if isHost}
+				<section
+					class="reveal mt-5 rounded-card border-[3px] border-ink bg-manila p-4 shadow-[0_5px_0_rgba(23,21,49,0.18)]"
+					style="animation-delay: {room.players.length * 60}ms"
+				>
+					<h3 class="field-label">{m['lobby.settings.title']()}</h3>
+					<div class="mt-1 flex flex-col">
+						{#each NUM_FIELDS as f (f.key)}
+							<div class="flex min-h-[52px] items-center gap-2.5 py-1">
+								<span class="font-semibold text-ink" id={`setting-${f.key}`}>{m[f.labelKey]()}</span>
+								<span class="leader" aria-hidden="true"></span>
+								<span
+									class="flex shrink-0 items-center gap-2"
+									role="group"
+									aria-labelledby={`setting-${f.key}`}
+								>
+									<button
+										type="button"
+										data-testid={`dec-${f.key}`}
+										aria-label={`− ${m[f.labelKey]()}`}
+										disabled={draft[f.key] <= f.min}
+										onclick={() => bump(f, -1)}
+										class="grid size-11 place-items-center rounded-full bg-cobalt text-white disabled:opacity-30"
+									>
+										<svg
+											width="18"
+											height="18"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="3.5"
+											stroke-linecap="round"
+											aria-hidden="true"
+										>
+											<path d="M6 12h12" />
+										</svg>
+									</button>
+									<span
+										class="w-8 text-center font-mono text-lg font-bold tabular-nums"
+										data-testid={`value-${f.key}`}
+									>
+										{draft[f.key]}
+									</span>
+									<button
+										type="button"
+										data-testid={`inc-${f.key}`}
+										aria-label={`+ ${m[f.labelKey]()}`}
+										disabled={draft[f.key] >= f.max}
+										onclick={() => bump(f, 1)}
+										class="grid size-11 place-items-center rounded-full bg-cobalt text-white disabled:opacity-30"
+									>
+										<svg
+											width="18"
+											height="18"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="3.5"
+											stroke-linecap="round"
+											aria-hidden="true"
+										>
+											<path d="M12 6v12M6 12h12" />
+										</svg>
+									</button>
+								</span>
+							</div>
+						{/each}
+					</div>
+				</section>
+			{/if}
 		</div>
 		<div
 			class="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-b from-transparent to-paper"
@@ -312,17 +377,6 @@
 		}
 	}
 
-	/* 14-point sticker burst for the host tag */
-	.starburst {
-		clip-path: polygon(
-			100% 50%, 90.2% 60.9%, 96.6% 74.1%, 82.6% 77.7%, 80.4% 92.4%, 67.3% 86.6%,
-			58.7% 98.5%, 50% 87.5%, 41.3% 98.5%, 32.7% 86.6%, 19.6% 92.4%, 17.4% 77.7%,
-			3.4% 74.1%, 9.8% 60.9%, 0% 50%, 9.8% 39.1%, 3.4% 25.9%, 17.4% 22.3%,
-			19.6% 7.6%, 32.7% 13.4%, 41.3% 1.5%, 50% 12.5%, 58.7% 1.5%, 67.3% 13.4%,
-			80.4% 7.6%, 82.6% 22.3%, 96.6% 25.9%, 90.2% 39.1%
-		);
-	}
-
 	.confetti-bit {
 		animation: confetti-pop 900ms ease-out forwards;
 	}
@@ -338,26 +392,11 @@
 		}
 	}
 
-	.sticker {
-		box-shadow: 0 5px 0 rgba(23, 21, 49, 0.2);
-		background-color: var(--color-paper);
-		border: 3px solid var(--color-ink);
-		transition: box-shadow 100ms ease, transform 100ms ease;
-	}
-
-	.sticker:active {
-		transform: translateY(2px);
-		box-shadow: 0 2px 0 rgba(23, 21, 49, 0.2);
-	}
-
 	@media (prefers-reduced-motion: reduce) {
 		.pop-in,
 		.reveal,
 		.confetti-bit {
 			animation: none;
-		}
-		.sticker {
-			transition: none;
 		}
 	}
 </style>

@@ -1,27 +1,38 @@
-@import '@fontsource/baloo-2/400.css';
-@import '@fontsource/baloo-2/600.css';
-@import '@fontsource/baloo-2/700.css';
-@import '@fontsource/baloo-2/800.css';
-@import 'tailwindcss';
+@import "@fontsource/baloo-2/400.css";
+@import "@fontsource/baloo-2/600.css";
+@import "@fontsource/baloo-2/700.css";
+@import "@fontsource/baloo-2/800.css";
+@import "@fontsource/courier-prime/400.css";
+@import "@fontsource/courier-prime/700.css";
+@import "tailwindcss";
 
 @theme {
-	--color-paper: #fff6ea;
-	--color-ink: #141433;
-	--color-cobalt: #3d50e0;
-	--color-sunshine: #ffc93c;
-	--color-coral: #f95d62;
-	--color-mint: #5fd6a7;
-	--color-grape: #7a3be0;
-	--color-night: #171531;
+  --color-paper: #fff6ea;
+  --color-ink: #141433;
+  --color-cobalt: #3d50e0;
+  --color-sunshine: #ffc93c;
+  --color-coral: #f95d62;
+  --color-mint: #5fd6a7;
+  --color-grape: #7a3be0;
+  --color-night: #171531;
 
-	--radius-card: 1.75rem;
+  /* Case-file surface: anything that behaves like paperwork (the landing
+	   logo card, the settings panel) sits on manila, never on paper. */
+  --color-manila: #e9d9b4;
 
-	--font-sans: 'Baloo 2', 'Comic Sans MS', system-ui, sans-serif;
+  --radius-card: 1.75rem;
+
+  /* Two voices, one rule (design concept D "Party File"):
+	   --font-sans  = play      → headings, names, button labels, body copy
+	   --font-mono  = evidence  → room codes, field labels, list numbering,
+	                              role tags, counts. Nothing else. */
+  --font-sans: "Baloo 2", "Comic Sans MS", system-ui, sans-serif;
+  --font-mono: "Courier Prime", "Courier New", monospace;
 }
 
 body {
-	font-family: var(--font-sans);
-	color: var(--color-ink);
+  font-family: var(--font-sans);
+  color: var(--color-ink);
 }
 
 /* Canvas default for EVERY page, current and future: the html+body canvas
@@ -33,14 +44,14 @@ body {
    Full-bleed colored pages override with a plain `html, html > body`
    selector + their field color (see +page.svelte / room/[code]/+page.svelte). */
 :where(html, html > body) {
-	background-color: var(--color-paper);
+  background-color: var(--color-paper);
 }
 
 html,
 body {
-	height: 100%;
-	overflow: hidden;
-	overscroll-behavior: none;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* Viewport helpers — edge-to-edge shells that respect device safe areas.
@@ -48,14 +59,95 @@ body {
    utilities these intentionally win, so `pb-8 pb-safe` merges instead of
    depending on source order. */
 .fill-vp {
-	height: 100vh;
-	height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
 }
 
 .pt-safe {
-	padding-top: max(2rem, env(safe-area-inset-top));
+  padding-top: max(2rem, env(safe-area-inset-top));
 }
 
 .pb-safe {
-	padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
+}
+
+/* ---------------------------------------------------------------------------
+   Design system primitives (concept D "Party File").
+   Unlayered on purpose, exactly like the viewport helpers above: these merge
+   over Tailwind utilities instead of depending on source order.
+
+   The system's one rule: play is Baloo + bright fields + pressable stickers;
+   evidence is Courier + coral stamps (codes, labels, numbering, roles).
+   Manila is the surface for anything file-like. Break the rule and it stops
+   reading as a system and starts reading as decoration.
+   --------------------------------------------------------------------------- */
+
+/* Pressable things: a hard offset shadow that depresses on touch. */
+.sticker {
+  box-shadow: 0 5px 0 rgba(20, 20, 51, 0.2);
+  transition:
+    box-shadow 100ms ease,
+    translate 100ms ease;
+}
+
+.sticker:not(:disabled):active {
+  translate: 0 2px;
+  box-shadow: 0 2px 0 rgba(20, 20, 51, 0.2);
+}
+
+/* Evidence label: every field caption, section heading and count. */
+.field-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-ink) 65%, transparent);
+}
+
+/* Rubber stamp: role tags and status marks. Rotation is part of it — a
+   stamp that sits perfectly square reads as a badge, not a stamp. */
+.stamp {
+  display: inline-block;
+  border: 2px solid var(--color-coral);
+  border-radius: 4px;
+  background: var(--color-paper);
+  padding: 0.125rem 0.4375rem;
+  rotate: -6deg;
+  color: var(--color-coral);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* The double-ruled frame the room code is stamped inside. */
+.stamp-frame {
+  border: 4px double var(--color-coral);
+  border-radius: 6px;
+  rotate: -2deg;
+}
+
+/* Ruled paper. Sits under content on paper and manila surfaces. */
+.ruled {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(20, 20, 51, 0.045) 0 1px,
+    transparent 1px 28px
+  );
+}
+
+/* Dotted leader between a settings label and its stepper. */
+.leader {
+  flex: 1;
+  height: 1px;
+  border-bottom: 1px dotted
+    color-mix(in oklab, var(--color-ink) 40%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticker {
+    transition: none;
+  }
 }

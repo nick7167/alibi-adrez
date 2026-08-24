@@ -21,6 +21,18 @@ Playwright e2e lives in `apps/web/e2e`; run it locally from that workspace. It i
 
 ## Frontend conventions
 
+**Design system — "Party File".** One rule governs every screen, current and
+future: **play** is Baloo 2 on a bright field, with pill controls that press
+(`.sticker`); **evidence** is Courier Prime in coral stamps, and it is reserved
+for room codes, field labels, list numbering, roles and counts. Manila
+(`--color-manila`) is the surface for anything that behaves like paperwork — the
+landing's logo card, the lobby's settings panel — never a general background.
+Primitives live in `apps/web/src/app.css`: `.sticker`, `.field-label`, `.stamp`,
+`.stamp-frame`, `.ruled`, `.leader`. New screens compose those; if manila or the
+mono face shows up somewhere that isn't evidence, the system has been broken.
+Field colours stay as they are: sunshine landing, cobalt join, paper lobby,
+night splash.
+
 **Screen canvas color.** Every full-bleed screen paints the `html`+`body` canvas
 with its own field color, so iOS can never expose a system zone (status bar,
 home indicator) in a mismatched color. Two rules make that safe:

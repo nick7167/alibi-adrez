@@ -3,6 +3,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { currentLocale, setLocale, type Locale } from '$lib/i18n';
 	import { createRoom, isValidCodeInput } from '$lib/api';
+	import MaskMark from '$lib/components/MaskMark.svelte';
 
 	const locales: Locale[] = ['en', 'da'];
 
@@ -78,37 +79,52 @@
 <main class="relative fill-vp overflow-hidden bg-sunshine text-ink">
 	<!-- pixel-confetti layer (decorative) -->
 	<div class="pointer-events-none absolute inset-0" aria-hidden="true">
-		<span class="absolute top-[8%] left-[6%] h-3 w-3 rotate-12 bg-cobalt opacity-15"></span>
-		<span class="absolute top-[16%] right-[10%] h-2.5 w-2.5 rotate-45 bg-coral opacity-20"></span>
-		<span class="absolute top-[30%] left-[12%] h-2 w-2 -rotate-6 bg-grape opacity-15"></span>
-		<span class="absolute top-[38%] right-[5%] h-3.5 w-3.5 rotate-45 bg-mint opacity-15"></span>
-		<span class="absolute bottom-[24%] left-[7%] h-3.5 w-3.5 rotate-3 bg-cobalt opacity-10"></span>
-		<span class="absolute right-[14%] bottom-[32%] h-2.5 w-2.5 -rotate-12 bg-coral opacity-20"></span>
-		<span class="absolute top-[6%] right-[32%] h-2 w-2 rotate-45 bg-paper opacity-20"></span>
-		<span class="absolute bottom-[12%] left-[28%] h-2.5 w-2.5 rotate-45 bg-grape opacity-15"></span>
-		<span class="absolute right-[6%] bottom-[8%] h-3 w-3 -rotate-45 bg-mint opacity-20"></span>
-		<span class="absolute bottom-[42%] left-[4%] h-2 w-2 rotate-45 bg-coral opacity-15"></span>
+		<span class="absolute top-[9%] left-[6%] h-3 w-3 rotate-12 bg-cobalt opacity-15"></span>
+		<span class="absolute top-[15%] right-[9%] h-2.5 w-2.5 rotate-45 bg-coral opacity-20"></span>
+		<span class="absolute top-[34%] left-[12%] h-2 w-2 -rotate-6 bg-grape opacity-15"></span>
+		<span class="absolute bottom-[30%] left-[8%] h-3.5 w-3.5 rotate-3 bg-grape opacity-10"></span>
+		<span class="absolute right-[12%] bottom-[20%] h-2.5 w-2.5 -rotate-12 bg-mint opacity-20"></span>
+		<span class="absolute bottom-[9%] left-[26%] h-2.5 w-2.5 rotate-45 bg-paper opacity-25"></span>
+		<span class="absolute right-[6%] bottom-[8%] h-3 w-3 -rotate-45 bg-mint opacity-15"></span>
 	</div>
 
 	<div
-		class="relative z-10 mx-auto flex h-full w-full max-w-md flex-col overflow-y-auto px-4 pt-16 pb-safe"
+		class="relative z-10 mx-auto flex h-full w-full max-w-md flex-col overflow-y-auto px-5 pt-16 pb-safe"
 	>
-		<header>
-			<h1
-				class="reveal text-center text-7xl font-extrabold tracking-tight text-ink"
+		<header class="relative">
+			<!-- File card: the mark and wordmark live on manila, the one surface
+			     the system reserves for things that behave like paperwork. -->
+			<div
+				class="absolute -top-[22px] left-6 h-[26px] w-[108px] rounded-t-[10px] border-[3px] border-b-0 border-ink bg-manila"
+				aria-hidden="true"
+			></div>
+
+			<div
+				class="reveal ruled relative rounded-[20px] border-[3px] border-ink bg-manila px-5 pt-6 pb-6 shadow-[0_6px_0_rgba(20,20,51,0.3)]"
 				style="animation-delay: 0ms"
 			>
-				{m['app.title']()} <span class="align-middle">🎭</span>
-			</h1>
-			<p
-				class="reveal mt-4 text-center text-lg font-semibold"
-				style="animation-delay: 100ms"
-			>
-				{m['home.tagline']()}
-			</p>
+				<span class="stamp absolute -top-3.5 -right-1.5 !rotate-[-6deg] text-[11px] tracking-[0.2em]">
+					{m['home.caseOpen']()}
+				</span>
+
+				<div class="flex justify-center">
+					<MaskMark size={92} />
+				</div>
+
+				<h1 class="mt-3 text-center text-[68px] leading-[0.94] font-extrabold tracking-tight">
+					{m['app.title']()}
+				</h1>
+			</div>
 		</header>
 
-		<div class="mt-auto flex flex-col gap-4">
+		<p
+			class="reveal mx-auto mt-6 max-w-[300px] text-center font-mono text-[15px] leading-relaxed"
+			style="animation-delay: 100ms"
+		>
+			{m['home.tagline']()}
+		</p>
+
+		<div class="mt-auto flex flex-col gap-4 pt-10">
 			<button
 				type="button"
 				data-testid="create-room"
@@ -125,19 +141,14 @@
 				aria-expanded={showJoin}
 				aria-controls="join-panel"
 				onclick={toggleJoin}
-				class="reveal sticker flex min-h-14 w-full items-center justify-center rounded-full border-4 border-cobalt bg-transparent px-8 text-lg font-bold text-cobalt"
+				class="reveal flex min-h-14 w-full items-center justify-center rounded-full border-4 border-dashed border-cobalt bg-transparent px-8 text-lg font-bold text-cobalt"
 				style="animation-delay: 300ms"
 			>
 				{m['home.join']()}
 			</button>
 
 			{#if showJoin}
-				<form
-					id="join-panel"
-					data-testid="join-panel"
-					class="pop-in flex gap-2"
-					onsubmit={join}
-				>
+				<form id="join-panel" data-testid="join-panel" class="pop-in flex gap-2" onsubmit={join}>
 					<label class="sr-only" for="room-code">{m['home.joinPrompt']()}</label>
 					<input
 						bind:this={codeEl}
@@ -150,19 +161,50 @@
 						autocomplete="off"
 						autocapitalize="characters"
 						spellcheck="false"
-						class="min-h-14 min-w-0 flex-1 rounded-full border-4 border-cobalt bg-paper px-4 text-center text-2xl font-extrabold tracking-[0.25em] text-ink caret-ink uppercase placeholder:text-ink/30 placeholder:tracking-normal placeholder:text-base focus:outline-none focus-visible:ring-4 focus-visible:ring-cobalt"
+						class="min-h-14 min-w-0 flex-1 rounded-full border-4 border-ink bg-paper px-4 text-center font-mono text-2xl font-bold tracking-[0.25em] text-ink uppercase caret-coral placeholder:text-base placeholder:tracking-[0.12em] placeholder:text-ink/35 focus:outline-none focus-visible:ring-4 focus-visible:ring-cobalt"
 					/>
 					<button
 						type="submit"
 						data-testid="join-go"
 						disabled={!codeInputValid || joining}
 						aria-label={m['home.join']()}
-						class="sticker grid min-h-14 shrink-0 place-items-center rounded-full bg-cobalt px-7 text-xl font-bold text-white disabled:opacity-40"
+						class="sticker grid min-h-14 shrink-0 place-items-center rounded-full bg-cobalt px-7 text-white disabled:opacity-40"
 					>
-						→
+						<svg
+							width="22"
+							height="22"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="3"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M5 12h13" /><path d="m12 5 7 7-7 7" />
+						</svg>
 					</button>
 				</form>
 			{/if}
+		</div>
+
+		<div
+			class="reveal mt-5 flex items-center justify-end gap-1.5 font-mono text-[13px] font-bold tracking-[0.14em] opacity-65"
+			style="animation-delay: 400ms"
+		>
+			{#each locales as locale, i (locale)}
+				{#if i > 0}<span aria-hidden="true">|</span>{/if}
+				<button
+					type="button"
+					lang={locale}
+					aria-pressed={currentLocale() === locale}
+					class:underline={currentLocale() === locale}
+					class="cursor-pointer uppercase"
+					onclick={() => void setLocale(locale)}
+				>
+					{locale}
+				</button>
+			{/each}
 		</div>
 	</div>
 
@@ -175,25 +217,6 @@
 		</div>
 	{/if}
 </main>
-
-<footer
-	class="reveal fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 flex items-center gap-1 text-sm font-bold tracking-widest opacity-60"
->
-	{#each locales as locale, i (locale)}
-		{#if i > 0}<span aria-hidden="true">|</span>{/if}
-		<button
-			type="button"
-			lang={locale}
-			aria-pressed={currentLocale() === locale}
-			class:underline={currentLocale() === locale}
-			class="cursor-pointer uppercase"
-			onclick={() => void setLocale(locale)}
-		>
-			{locale}
-		</button>
-	{/each}
-</footer>
-
 <style>
 	@keyframes rise-in {
 		from {
@@ -225,23 +248,10 @@
 		}
 	}
 
-	.sticker {
-		box-shadow: 0 5px 0 rgba(20, 20, 51, 0.2);
-		transition: box-shadow 100ms ease, translate 100ms ease;
-	}
-
-	.sticker:not(:disabled):active {
-		translate: 0 2px;
-		box-shadow: 0 2px 0 rgba(20, 20, 51, 0.2);
-	}
-
 	@media (prefers-reduced-motion: reduce) {
 		.reveal,
 		.pop-in {
 			animation: none;
-		}
-		.sticker {
-			transition: none;
 		}
 	}
 </style>

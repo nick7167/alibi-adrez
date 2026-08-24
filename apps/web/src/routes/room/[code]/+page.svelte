@@ -193,9 +193,21 @@ import type { Identity } from '$lib/stores/session.svelte';
 			data-testid="back-home"
 			aria-label={m['nav.back']()}
 			onclick={() => void goto('/')}
-			class="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 grid size-11 place-items-center rounded-full border-4 border-ink bg-paper text-xl font-bold text-ink"
+			class="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 grid size-11 place-items-center rounded-full border-4 border-ink bg-paper text-ink"
 		>
-			←
+			<svg
+				width="20"
+				height="20"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="3"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"
+			>
+				<path d="M15 5 8 12l7 7" />
+			</svg>
 		</button>
 		<JoinForm pending={joining} errorNonce={errorNonce} onJoin={join} />
 	{:else if view?.room.phase === 'LOBBY'}
@@ -211,14 +223,18 @@ import type { Identity } from '$lib/stores/session.svelte';
 			data-testid="intro-splash"
 			class="pop-in grid fill-vp place-items-center bg-night px-4 text-center"
 		>
-			<div class="pb-safe">
-				<div class="pixel-loader mx-auto" aria-hidden="true">
+			<div class="flex flex-col items-center pb-safe">
+				<div class="pixel-loader" aria-hidden="true">
 					<span></span><span></span><span></span>
 				</div>
 				<h1 tabindex="-1" class="mt-8 text-6xl font-extrabold tracking-tight text-paper">
 					{m['intro.starting']()}
 				</h1>
-				<p class="mt-3 text-sm font-bold uppercase tracking-widest text-paper/50">{data.code}</p>
+				<span
+					class="stamp-frame mt-6 bg-night px-4 pt-1.5 pb-1 font-mono text-2xl font-bold tracking-[0.14em] text-coral tabular-nums"
+				>
+					{data.code}
+				</span>
 			</div>
 		</section>
 	{/if}
@@ -234,7 +250,7 @@ import type { Identity } from '$lib/stores/session.svelte';
 					<span></span><span></span><span></span>
 				</div>
 				<p class="text-xl font-extrabold text-ink">{m['offline.title']()}</p>
-				<p class="font-semibold text-ink/60">{m['offline.retry']()}</p>
+				<p class="field-label">{m['offline.retry']()}</p>
 			</div>
 		</div>
 	{/if}

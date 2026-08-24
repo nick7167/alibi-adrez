@@ -77,8 +77,10 @@ test('create → guest joins → both see 2 players → host starts (INTRO splas
 	// 4. Both clients see the same two-player lobby.
 	await expect(host.getByTestId('player-card')).toHaveCount(2);
 	await expect(guest.getByTestId('player-card')).toHaveCount(2);
-	await expect(guest.getByText('Host', { exact: true })).toBeVisible();
-	await expect(host.getByText('Guest', { exact: true })).toBeVisible();
+	// Target the name explicitly: the host's row also carries a "Host" stamp,
+	// so a bare text lookup matches two elements.
+	await expect(guest.getByTestId('player-name')).toHaveText(['Host', 'Guest']);
+	await expect(host.getByTestId('player-name')).toHaveText(['Host', 'Guest']);
 
 	// 5. Only the host sees settings + start; non-host sees the waiting note.
 	await expect(guest.getByTestId('start-game')).toHaveCount(0);
