@@ -115,8 +115,22 @@
 				{/if}
 
 				{#if room.scenario}
-					<details class="mt-5 shrink-0" data-testid="scenario-reference">
-						<summary class="field-label-invert cursor-pointer select-none">
+					<details class="reference mt-5 shrink-0" data-testid="scenario-reference">
+						<summary class="field-label-invert flex cursor-pointer items-center gap-2 select-none">
+							<svg
+								class="chevron shrink-0"
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="3.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+							>
+								<path d="m9 5 7 7-7 7" />
+							</svg>
 							{m['interrogation.scenarioReference']()}
 						</summary>
 						<section
@@ -298,6 +312,30 @@
 {/if}
 
 <style>
+	/* Drawn chevron instead of the browser's native disclosure triangle —
+	   every other icon in the app is a drawn SVG. */
+	.reference > summary {
+		list-style: none;
+	}
+
+	.reference > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.reference .chevron {
+		transition: rotate 150ms ease;
+	}
+
+	.reference[open] .chevron {
+		rotate: 90deg;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.reference .chevron {
+			transition: none;
+		}
+	}
+
 	/* Same evidence typography as app.css's field-label, recolored for this
 	   screen's dark night field — the shared primitive is tuned for
 	   paper/manila and would go near-invisible here. Scoped to this
