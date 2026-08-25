@@ -19,7 +19,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T4 view projections + anonymity | done | `3a8ee2c` | `view.ts` is the only reader of `round.entries`; `viewForPlayer` moved there out of `state.ts` with `scoreboardFor`; all seven phases projected; `WritingView.submittedCount` → `submittedIds` and `GuessingView.guessedCount` added; 106 tests in `test/snapshot.test.ts`, four mutations run |
 | T5 rooms dispatch + socket tests | done | `c13c0b3` | connected-player ids threaded from the DO into the engine for early resolve only (`ConnectedIds`, optional trailing arg); `resolveIfEveryoneReady` called from `webSocketClose`; 8 socket tests in `apps/rooms/test/round.test.ts` (full round on alarms alone, message round-trip, locked phone, eviction, idle self-destruct, voided REVEAL) + 7 engine tests in `packages/shared/test/round.test.ts`; four mutations run |
 | T6 web plumbing + Writing | done | `1cc2ee4` | `submittedIds` reverted to `submittedCount`; shared `LeaveButton.svelte` + `ConfirmDialog.svelte`; `Writing.svelte` (prompt, 140-char upsert entry, remaining count, deadline countdown, "n of m written"); router routes WRITING to it and every placeholder now carries a leave control |
-| T7 Guessing + Reveal | not started | — | |
+| T7 Guessing + Reveal | done | `—` | `Guessing.svelte` (artboard composition, `candidates` untouched, `myGuess` latched per `answer.id`, ticker-driven client-side grid lock, author variant with no grid) + `Reveal.svelte` (author reveal, per-player `awarded` rows, right/wrong as large marks); router wires both and `submitGuess`; 21 new copy keys in both catalogues |
 | T8 RoundEnd + Finale + lobby | not started | — | |
 | T9 rulebook, brand copy, e2e, domain | not started | — | |
 
@@ -409,6 +409,90 @@ are both disqualifying, however revealing they are.
     in both catalogues, Danish written natively. `common.cancel` already
     existed and is `ConfirmDialog`'s default cancel label.
 
+### T7 — the Guessing and Reveal screens
+
+52. **`candidates` is rendered exactly as the server sent it, in the order it
+    sent it.** `Guessing.svelte` never filters, sorts or de-duplicates the
+    array; the only thing it does with an id is look up the name and emoji in
+    `room.players`. The chip list is `{#each room.candidates}` and must stay
+    that way — any client-side filter (to writers, or to drop the author) is
+    the leak the whole view shape exists to prevent. Verified over the wire:
+    all four readers received `candidates.length === 3` in a 4-player room and
+    no reader's own id appeared in their own list.
+53. **`myGuess` is latched per `answer.id`, not per mount.** `seededFor` (a
+    plain `let`, not `$state` — it is effect bookkeeping and is never
+    rendered) holds the answer id the local `selected` belongs to. On a new
+    `answer.id` the selection resets and re-seeds from whatever `myGuess` the
+    server already holds (a reconnect mid-answer); on the *same* id it takes
+    the first defined `myGuess` and ignores every later snapshot. The reset
+    branch is not defensive padding: `GUESSING → GUESSING` with a new staged
+    answer and no REVEAL between is reachable whenever the staged author
+    leaves (T3 ruling 23). The read of `selected` inside the effect is
+    `untrack`ed so the effect depends on the *view*, not on its own write.
+54. **The grid locks on a 250ms ticker against the deadline, not on a
+    timeout and not on `STALE_ANSWER`.** `expired = deadline - (nowMs +
+    offset) <= 0`; `locked = expired || selected !== null`; every chip is
+    `disabled={locked}` and `tap()` returns early when locked. A one-shot
+    `setTimeout` at the deadline was rejected — it fires late after a phone
+    sleeps, and re-deriving from the clock is the discipline `Countdown`
+    already uses. Measured: with the page's `Date.now` pushed 120s forward
+    while the server was still broadcasting `GUESSING`, all 3 chips went
+    `disabled` within one tick and a forced click produced no guess.
+55. **The author's variant is a different screen, not a disabled grid.**
+    `youWrote` swaps the whole candidate block for a "this one's yours" panel
+    plus the `guessedCount` line, and also swaps the answer card's eyebrow
+    from "Somebody wrote" to "You wrote" — the author already knows, and the
+    anonymous framing would read as the app not knowing either. Measured: the
+    author's DOM contains **zero** `guess-grid` and **zero** `guess-chip`
+    nodes while a guesser's contains one grid and three chips, from the same
+    `candidates.length`.
+56. **`guessedCount`'s denominator is `players.length - 1`,** not
+    `candidates.length` — they are numerically identical here, but the
+    denominator means "the players who guess", which is everyone except the
+    author. Still a count, still names nobody.
+57. **Reveal renders `awarded` and `guesses`; it computes nothing.** Rows are
+    one per `awarded` line (so zeros show), joined to `guesses` by a Map;
+    "correct" is `guessedId === view.authorId` and the points chip is the
+    server's integer. Verified against the payload: every rendered row's
+    points string equalled its `awarded` entry and every `correct`/`wrong`
+    mark equalled `guessedId === authorId`, in both languages.
+58. **The reader's own award row is hoisted to the top of the list;
+    everything else keeps roster order.** The list is the element that scrolls
+    on a short viewport, so the line the reader cares about is the one
+    guaranteed to be visible without scrolling. This is presentation order
+    only — no value is recomputed.
+59. **Accent colours are marks, never words.** `--color-accent-right` and
+    `--color-accent-wrong` fill 24px badges and the points pill; the labels
+    next to them are white/`text-white/70`. The pink is 3.5:1 on the field and
+    never carries text on this screen, per the identity ruling.
+60. **Both screens restyle `Countdown` with the same `:global` override**
+    (`.gu-countdown` / `.rv-countdown`), exactly as ruling 50 prescribes.
+    `Countdown.svelte` is still untouched. **T8 does the same.**
+61. **Short-viewport shape, measured at 390×420 in a real browser.** Guessing:
+    the prompt clamps to two lines at 14px, the answer card floor drops
+    272px → 92px and its type 33px → 21px, and **chips keep a 44px minimum**
+    (they shrink from 56px, never below the touch target). Reveal: the answer
+    card clamps to two lines and the author chip shrinks, while the award list
+    keeps scrolling inside its own box. Numbers at 390×420, 4-player room:
+    `scrollHeight === innerHeight === 420` on every page; guessing answer card
+    `y 128 → 241`, grid `y 284 → 382`, chip heights `44/44/44`; reveal answer
+    card `y 60 → 133`, author `y 168 → 224`, rows `y 264 → 396`. Nothing
+    clipped, nothing overlapping, no page scroll. At 390×844 the same pages
+    measure `scrollHeight === 844` with the answer card at its full 278px.
+62. **The staged-counter and `youWrote` copy is `game.answerProgress`
+    ("Answer {index} of {total}" / "Svar {index} af {total}") plus the
+    `guessing.*` and `reveal.*` namespaces** — 21 keys, both catalogues,
+    Danish written natively rather than translated. **T8 reuses
+    `game.answerProgress` rather than inventing a second counter string.**
+63. **What was NOT verified in the browser, and is the weak spot.** The
+    fallback where an in-game phase renders as the INTRO splash (T4 ruling 29
+    / T5 ruling 40) is handled structurally — the router switches on
+    `view.phase` and both components are simply unmounted — but no live
+    play-through exercised a player leaving as the staged author. The unit
+    matrix covers the projection; the screen behaviour is reasoned, not
+    measured. **T9's full-round e2e should drive a leave during GUESSING and
+    during REVEAL.**
+
 ### Chosen identity — A · AHA (orchestrator, after T0b)
 
 Name **AHA** — the noise the room makes at the reveal, spelled and said
@@ -561,13 +645,20 @@ fully inside the viewport with no overlap and no page scroll
 button) is pixel-identical before and after the fix. The query never matches
 at 844, so the full-height screen is provably unchanged.
 
-**Next is T7 — Guessing + Reveal.** It composes `LeaveButton` (rulings 44–45),
-renders `answerIndex`/`answerTotal` as given (ruling 28), must not recompute
-scoring from `awarded` (ruling 32), must tolerate a REVEAL turning into the
-INTRO splash mid-phase (rulings 29, 40), must lock the guess grid on phase
-change rather than waiting for `STALE_ANSWER`, and inherits the `myEntry`
-re-seeding hazard for `myGuess` (ruling 46). Then T8 (RoundEnd + Finale +
-lobby settings), T9 (rulebook, brand copy, e2e, repoint the domain).
+**T7 is done**: GUESSING and REVEAL are real screens (rulings 52–63), verified
+in Playwright with four contexts driven through to both phases in both
+languages at 390×844 and 390×420. 292 tests green (shared 217, rooms 25, web
+50 — the eight new web tests are `head-canvas.test.ts`'s `it.each` picking up
+`Guessing.svelte` and `Reveal.svelte`; that file is unedited).
+
+**Next is T8 — RoundEnd + Finale + lobby settings.** It composes `LeaveButton`
+(rulings 44–45), restyles `Countdown` from outside (rulings 50, 60), reuses
+`game.answerProgress` rather than minting a second counter string (ruling 62),
+keeps the short-viewport priority, and is where the Alibi CSS primitives
+(`.stamp`, `.stamp-frame`, `.leader`, `--color-manila`) finally leave the
+lobby (ruling 8). Then T9 (rulebook, brand copy, e2e, repoint the domain) —
+whose e2e should cover the leave-during-GUESSING/REVEAL fallback T7 could not
+measure (ruling 63).
 
 **Still outstanding and not a code task:** the paper playtest at 3, 6 and 10
 players. At 8+ players only 4 of 8 answers are staged, so half the room writes

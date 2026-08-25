@@ -11,6 +11,8 @@
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';
 	import Writing from './Writing.svelte';
+	import Guessing from './Guessing.svelte';
+	import Reveal from './Reveal.svelte';
 
 	let { data } = $props();
 
@@ -149,6 +151,14 @@
 		sockRef?.submitEntry(text);
 	}
 
+	/** GUESSING: accuse one player of writing the staged answer. The
+	    `answerId` travels with the tap so a guess that lands after the stage
+	    advanced is rejected as STALE_ANSWER rather than applied to the next
+	    answer — the screen locks its grid client-side for the same race. */
+	function submitGuess(answerId: string, playerId: string) {
+		sockRef?.submitGuess(answerId, playerId);
+	}
+
 	/** AHA has one field colour and every screen wears it (see the ledger's
 	    "Chosen identity — A · AHA" ruling): join, lobby, and every phase.
 	    Kept as a literal inside the $derived — never a lookup object — because
@@ -198,7 +208,7 @@
 <!--
 	Temporary phase screens. Every phase still waiting on its task renders the
 	same stub — its name and the phase countdown — until the task named in its
-	TODO builds the real one (T7 Guessing/Reveal, T8 RoundEnd/Finale). They
+	TODO builds the real one (T8 RoundEnd/Finale). They
 	exist so the tree compiles and deploys; none of them is a design.
 
 	Every one of them carries a leave control, so no screen is a dead end
@@ -291,9 +301,9 @@
 	{:else if view?.room.phase === 'WRITING'}
 		<Writing room={view.room} {offset} onSubmit={submitEntry} onLeave={leaveRoom} />
 	{:else if view?.room.phase === 'GUESSING'}
-		{@render placeholder(m['game.phase.guessing'](), 'TODO(T7)', view.room, true)}
+		<Guessing room={view.room} {offset} onGuess={submitGuess} onLeave={leaveRoom} />
 	{:else if view?.room.phase === 'REVEAL'}
-		{@render placeholder(m['game.phase.reveal'](), 'TODO(T7)', view.room, true)}
+		<Reveal room={view.room} you={view.you} {offset} onLeave={leaveRoom} />
 	{:else if view?.room.phase === 'ROUND_END'}
 		{@render placeholder(m['game.phase.roundEnd'](), 'TODO(T8)', view.room, true)}
 	{:else if view?.room.phase === 'FINALE'}
