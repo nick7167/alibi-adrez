@@ -16,7 +16,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T1 prompt packs | done | `6001a98` | 80 bilingual prompts, 4 packs, 20 tests |
 | T2 protocol + demolition | done | `68e22fe` | new phases/messages/views in `protocol.ts`, `state.ts` cut to lobby-only, Alibi files deleted, placeholder phase screens, catalogues pruned 93 → 42 keys and paraglide regenerated |
 | T3 round engine | done | `606d8f0` | `enterPhase` + `PHASE_MS` (the only writer of phase/deadline), tiered least-staged selection, `advance`, scoring at every REVEAL, leaver rules — all in `packages/shared/src/round.ts`, re-exported from `index.ts`; `state.ts` wires `startGame`/`leave`/`submitEntry`/`submitGuess` into it; 48 new tests in `test/round.test.ts` |
-| T4 view projections + anonymity | done | `—` | `view.ts` is the only reader of `round.entries`; `viewForPlayer` moved there out of `state.ts` with `scoreboardFor`; all seven phases projected; `WritingView.submittedCount` → `submittedIds` and `GuessingView.guessedCount` added; 106 tests in `test/snapshot.test.ts`, four mutations run |
+| T4 view projections + anonymity | done | `3a8ee2c` | `view.ts` is the only reader of `round.entries`; `viewForPlayer` moved there out of `state.ts` with `scoreboardFor`; all seven phases projected; `WritingView.submittedCount` → `submittedIds` and `GuessingView.guessedCount` added; 106 tests in `test/snapshot.test.ts`, four mutations run |
 | T5 rooms dispatch + socket tests | not started | — | |
 | T6 web plumbing + Writing | not started | — | |
 | T7 Guessing + Reveal | not started | — | |
@@ -371,3 +371,32 @@ roster, i.e. today's behaviour.
 
 Scope it as an argument, not as state: nothing about a socket belongs in
 `InternalRoom`, which is persisted.
+
+### `submittedIds` was my mistake — revert it to a count (binding on T6)
+
+T2 deliberately made the writing view expose `submittedCount`, "an aggregate — it
+names nobody". My T4 brief asked for `submittedIds` instead, and T4 implemented
+it but flagged it as the weakest thing in the change. T4 is right.
+
+The hole: `candidates` is shaped as "everyone except me, including people who
+wrote nothing" precisely so a guesser cannot rule out the non-writers. But a
+client that saw `submittedIds` during WRITING can simply *remember* who never
+submitted and eliminate them at GUESSING. The list gives back exactly what the
+candidate rule protects. It leaks nothing at the instant it is sent — nothing is
+staged during writing — which is what makes it easy to wave through, and it is
+still wrong.
+
+**T6 reverts it to `submittedCount: number`** in `protocol.ts`, `view.ts` and the
+snapshot tests, and the Writing screen shows "4 of 6 written" rather than naming
+anyone. The nudge value of naming a straggler is real but small; the protection
+is structural.
+
+Related, and already correct: `GuessingView.guessedCount` is a count for the same
+reason and must never become a list — the author never guesses, so a list of
+guessers names them by omission the moment everyone else has voted.
+
+### Open, unruled: a leaver's answer at ROUND_END
+
+T3 deletes a leaver's entry, so their answer vanishes from the round-end recap.
+Nobody has decided whether it should still be shown. Leaving it as-is for now;
+decide it if a playtest makes it feel wrong.
