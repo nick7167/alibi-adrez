@@ -19,8 +19,8 @@ Update this file at the end of every task, in the same commit as the work.
 | T4 view projections + anonymity | done | `3a8ee2c` | `view.ts` is the only reader of `round.entries`; `viewForPlayer` moved there out of `state.ts` with `scoreboardFor`; all seven phases projected; `WritingView.submittedCount` → `submittedIds` and `GuessingView.guessedCount` added; 106 tests in `test/snapshot.test.ts`, four mutations run |
 | T5 rooms dispatch + socket tests | done | `c13c0b3` | connected-player ids threaded from the DO into the engine for early resolve only (`ConnectedIds`, optional trailing arg); `resolveIfEveryoneReady` called from `webSocketClose`; 8 socket tests in `apps/rooms/test/round.test.ts` (full round on alarms alone, message round-trip, locked phone, eviction, idle self-destruct, voided REVEAL) + 7 engine tests in `packages/shared/test/round.test.ts`; four mutations run |
 | T6 web plumbing + Writing | done | `1cc2ee4` | `submittedIds` reverted to `submittedCount`; shared `LeaveButton.svelte` + `ConfirmDialog.svelte`; `Writing.svelte` (prompt, 140-char upsert entry, remaining count, deadline countdown, "n of m written"); router routes WRITING to it and every placeholder now carries a leave control |
-| T7 Guessing + Reveal | done | `—` | `Guessing.svelte` (artboard composition, `candidates` untouched, `myGuess` latched per `answer.id`, ticker-driven client-side grid lock, author variant with no grid) + `Reveal.svelte` (author reveal, per-player `awarded` rows, right/wrong as large marks); router wires both and `submitGuess`; 21 new copy keys in both catalogues |
-| T8 RoundEnd + Finale + lobby | done | `—` | `RoundEnd.svelte` (every answer of the round with its author, staged and un-staged, marked not re-sorted; running scoreboard as a horizontal strip; countdown names its destination) + `Finale.svelte` (podium keyed to rank so a tie reads as a tie, full standings, no countdown, `confirm={false}` leave) + the lobby rewritten onto the AHA field with this game's dials and the prompt-pack switches; one protocol addition, `RoundEndAnswer.staged`; `.stamp-frame` and `.leader` deleted from `app.css` |
+| T7 Guessing + Reveal | done | `87e75f2` | `Guessing.svelte` (artboard composition, `candidates` untouched, `myGuess` latched per `answer.id`, ticker-driven client-side grid lock, author variant with no grid) + `Reveal.svelte` (author reveal, per-player `awarded` rows, right/wrong as large marks); router wires both and `submitGuess`; 21 new copy keys in both catalogues |
+| T8 RoundEnd + Finale + lobby | done | `0fee890` | `RoundEnd.svelte` (every answer of the round with its author, staged and un-staged, marked not re-sorted; running scoreboard as a horizontal strip; countdown names its destination) + `Finale.svelte` (podium keyed to rank so a tie reads as a tie, full standings, no countdown, `confirm={false}` leave) + the lobby rewritten onto the AHA field with this game's dials and the prompt-pack switches; one protocol addition, `RoundEndAnswer.staged`; `.stamp-frame` and `.leader` deleted from `app.css` |
 | T9 rulebook, brand copy, e2e, domain | not started | — | |
 
 ## Rulings
@@ -805,3 +805,39 @@ a phone, because the keyboard is up for the entire time the player is writing.
 This is binding on T7 and T8 as well — they were about to copy the Writing
 screen's layout shape, which is exactly how a single-screen bug becomes the
 house style.
+
+### Domains — already done by the user, T9 does NOT repoint anything
+
+- **`aha.adrez.dev` → the AHA workers** (verified serving the new build).
+- **`alibi.adrez.dev` → the old ALIBI workers**, untouched and still playable.
+
+The plan's T9 step "repoint the domain" is therefore **cancelled**. The two games
+live at separate addresses; retiring the old one is a later, independent choice.
+T9 updates the README's production URLs to show both.
+
+### The mask emoji is Alibi's (binding on T9)
+
+The AHA page title still reads "AHA 🎭". The theatre mask was Alibi's identity;
+AHA's is the noise the room makes at the reveal. It appears on the browser tab,
+the home-screen icon and share previews, so T9 replaces it across `app.html`,
+the manifest, the favicon and `app.title` — and picks something that belongs to
+this game or nothing at all, rather than inheriting the old one by accident.
+
+### Non-hosts cannot see whether Confessions is on (binding on T9)
+
+T8 flagged this and it is the one consent-shaped hole left. Only the host sees
+the pack selection, so a player can be asked to write an answer to a personal
+prompt without ever having been told the spicy pack was enabled.
+
+**T9 shows the enabled packs to everyone in the lobby** — read-only for
+non-hosts, host-editable as now. It does not need to be a control or take much
+room; it needs to be visible before anyone agrees to play. Consent that only the
+host can see is not consent.
+
+### Keep the finale's two exits
+
+T8 gave the finale both a corner leave chip and a full-width "Back to start", and
+asked whether that duplication should stand. It should. A terminal screen whose
+only exit is a 44px corner chip is a dead end for anyone who does not think to
+look there, and neither control asks for confirmation, so there is no cost to
+having both.
