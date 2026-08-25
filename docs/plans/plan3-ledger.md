@@ -18,7 +18,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T3 round engine | done | `606d8f0` | `enterPhase` + `PHASE_MS` (the only writer of phase/deadline), tiered least-staged selection, `advance`, scoring at every REVEAL, leaver rules — all in `packages/shared/src/round.ts`, re-exported from `index.ts`; `state.ts` wires `startGame`/`leave`/`submitEntry`/`submitGuess` into it; 48 new tests in `test/round.test.ts` |
 | T4 view projections + anonymity | done | `3a8ee2c` | `view.ts` is the only reader of `round.entries`; `viewForPlayer` moved there out of `state.ts` with `scoreboardFor`; all seven phases projected; `WritingView.submittedCount` → `submittedIds` and `GuessingView.guessedCount` added; 106 tests in `test/snapshot.test.ts`, four mutations run |
 | T5 rooms dispatch + socket tests | done | `c13c0b3` | connected-player ids threaded from the DO into the engine for early resolve only (`ConnectedIds`, optional trailing arg); `resolveIfEveryoneReady` called from `webSocketClose`; 8 socket tests in `apps/rooms/test/round.test.ts` (full round on alarms alone, message round-trip, locked phone, eviction, idle self-destruct, voided REVEAL) + 7 engine tests in `packages/shared/test/round.test.ts`; four mutations run |
-| T6 web plumbing + Writing | done | `—` | `submittedIds` reverted to `submittedCount`; shared `LeaveButton.svelte` + `ConfirmDialog.svelte`; `Writing.svelte` (prompt, 140-char upsert entry, remaining count, deadline countdown, "n of m written"); router routes WRITING to it and every placeholder now carries a leave control |
+| T6 web plumbing + Writing | done | `1cc2ee4` | `submittedIds` reverted to `submittedCount`; shared `LeaveButton.svelte` + `ConfirmDialog.svelte`; `Writing.svelte` (prompt, 140-char upsert entry, remaining count, deadline countdown, "n of m written"); router routes WRITING to it and every placeholder now carries a leave control |
 | T7 Guessing + Reveal | not started | — | |
 | T8 RoundEnd + Finale + lobby | not started | — | |
 | T9 rulebook, brand copy, e2e, domain | not started | — | |
@@ -559,3 +559,28 @@ lobby settings), T9 (rulebook, brand copy, e2e, repoint the domain).
 players. At 8+ players only 4 of 8 answers are staged, so half the room writes
 something nobody sees. `MAX_STAGED` is one exported constant — cheap to change
 now, expensive once five screens assume the current shape.
+
+### Short-viewport priority (orchestrator — binding on T6b, T7, T8)
+
+Verified in WebKit at 390×844 and again at 390×420, the height iOS leaves when
+the software keyboard is up. At full height the Writing screen is correct. At
+keyboard height **the answer card is clipped mid-text** — the three-line prompt
+consumes the space and the field the player is typing into is sliced by the
+submit button.
+
+The rule for every screen with an input:
+
+**When vertical space is short, the prompt yields and the input does not.** The
+prompt is context; the input is the task. Concretely: the prompt block is the
+flexible element (it may shrink its type scale, clamp its line count, or scroll),
+while the entry card keeps a minimum height and the primary action stays fully
+visible. Never the other way round.
+
+Test it the way it was found: set the viewport to 390×420 and assert that both
+the input and the primary action are fully within the viewport, and that neither
+is clipped by the other. A screen that only works at 844px tall does not work on
+a phone, because the keyboard is up for the entire time the player is writing.
+
+This is binding on T7 and T8 as well — they were about to copy the Writing
+screen's layout shape, which is exactly how a single-screen bug becomes the
+house style.
