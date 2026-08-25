@@ -3,6 +3,7 @@ import {
   applyEvent,
   createRoom,
   parseClientMessage,
+  resolveIfEveryoneReady,
   snapshotForPlayer,
   type ClientMessage,
   type EventDeps,
@@ -100,8 +101,43 @@ export class RoomDurableObject implements DurableObject {
       if (stillConnected.length === 0) {
         await this.ctx.storage.put(DESTROY_AT_KEY, Date.now() + SELF_DESTRUCT_MS);
         await this.rescheduleAlarm(await this.loadRoom());
+        return;
       }
+      // A locked phone is not a leave — but it can be the last thing the room
+      // was waiting for. Everyone else has written (or guessed) and the phase
+      // would otherwise sit out its whole timer for an answer that cannot
+      // arrive. No client message follows a disconnect, so the close itself
+      // is the only chance to re-run the early-resolve check.
+      const room = await this.catchUp();
+      if (room === undefined) return;
+      const result = resolveIfEveryoneReady(room, eventDeps(), this.connectedPlayerIds(ws));
+      if (result.changed) {
+        await this.save(result.room);
+        this.broadcastState(result.room);
+      }
+      await this.rescheduleAlarm(result.room);
     });
+  }
+
+  /**
+   * The players this object holds a live socket for, hibernated ones included.
+   *
+   * Passed into the engine as an argument for **early-resolve decisions only**
+   * — never stored. `InternalRoom` is persisted, so a socket set written into
+   * it would survive a restart as a lie, and scoring, staging and the
+   * candidate list must keep counting a disconnected player as present.
+   *
+   * `exclude` is the socket currently being closed: it is still listed by
+   * `getWebSockets()` inside the close handler.
+   */
+  private connectedPlayerIds(exclude?: WebSocket): Set<string> {
+    const ids = new Set<string>();
+    for (const socket of this.ctx.getWebSockets()) {
+      if (socket === exclude || socket.readyState !== WS_READY_STATE_OPEN) continue;
+      const attachment = socket.deserializeAttachment() as WsAttachment | null;
+      if (attachment !== null && attachment.authed) ids.add(attachment.playerId);
+    }
+    return ids;
   }
 
   /**
@@ -241,7 +277,10 @@ export class RoomDurableObject implements DurableObject {
           this.rejectAndClose(ws, "INTERNAL");
           return;
         }
-        const result = await applyEvent(room, playerId, msg, eventDeps());
+        // The connected set is what makes a locked phone not a leave: the
+        // engine uses it to decide it has stopped waiting for somebody, and
+        // for nothing else.
+        const result = await applyEvent(room, playerId, msg, eventDeps(), this.connectedPlayerIds());
         if (!result.ok) {
           ws.send(JSON.stringify({ v: 1, t: "error", code: result.code } satisfies ServerError));
           // catchUp may have moved the phase on even though the message failed.

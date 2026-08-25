@@ -17,7 +17,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T2 protocol + demolition | done | `68e22fe` | new phases/messages/views in `protocol.ts`, `state.ts` cut to lobby-only, Alibi files deleted, placeholder phase screens, catalogues pruned 93 → 42 keys and paraglide regenerated |
 | T3 round engine | done | `606d8f0` | `enterPhase` + `PHASE_MS` (the only writer of phase/deadline), tiered least-staged selection, `advance`, scoring at every REVEAL, leaver rules — all in `packages/shared/src/round.ts`, re-exported from `index.ts`; `state.ts` wires `startGame`/`leave`/`submitEntry`/`submitGuess` into it; 48 new tests in `test/round.test.ts` |
 | T4 view projections + anonymity | done | `3a8ee2c` | `view.ts` is the only reader of `round.entries`; `viewForPlayer` moved there out of `state.ts` with `scoreboardFor`; all seven phases projected; `WritingView.submittedCount` → `submittedIds` and `GuessingView.guessedCount` added; 106 tests in `test/snapshot.test.ts`, four mutations run |
-| T5 rooms dispatch + socket tests | not started | — | |
+| T5 rooms dispatch + socket tests | done | `—` | connected-player ids threaded from the DO into the engine for early resolve only (`ConnectedIds`, optional trailing arg); `resolveIfEveryoneReady` called from `webSocketClose`; 8 socket tests in `apps/rooms/test/round.test.ts` (full round on alarms alone, message round-trip, locked phone, eviction, idle self-destruct, voided REVEAL) + 7 engine tests in `packages/shared/test/round.test.ts`; four mutations run |
 | T6 web plumbing + Writing | not started | — | |
 | T7 Guessing + Reveal | not started | — | |
 | T8 RoundEnd + Finale + lobby | not started | — | |
@@ -275,6 +275,66 @@ are both disqualifying, however revealing they are.
     text (6), `candidates` dropping the author (8), and ignoring the reader's
     language (1). **A leak test that has never failed is not evidence — any
     later task changing these views should re-run at least one mutation.**
+
+### T5 — rooms dispatch, the alarm loop and the connected set
+
+35. **The two game messages needed no dispatch work.** T2 already listed
+    `submitEntry`/`submitGuess` in `do.ts`'s switch and T3 already routed them
+    through `applyEvent` -> `applyRoundMessage`, so they were live the moment
+    T3 landed — untested over a socket, which is what T5 actually added. The
+    `dispatch` case list is unchanged.
+36. **`ConnectedIds` is an argument and never state.** `export type
+    ConnectedIds = ReadonlySet<string> | undefined` in `round.ts`; it is an
+    **optional trailing parameter** on `applyEvent`, `applyRoundMessage` and
+    `handlePlayerLeft`, and `undefined` means the whole roster, i.e. the
+    behaviour before it existed. Every pure test and every non-DO caller is
+    untouched. Nothing about a socket is written to `InternalRoom`: the room
+    is persisted, and a socket set in storage becomes a lie the moment the
+    object restarts. The DO derives it in `connectedPlayerIds()` from
+    `ctx.getWebSockets()` — authed attachment, `readyState === OPEN` — and
+    passes it on every dispatched message.
+37. **It reaches exactly one helper.** `awaited(owed, connected)` intersects
+    "who we are still waiting for" with the live sockets, and its only two
+    callers are `everyoneWrote` and `everyoneGuessed` — the two early-resolve
+    predicates. Staging, scoring, `awarded`, `eligibleGuessers` and
+    `candidates` all still read `room.players`, so **a disconnected player is
+    still staged, still scores and is still a candidate**. Keep it that way:
+    the moment the socket set reaches any of those, a locked phone becomes a
+    leave.
+38. **A dropped socket is the one early-resolve event with no message.**
+    Everybody else writes, then the last straggler's phone locks — nothing
+    follows a disconnect to re-run the check, so the room would sit out its
+    whole timer. `resolveIfEveryoneReady(room, deps, connected)` (pure, in
+    `round.ts`) re-runs the WRITING/GUESSING check with no message, and
+    `webSocketClose` calls it with the closing socket excluded, then saves,
+    broadcasts and re-arms. An **empty** connected set resolves nothing: both
+    predicates refuse an empty owed list, so a room whose last socket dropped
+    waits for its phase timer rather than resolving on behalf of nobody.
+39. **`expirePhase()`'s return value is the re-arm assertion.** It is
+    `runDurableObjectAlarm`'s "was an alarm scheduled", so `expect(await
+    expirePhase(code)).toBe(true)` at every step of `GUESSING -> REVEAL ->
+    GUESSING` is what proves the loop cannot hang. Mutating `rescheduleAlarm`
+    to skip REVEAL failed 3 rooms tests; dropping the connected set in
+    `dispatch` failed 1; skipping the close-handler re-check failed 1; making
+    the engine ignore the set failed 3 shared + 2 rooms tests.
+40. **T4 ruling 29 confirmed over a real socket.** The staged author leaving
+    during their own REVEAL voids the answer under scrutiny, the projection
+    falls back to the contentless INTRO view, the REVEAL still finishes, and
+    the next alarm carries the loop on to the remaining answers with
+    `answerTotal` down by one. **T7 must render a REVEAL that turns into an
+    INTRO splash mid-phase without treating it as an error.**
+41. **The rooms tests deliberately do not assert `submittedIds`.** The
+    entry round-trip is asserted through `myEntry` and the guess through
+    `guessedCount`, both of which survive T6's revert of `submittedIds` to
+    `submittedCount`. T6 changes `protocol.ts`, `view.ts` and the snapshot
+    tests only.
+42. **Nothing arms `destroyAt` while a socket is attached,** so the "idle does
+    not fire mid-game" test injects it and fires the alarm — that is a
+    reachable state (a socket that connects but never authenticates does not
+    clear the key) and it is the guard being tested. The abandoned-room test
+    waits for zero sockets *and* a stable `destroyAt` first: closes are
+    processed one at a time, and a handler still in flight re-arms the idle
+    clock ten minutes into the future right on top of the backdate.
 
 ### Chosen identity — A · AHA (orchestrator, after T0b)
 

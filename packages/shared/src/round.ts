@@ -158,6 +158,35 @@ export function eligibleGuessers(
   return room.players.filter((p) => p.id !== author).map((p) => p.id);
 }
 
+/**
+ * The players the Durable Object currently has a live socket for.
+ *
+ * **Early-resolve decisions only.** A locked phone is not a leave: a player
+ * whose screen went dark still counts for scoring, for staging, for `awarded`
+ * and for `candidates` — all of which keep reading `room.players` — but the
+ * room must not sit out a 60-second writing timer waiting for an answer that
+ * cannot arrive. `undefined` means "assume everybody", i.e. the behaviour
+ * before this existed.
+ *
+ * It is an argument and never a field on `InternalRoom`: the room is
+ * persisted, and a socket set written to storage is a lie the moment the
+ * Durable Object restarts.
+ */
+export type ConnectedIds = ReadonlySet<string> | undefined;
+
+/**
+ * Narrows "who we are still waiting for" to the players who could actually
+ * act.
+ *
+ * An empty result is deliberately left empty rather than falling back to the
+ * roster: both callers refuse to resolve on an empty list, so a room whose
+ * last socket dropped waits for its phase timer instead of resolving on
+ * behalf of nobody. (A fallback was tried and was unobservable — dead code.)
+ */
+function awaited(owed: string[], connected: ConnectedIds): string[] {
+  return connected === undefined ? owed : owed.filter((id) => connected.has(id));
+}
+
 // ------------------------------------------------------------------- choosing
 
 function pick<T>(items: readonly T[], deps: EventDeps): T {
@@ -339,16 +368,26 @@ function resolveGuessing(room: InternalRoom, round: RoundState, deps: EventDeps)
   enterPhase(room, "REVEAL", deps);
 }
 
-/** True once every present player who owes a guess on this answer has cast one. */
-function everyoneGuessed(room: InternalRoom, round: RoundState, answerId: string): boolean {
+/**
+ * True once every player we are still waiting on has cast a guess on this
+ * answer — i.e. every eligible guesser with a live socket (all of them when
+ * the caller supplies no connected set).
+ */
+function everyoneGuessed(
+  room: InternalRoom,
+  round: RoundState,
+  answerId: string,
+  connected?: ConnectedIds,
+): boolean {
   const cast = round.guesses[answerId] ?? {};
-  const owed = eligibleGuessers(room, round, answerId);
+  const owed = awaited(eligibleGuessers(room, round, answerId), connected);
   return owed.length > 0 && owed.every((id) => cast[id] !== undefined);
 }
 
-/** True once every present player has an entry this round. */
-function everyoneWrote(room: InternalRoom, round: RoundState): boolean {
-  return room.players.length > 0 && room.players.every((p) => round.entries[p.id] !== undefined);
+/** True once every player we are still waiting on has an entry this round. */
+function everyoneWrote(room: InternalRoom, round: RoundState, connected?: ConnectedIds): boolean {
+  const owed = awaited(room.players.map((p) => p.id), connected);
+  return owed.length > 0 && owed.every((id) => round.entries[id] !== undefined);
 }
 
 /**
@@ -407,6 +446,7 @@ export function applyRoundMessage(
   senderId: string,
   msg: RoundMessage,
   deps: EventDeps,
+  connected?: ConnectedIds,
 ): ApplyResult {
   if (!room.players.some((p) => p.id === senderId)) {
     return { ok: false, code: "UNKNOWN_PLAYER", room };
@@ -426,7 +466,7 @@ export function applyRoundMessage(
         answerId: existing?.answerId ?? deps.newId(),
         text: msg.text,
       };
-      if (everyoneWrote(next, round)) resolveWriting(next, round, deps);
+      if (everyoneWrote(next, round, connected)) resolveWriting(next, round, deps);
       return { ok: true, room: next };
     }
 
@@ -452,7 +492,7 @@ export function applyRoundMessage(
       const cast = round.guesses[answerId] ?? {};
       cast[senderId] = msg.playerId;
       round.guesses[answerId] = cast;
-      if (everyoneGuessed(next, round, answerId)) resolveGuessing(next, round, deps);
+      if (everyoneGuessed(next, round, answerId, connected)) resolveGuessing(next, round, deps);
       return { ok: true, room: next };
     }
   }
@@ -474,7 +514,12 @@ export function applyRoundMessage(
  *     before the "everyone has guessed" check, so the phase resolves early
  *     rather than waiting out a timer nobody is left to beat.
  */
-export function handlePlayerLeft(room: InternalRoom, leaverId: string, deps: EventDeps): void {
+export function handlePlayerLeft(
+  room: InternalRoom,
+  leaverId: string,
+  deps: EventDeps,
+  connected?: ConnectedIds,
+): void {
   if (!inGame(room)) return;
 
   if (room.players.length < MIN_PLAYERS) {
@@ -493,7 +538,7 @@ export function handlePlayerLeft(room: InternalRoom, leaverId: string, deps: Eve
 
   if (room.phase === "WRITING") {
     // Their unwritten answer no longer blocks the room.
-    if (everyoneWrote(room, round)) resolveWriting(room, round, deps);
+    if (everyoneWrote(room, round, connected)) resolveWriting(room, round, deps);
     return;
   }
 
@@ -504,8 +549,46 @@ export function handlePlayerLeft(room: InternalRoom, leaverId: string, deps: Eve
       enterStage(room, round, deps);
       return;
     }
-    if (everyoneGuessed(room, round, staged)) resolveGuessing(room, round, deps);
+    if (everyoneGuessed(room, round, staged, connected)) resolveGuessing(room, round, deps);
   }
   // REVEAL / ROUND_END / INTRO: already scored or nothing pending. The next
   // `advance` skips whatever this leaver voided further down `order`.
+}
+
+/**
+ * Re-runs the early-resolve check for the live phase **without a client
+ * message**, for the one event that has no message: a socket dropping.
+ *
+ * A phone locking can be the last thing the room was waiting for — everybody
+ * else has already written or guessed, and then the straggler disappears. No
+ * further message arrives to re-evaluate the check, so the Durable Object
+ * calls this from its close handler with the sockets that are left. Pure, and
+ * a no-op unless the phase actually resolves.
+ */
+export function resolveIfEveryoneReady(
+  room: InternalRoom,
+  deps: EventDeps,
+  connected: ConnectedIds,
+): { room: InternalRoom; changed: boolean } {
+  if (!inGame(room)) return { room, changed: false };
+  const live = currentRound(room);
+  if (live === undefined) return { room, changed: false };
+
+  if (room.phase === "WRITING") {
+    if (!everyoneWrote(room, live, connected)) return { room, changed: false };
+    const next = structuredClone(room);
+    resolveWriting(next, currentRound(next)!, deps);
+    return { room: next, changed: true };
+  }
+
+  if (room.phase === "GUESSING") {
+    const answerId = stagedAnswerId(live);
+    if (answerId === undefined) return { room, changed: false };
+    if (!everyoneGuessed(room, live, answerId, connected)) return { room, changed: false };
+    const next = structuredClone(room);
+    resolveGuessing(next, currentRound(next)!, deps);
+    return { room: next, changed: true };
+  }
+
+  return { room, changed: false };
 }

@@ -14,6 +14,7 @@ import {
   authorOf,
   currentRound,
   eligibleGuessers,
+  resolveIfEveryoneReady,
   stagedAnswerId,
 } from "../src/round";
 import { promptsForPacks } from "../content/prompts";
@@ -927,4 +928,156 @@ describe("every reachable transition leaves a live deadline", () => {
       expect(steps).toBeLessThan(400);
     });
   }
+});
+
+/* ------------------------------------------------- a locked phone is not a leave */
+
+/**
+ * The connected-ids argument (plan 3 ledger, "A locked phone is not a leave").
+ *
+ * These are the *pure* half of the ruling: the engine's behaviour given a set
+ * of live sockets. That the Durable Object actually computes and passes that
+ * set is proven over a real socket in `apps/rooms/test/round.test.ts` — the
+ * engine cannot know a phone locked, and must never learn.
+ */
+describe("connected ids (early resolve only)", () => {
+  async function applyWith(
+    room: InternalRoom,
+    senderId: string,
+    msg: ClientMessage,
+    deps: EventDeps,
+    connected: ReadonlySet<string> | undefined,
+  ): Promise<InternalRoom> {
+    const r = await applyEvent(room, senderId, msg, deps, connected);
+    if (!r.ok) throw new Error(`unexpected rejection: ${r.code} (${msg.t})`);
+    return r.room;
+  }
+
+  /** Four players, in WRITING, with round 1 live. */
+  async function writing(deps: TestDeps, n = 4): Promise<InternalRoom> {
+    let room = await seat(n, deps);
+    room = await startGame(room, deps);
+    return expire(room, deps);
+  }
+
+  it("resolves WRITING once the connected players have written", async () => {
+    const deps = makeDeps(3);
+    let room = await writing(deps);
+    const [a, b, c, d] = ids(room) as [string, string, string, string];
+    const connected = new Set([a, b, c]); // d's phone locked
+    for (const id of [a, b]) {
+      room = await applyWith(room, id, { v: 1, t: "submitEntry", text: `by ${id}` }, deps, connected);
+      expect(room.phase).toBe("WRITING");
+    }
+    room = await applyWith(room, c, { v: 1, t: "submitEntry", text: "by c" }, deps, connected);
+    expect(room.phase).toBe("GUESSING");
+    expectLiveDeadline(room, "after an early resolve on connected ids");
+    expect(d).toBeDefined();
+  });
+
+  it("waits for the whole roster when no connected set is supplied", async () => {
+    const deps = makeDeps(3);
+    let room = await writing(deps);
+    const [a, b, c] = ids(room) as [string, string, string];
+    for (const id of [a, b, c]) {
+      room = await apply(room, id, { v: 1, t: "submitEntry", text: `by ${id}` }, deps);
+    }
+    expect(room.phase).toBe("WRITING");
+  });
+
+  it("a disconnected player still stages, still scores and stays a candidate", async () => {
+    const deps = makeDeps(11);
+    let room = await writing(deps, 3);
+    const [a, b, c] = ids(room) as [string, string, string];
+    // c writes, then their phone locks; a and b finish.
+    room = await apply(room, c, { v: 1, t: "submitEntry", text: "from c" }, deps);
+    const connected = new Set([a, b]);
+    room = await applyWith(room, a, { v: 1, t: "submitEntry", text: "from a" }, deps, connected);
+    room = await applyWith(room, b, { v: 1, t: "submitEntry", text: "from b" }, deps, connected);
+    expect(room.phase).toBe("GUESSING");
+
+    const live = round(room);
+    // Staging never consults the socket set: all three entries are on the stage.
+    expect(live.order).toHaveLength(3);
+    expect(live.order.map((id) => authorOf(live, id))).toEqual(
+      expect.arrayContaining([a, b, c]),
+    );
+    // Nor does the candidate list: c owes a guess on every answer but their own.
+    for (const answerId of live.order) {
+      const owed = eligibleGuessers(room, live, answerId);
+      if (authorOf(live, answerId) !== c) expect(owed).toContain(c);
+    }
+    // And c's entry scores: a and b both guess wrong on c's answer.
+    const cAnswer = live.entries[c]!.answerId;
+    let staged = room;
+    while (stagedAnswerId(round(staged)) !== cAnswer) staged = expire(staged, deps);
+    for (const guesser of [a, b]) {
+      staged = await applyWith(
+        staged, guesser, { v: 1, t: "submitGuess", answerId: cAnswer, playerId: guesser === a ? b : a },
+        deps, connected);
+    }
+    expect(staged.phase).toBe("REVEAL");
+    expect(staged.scores[c]).toBe(2); // +1 per fooled guesser
+  });
+
+  it("resolves GUESSING once the connected guessers have guessed", async () => {
+    const deps = makeDeps(5);
+    let room = await writing(deps, 4);
+    room = await everybodyWrites(room, deps);
+    expect(room.phase).toBe("GUESSING");
+    const live = round(room);
+    const answerId = stagedAnswerId(live)!;
+    const author = authorOf(live, answerId)!;
+    const owed = eligibleGuessers(room, live, answerId);
+    const [first, second, third] = owed as [string, string, string];
+    const connected = new Set([author, first, second]); // third locked
+    room = await applyWith(
+      room, first, { v: 1, t: "submitGuess", answerId, playerId: author }, deps, connected);
+    expect(room.phase).toBe("GUESSING");
+    room = await applyWith(
+      room, second, { v: 1, t: "submitGuess", answerId, playerId: author }, deps, connected);
+    expect(room.phase).toBe("REVEAL");
+    expect(third).toBeDefined();
+  });
+
+  it("an empty connected set falls back to the roster and resolves nothing early", async () => {
+    const deps = makeDeps(7);
+    let room = await writing(deps, 3);
+    const roster = ids(room);
+    const nobody = new Set<string>();
+    for (const id of roster.slice(0, 2)) {
+      room = await applyWith(room, id, { v: 1, t: "submitEntry", text: `by ${id}` }, deps, nobody);
+    }
+    expect(room.phase).toBe("WRITING");
+  });
+
+  it("resolveIfEveryoneReady moves the phase on when the last straggler drops", async () => {
+    const deps = makeDeps(13);
+    let room = await writing(deps, 3);
+    const [a, b, c] = ids(room) as [string, string, string];
+    for (const id of [a, b]) {
+      room = await apply(room, id, { v: 1, t: "submitEntry", text: `by ${id}` }, deps);
+    }
+    expect(room.phase).toBe("WRITING");
+    // Nothing happens while c could still write...
+    expect(resolveIfEveryoneReady(room, deps, new Set([a, b, c])).changed).toBe(false);
+    // ...and the phase resolves the moment c's socket is gone.
+    const dropped = resolveIfEveryoneReady(room, deps, new Set([a, b]));
+    expect(dropped.changed).toBe(true);
+    expect(dropped.room.phase).toBe("GUESSING");
+    expectLiveDeadline(dropped.room, "after resolveIfEveryoneReady");
+  });
+
+  it("resolveIfEveryoneReady is a no-op outside WRITING and GUESSING", async () => {
+    const deps = makeDeps(17);
+    let room = await seat(3, deps);
+    expect(resolveIfEveryoneReady(room, deps, new Set(ids(room))).changed).toBe(false); // LOBBY
+    room = await startGame(room, deps);
+    expect(resolveIfEveryoneReady(room, deps, new Set(ids(room))).changed).toBe(false); // INTRO
+    room = expire(room, deps);
+    room = await everybodyWrites(room, deps);
+    room = await everybodyGuesses(room, deps, (_g, author) => author);
+    expect(room.phase).toBe("REVEAL");
+    expect(resolveIfEveryoneReady(room, deps, new Set()).changed).toBe(false);
+  });
 });

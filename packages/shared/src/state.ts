@@ -9,7 +9,7 @@ import type {
 } from "./protocol";
 import { DEFAULT_LANG, DEFAULT_SETTINGS, MAX_PLAYERS, MIN_PLAYERS } from "./protocol";
 import { PACK_IDS } from "../content/prompts";
-import type { RoundState } from "./round";
+import type { ConnectedIds, RoundState } from "./round";
 import { applyRoundMessage, beginGame, handlePlayerLeft } from "./round";
 import { hashToken } from "./token";
 import { viewForPlayer } from "./view";
@@ -101,11 +101,19 @@ function nextSettings(current: Settings, patch: Partial<Settings>): Settings {
   return s;
 }
 
+/**
+ * `connected` is the set of player ids the caller currently holds a live
+ * socket for. It is used for **early-resolve decisions only** (see
+ * `ConnectedIds` in `round.ts`) and defaults to "everybody", which is the
+ * behaviour of every caller that does not know about sockets — the pure
+ * tests, and anything that is not the Durable Object.
+ */
 export async function applyEvent(
   room: InternalRoom,
   senderId: string,
   msg: ClientMessage,
   deps: EventDeps,
+  connected?: ConnectedIds,
 ): Promise<ApplyResult> {
   switch (msg.t) {
     case "join": {
@@ -164,7 +172,7 @@ export async function applyEvent(
       }
       // Voids their entry, skips the answer they authored, resolves a phase
       // they were the last holdout for, and ends the game below MIN_PLAYERS.
-      handlePlayerLeft(next, senderId, deps);
+      handlePlayerLeft(next, senderId, deps, connected);
       return { ok: true, room: next };
     }
     case "setLang": {
@@ -181,7 +189,7 @@ export async function applyEvent(
       return { ok: true, room };
     case "submitEntry":
     case "submitGuess":
-      return applyRoundMessage(room, senderId, msg, deps);
+      return applyRoundMessage(room, senderId, msg, deps, connected);
   }
 }
 
