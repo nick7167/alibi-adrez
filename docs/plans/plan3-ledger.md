@@ -15,7 +15,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T0b identity directions | done | `—` (canvas only) | Four directions explored; **A · AHA chosen** |
 | T1 prompt packs | done | `6001a98` | 80 bilingual prompts, 4 packs, 20 tests |
 | T2 protocol + demolition | done | `68e22fe` | new phases/messages/views in `protocol.ts`, `state.ts` cut to lobby-only, Alibi files deleted, placeholder phase screens, catalogues pruned 93 → 42 keys and paraglide regenerated |
-| T3 round engine | done | `—` | `enterPhase` + `PHASE_MS` (the only writer of phase/deadline), tiered least-staged selection, `advance`, scoring at every REVEAL, leaver rules — all in `packages/shared/src/round.ts`, re-exported from `index.ts`; `state.ts` wires `startGame`/`leave`/`submitEntry`/`submitGuess` into it; 48 new tests in `test/round.test.ts` |
+| T3 round engine | done | `606d8f0` | `enterPhase` + `PHASE_MS` (the only writer of phase/deadline), tiered least-staged selection, `advance`, scoring at every REVEAL, leaver rules — all in `packages/shared/src/round.ts`, re-exported from `index.ts`; `state.ts` wires `startGame`/`leave`/`submitEntry`/`submitGuess` into it; 48 new tests in `test/round.test.ts` |
 | T4 view projections + anonymity | not started | — | |
 | T5 rooms dispatch + socket tests | not started | — | |
 | T6 web plumbing + Writing | not started | — | |
@@ -269,3 +269,32 @@ useless.
 `ConfirmDialog.svelte` in `apps/web/src/lib/components/`, and T7/T8 compose them
 — they do not each invent one. The dialog is generic (title, body, confirm
 label, destructive flag) so later flows can reuse it.
+
+### The staged counter after a void (orchestrator — binding on T4/T7)
+
+T3 correctly refused to paper over this in the engine: `order` is append-only, so
+`order.length` counts voided slots too. The player-facing rule:
+
+**The counter shows live, non-voided values** — both the position and the total
+are computed over answers that still have an author. If someone leaves mid-round
+the room sees "2 of 4" become "2 of 3", which is honest: a person left and there
+is one less answer to guess. The alternative — holding the denominator at 4 and
+then ending after 3 — looks like a bug to a player, and there is no way for them
+to know it wasn't one.
+
+### A locked phone is not a leave (orchestrator — binding on T5)
+
+T3 flagged this and it is a real play problem, not a theoretical one. Early
+resolve waits for "every present player", where present means *in the roster* —
+so one person whose phone locked makes a room of six wait out the full 60-second
+writing timer, every round.
+
+The pure engine cannot know about sockets, and should not. **T5 passes the
+connected player ids in from the Durable Object** (it already tracks them for
+broadcast) and the engine uses that set for early-resolve decisions only —
+never for scoring, staging or presence in the candidate list, where a
+disconnected player must still count. Default when not supplied: the whole
+roster, i.e. today's behaviour.
+
+Scope it as an argument, not as state: nothing about a socket belongs in
+`InternalRoom`, which is persisted.
