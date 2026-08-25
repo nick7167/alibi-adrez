@@ -18,7 +18,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T3 round engine | done | `606d8f0` | `enterPhase` + `PHASE_MS` (the only writer of phase/deadline), tiered least-staged selection, `advance`, scoring at every REVEAL, leaver rules — all in `packages/shared/src/round.ts`, re-exported from `index.ts`; `state.ts` wires `startGame`/`leave`/`submitEntry`/`submitGuess` into it; 48 new tests in `test/round.test.ts` |
 | T4 view projections + anonymity | done | `3a8ee2c` | `view.ts` is the only reader of `round.entries`; `viewForPlayer` moved there out of `state.ts` with `scoreboardFor`; all seven phases projected; `WritingView.submittedCount` → `submittedIds` and `GuessingView.guessedCount` added; 106 tests in `test/snapshot.test.ts`, four mutations run |
 | T5 rooms dispatch + socket tests | done | `c13c0b3` | connected-player ids threaded from the DO into the engine for early resolve only (`ConnectedIds`, optional trailing arg); `resolveIfEveryoneReady` called from `webSocketClose`; 8 socket tests in `apps/rooms/test/round.test.ts` (full round on alarms alone, message round-trip, locked phone, eviction, idle self-destruct, voided REVEAL) + 7 engine tests in `packages/shared/test/round.test.ts`; four mutations run |
-| T6 web plumbing + Writing | not started | — | |
+| T6 web plumbing + Writing | done | `—` | `submittedIds` reverted to `submittedCount`; shared `LeaveButton.svelte` + `ConfirmDialog.svelte`; `Writing.svelte` (prompt, 140-char upsert entry, remaining count, deadline countdown, "n of m written"); router routes WRITING to it and every placeholder now carries a leave control |
 | T7 Guessing + Reveal | not started | — | |
 | T8 RoundEnd + Finale + lobby | not started | — | |
 | T9 rulebook, brand copy, e2e, domain | not started | — | |
@@ -336,6 +336,79 @@ are both disqualifying, however revealing they are.
     processed one at a time, and a handler still in flight re-arms the idle
     clock ten minutes into the future right on top of the backdate.
 
+### T6 — web plumbing, the Writing screen and the shared navigation
+
+43. **`submittedIds` is gone; `WritingView.submittedCount: number` is back**
+    (`protocol.ts`, `view.ts`, two assertions in `test/snapshot.test.ts`).
+    The rooms suite was unaffected exactly as T5 ruling 41 predicted — 25
+    tests, untouched, still green. The Writing screen renders "4 of 6
+    written" and names nobody. **Neither this nor `GuessingView.guessedCount`
+    may become a list again.**
+44. **`LeaveButton.svelte` and `ConfirmDialog.svelte` are the shared
+    navigation, and T7/T8 compose them — they do not write their own.**
+    - `LeaveButton` is the whole control, not just a button: it renders the
+      44px chip in the fixed top-left slot (its host must be `relative`) and
+      owns the confirmation itself, so a screen writes
+      `<LeaveButton onLeave={leaveRoom} />` and *cannot forget the warning*.
+      Pass `confirm={false}` only where nothing is lost — the finale.
+      `data-testid="leave-game"`; the dialog is `leave-confirm`, its buttons
+      `leave-confirm-confirm` / `leave-confirm-cancel`, backdrop
+      `leave-confirm-backdrop`.
+    - `ConfirmDialog` is generic (`title`, `body`, `confirmLabel`,
+      `cancelLabel`, `destructive`, `onConfirm`, `onCancel`, `testid`) and
+      knows nothing about leaving. Reuse it for any later destructive flow.
+    - Focus: on open it captures `document.activeElement` and moves focus to
+      **cancel** (the dismissive action, so a stray Enter destroys nothing);
+      on close the `$effect` cleanup returns focus to whatever it captured,
+      guarded by `isConnected`. Escape and a backdrop tap both cancel, Tab is
+      trapped between the two buttons, and the card is `role="dialog"`
+      `aria-modal="true"` `tabindex="-1"` labelled by its title and described
+      by its body. All of that is verified in a real browser, not reasoned
+      about.
+    - **Cancel sits below confirm**, nearest the thumb, so the stray tap at
+      the bottom of a phone is the harmless one.
+    - Colour note: the dialog card is **ink, not white** — white is the
+      answer card and only the answer card, and an overlay in white would
+      read as game content. `--color-accent-wrong` is the destructive action
+      fill; it is 6.6:1 on the ink card, which is why it is usable there even
+      though the identity ruling limits it to large marks on the *field*.
+45. **Every screen carries a leave control, placeholders included.** The
+    `placeholder` snippet in `+page.svelte` gained a fourth parameter,
+    `confirmLeave`, and its `<section>` is now `relative` so the absolutely
+    placed button lands. GUESSING / REVEAL / ROUND_END pass `true`; FINALE
+    passes `false`.
+46. **The Writing screen seeds its field from `myEntry` exactly once.** The
+    server broadcasts a fresh snapshot every time *anyone* submits, so
+    re-assigning the textarea from `room.myEntry` on every update would wipe
+    an edit-in-progress mid-keystroke. A `seeded` latch takes the first
+    defined value (which is what makes a reconnect repopulate) and never
+    fires again. **T7's guess grid has the same hazard** — `myGuess` arrives
+    on every broadcast.
+47. **Handing in never disables the field.** `submitEntry` is an upsert, so
+    the screen swaps the button to "change my answer", shows a green
+    "handed in" chip and says out loud that it can still be changed. The
+    submit button is disabled only when there is nothing new to send.
+48. **Everyone writing early-resolves WRITING immediately**, so the
+    "everybody has submitted" state of this screen is not reachable in
+    practice — the room is already in GUESSING. Worth knowing before
+    designing for it.
+49. **The entry field is a `<textarea>`, not an `<input>`.** One line is the
+    rule (`MAX_ENTRY_LENGTH` 140) but a 140-character sentence has to wrap to
+    stay readable in Fredoka at 26px. Enter hands in rather than inserting a
+    newline, and a pasted newline is flattened to a space, so the value is
+    still single-line.
+50. **`Countdown.svelte` is restyled from outside, not extended.** It is on
+    the plan's untouched list and hardcodes `font-mono text-2xl`, so
+    `Writing.svelte` overrides it with a `:global([data-testid='countdown'])`
+    rule scoped to its pill. **T7/T8 should do the same rather than adding a
+    prop** — every phase wants a different countdown size, and Tailwind class
+    order on the component would not reliably beat the component's own
+    `font-mono`.
+51. **Copy keys added:** `nav.leave`, `leave.title|body|confirm`, and
+    `writing.eyebrow|placeholder|remaining|submit|update|submitted|editHint|progress`,
+    in both catalogues, Danish written natively. `common.cancel` already
+    existed and is `ConfirmDialog`'s default cancel label.
+
 ### Chosen identity — A · AHA (orchestrator, after T0b)
 
 Name **AHA** — the noise the room makes at the reveal, spelled and said
@@ -469,17 +542,18 @@ at `alibi.adrez.dev` from the untouched `alibi-*` workers.
 
 280 tests green (shared 217, rooms 25, web 38); rooms suite run 3× without flake.
 
-**Next is T6 — web plumbing + the Writing screen**, which must also:
+**T6 is done too**: the leak is reverted, the shared navigation exists, and
+WRITING is a real screen. 284 tests green (shared 217, rooms 25, web 42 — the
+four new web tests are `head-canvas.test.ts`'s `it.each` picking up
+`Writing.svelte`; that file is unedited).
 
-1. **Revert `submittedIds` to `submittedCount`** in `protocol.ts`, `view.ts` and
-   the snapshot tests (see the ruling above — it is a real leak, and my error).
-   The rooms tests deliberately avoid that field, so they will not be affected.
-2. **Build the shared `LeaveButton.svelte` and `ConfirmDialog.svelte`** in
-   `apps/web/src/lib/components/`, per the navigation ruling, for T7/T8 to
-   compose rather than reinvent.
-
-Then T7 (Guessing + Reveal), T8 (RoundEnd + Finale + lobby settings), T9
-(rulebook, brand copy, e2e, repoint the domain).
+**Next is T7 — Guessing + Reveal.** It composes `LeaveButton` (rulings 44–45),
+renders `answerIndex`/`answerTotal` as given (ruling 28), must not recompute
+scoring from `awarded` (ruling 32), must tolerate a REVEAL turning into the
+INTRO splash mid-phase (rulings 29, 40), must lock the guess grid on phase
+change rather than waiting for `STALE_ANSWER`, and inherits the `myEntry`
+re-seeding hazard for `myGuess` (ruling 46). Then T8 (RoundEnd + Finale +
+lobby settings), T9 (rulebook, brand copy, e2e, repoint the domain).
 
 **Still outstanding and not a code task:** the paper playtest at 3, 6 and 10
 players. At 8+ players only 4 of 8 answers are staged, so half the room writes

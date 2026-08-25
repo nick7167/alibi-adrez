@@ -294,7 +294,7 @@ describe.each(["author", "guesser", "non-writer"])("reader: %s", (role) => {
       const view = (snap as { room: WritingView }).room;
       expect(view.phase).toBe("WRITING");
       expect(view.myEntry).toBe(F.textOf[reader]);
-      expect(view.submittedIds).toEqual(F.writers);
+      expect(view.submittedCount).toBe(F.writers.length);
     });
 
     it("GUESSING carries the staged answer and no authorship", () => {
@@ -495,7 +495,7 @@ describe("myEntry", () => {
     for (const reader of F.roster) {
       const view = viewForPlayer(F.writingEmpty, reader) as WritingView;
       expect("myEntry" in view).toBe(false);
-      expect(view.submittedIds).toEqual([]);
+      expect(view.submittedCount).toBe(0);
     }
   });
   it("survives a reconnect mid-WRITING", () => {

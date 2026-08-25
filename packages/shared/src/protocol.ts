@@ -94,18 +94,18 @@ export interface WritingView extends GameViewCommon {
   /** The prompt, in the reader's language. Everyone gets the same one. */
   prompt: string;
   /**
-   * Who has handed something in. Public: the writing screen shows the room
-   * filling up, and nothing is staged yet, so this names no author of
-   * anything.
+   * How many players have handed something in. A count, **never a list**, and
+   * for the same structural reason as `GuessingView.guessedCount`.
    *
-   * It does narrow the field for later — a player who submitted nothing
-   * cannot have written a staged answer, and a client could remember that
-   * into GUESSING. That is accepted (T4 ruling 30): `candidates` still lists
-   * everyone so the *view* never names the author, and in a room where
-   * everybody writes there is nothing to narrow. The guessing counter is
-   * deliberately NOT the same shape — see `GuessingView.guessedCount`.
+   * A list would leak nothing at the instant it is sent — nothing is staged
+   * during WRITING — which is exactly what makes it easy to wave through. But
+   * `candidates` is shaped as "everyone except me, including players who wrote
+   * nothing" precisely so a guesser cannot rule out the non-writers, and a
+   * client that saw `submittedIds` could simply *remember* who never submitted
+   * and eliminate them at GUESSING. That hands back exactly what the candidate
+   * rule protects. The screen shows "4 of 6 written" and names nobody.
    */
-  submittedIds: string[];
+  submittedCount: number;
   /**
    * This reader's own entry, echoed back so a reconnect mid-WRITING doesn't
    * lose it and an edit starts from what they wrote. Absent until they submit

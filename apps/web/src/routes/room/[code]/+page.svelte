@@ -7,8 +7,10 @@
 	import { currentLocale } from '$lib/i18n';
 	import type { Phase, RoomView, ServerMessage, Settings } from '@aha/shared';
 	import Countdown from '$lib/components/Countdown.svelte';
+	import LeaveButton from '$lib/components/LeaveButton.svelte';
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';
+	import Writing from './Writing.svelte';
 
 	let { data } = $props();
 
@@ -142,6 +144,11 @@
 		sockRef?.send({ v: 1, t: 'updateSettings', patch });
 	}
 
+	/** WRITING: hand in an answer. An upsert — send it again to edit. */
+	function submitEntry(text: string) {
+		sockRef?.submitEntry(text);
+	}
+
 	/** AHA has one field colour and every screen wears it (see the ledger's
 	    "Chosen identity — A · AHA" ruling): join, lobby, and every phase.
 	    Kept as a literal inside the $derived — never a lookup object — because
@@ -189,22 +196,28 @@
 </svelte:head>
 
 <!--
-	Temporary phase screens. Every phase below LOBBY renders the same stub —
-	its name and the phase countdown — until the task named in its TODO builds
-	the real one (T6 Writing, T7 Guessing/Reveal, T8 RoundEnd/Finale). They
-	exist so the tree compiles and deploys while the round engine (T3) and the
-	view projections (T4) land; none of them is a design.
+	Temporary phase screens. Every phase still waiting on its task renders the
+	same stub — its name and the phase countdown — until the task named in its
+	TODO builds the real one (T7 Guessing/Reveal, T8 RoundEnd/Finale). They
+	exist so the tree compiles and deploys; none of them is a design.
+
+	Every one of them carries a leave control, so no screen is a dead end
+	(the ledger's "Navigation and leave confirmation" ruling). `confirmLeave`
+	is false only for the finale, where the game is already over and nothing
+	is lost — guarding that would train players to dismiss the warning unread.
 -->
 {#snippet placeholder(
 	label: string,
 	todo: string,
-	room: { round: number; roundCount: number; deadline: number | null } | null
+	room: { round: number; roundCount: number; deadline: number | null } | null,
+	confirmLeave: boolean
 )}
 	<section
 		data-testid="phase-placeholder"
 		data-phase={label}
-		class="grid fill-vp place-items-center bg-field px-4 text-center text-white"
+		class="relative grid fill-vp place-items-center bg-field px-4 text-center text-white"
 	>
+		<LeaveButton onLeave={leaveRoom} confirm={confirmLeave} />
 		<div class="flex flex-col items-center gap-5 pb-safe">
 			<span class="rounded-full bg-surface-2 px-4 py-1 text-xs font-bold tracking-[0.18em] uppercase">
 				{todo}
@@ -276,15 +289,15 @@
 			</div>
 		</section>
 	{:else if view?.room.phase === 'WRITING'}
-		{@render placeholder(m['game.phase.writing'](), 'TODO(T6)', view.room)}
+		<Writing room={view.room} {offset} onSubmit={submitEntry} onLeave={leaveRoom} />
 	{:else if view?.room.phase === 'GUESSING'}
-		{@render placeholder(m['game.phase.guessing'](), 'TODO(T7)', view.room)}
+		{@render placeholder(m['game.phase.guessing'](), 'TODO(T7)', view.room, true)}
 	{:else if view?.room.phase === 'REVEAL'}
-		{@render placeholder(m['game.phase.reveal'](), 'TODO(T7)', view.room)}
+		{@render placeholder(m['game.phase.reveal'](), 'TODO(T7)', view.room, true)}
 	{:else if view?.room.phase === 'ROUND_END'}
-		{@render placeholder(m['game.phase.roundEnd'](), 'TODO(T8)', view.room)}
+		{@render placeholder(m['game.phase.roundEnd'](), 'TODO(T8)', view.room, true)}
 	{:else if view?.room.phase === 'FINALE'}
-		{@render placeholder(m['game.phase.finale'](), 'TODO(T8)', null)}
+		{@render placeholder(m['game.phase.finale'](), 'TODO(T8)', null, false)}
 	{/if}
 
 	{#if offlineLong && screen !== 'INTRO'}

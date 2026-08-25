@@ -173,11 +173,14 @@ function introView(room: InternalRoom): IntroView {
 /**
  * WRITING.
  *
- * `submittedIds` is who has handed something in — public, and what the screen
- * needs to show the room filling up. `myEntry` is the reader's **own** text
- * and nobody else's, echoed back so a reconnect mid-round repopulates the
- * field instead of silently losing what they typed; it is absent, never
- * blank, until they submit.
+ * `submittedCount` is how many have handed something in — the screen says "4 of
+ * 6 written" and names nobody. A *list* of submitters would leak nothing at the
+ * instant it is sent, since nothing is staged yet, and is still wrong: a client
+ * can remember who never submitted and eliminate them at GUESSING, which is
+ * exactly what `candidates` (everyone except me, non-writers included) exists
+ * to prevent. `myEntry` is the reader's **own** text and nobody else's, echoed
+ * back so a reconnect mid-round repopulates the field instead of silently
+ * losing what they typed; it is absent, never blank, until they submit.
  */
 function writingView(room: InternalRoom, readerId: string, round: RoundState): WritingView {
   const mine = round.entries[readerId];
@@ -185,7 +188,7 @@ function writingView(room: InternalRoom, readerId: string, round: RoundState): W
     phase: "WRITING",
     ...common(room),
     prompt: promptFor(round, langOf(room, readerId)),
-    submittedIds: room.players.filter((p) => round.entries[p.id] !== undefined).map((p) => p.id),
+    submittedCount: room.players.filter((p) => round.entries[p.id] !== undefined).length,
   };
   if (mine !== undefined) view.myEntry = mine.text;
   return view;
