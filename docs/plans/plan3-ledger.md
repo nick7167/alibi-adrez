@@ -17,7 +17,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T2 protocol + demolition | done | `68e22fe` | new phases/messages/views in `protocol.ts`, `state.ts` cut to lobby-only, Alibi files deleted, placeholder phase screens, catalogues pruned 93 → 42 keys and paraglide regenerated |
 | T3 round engine | done | `606d8f0` | `enterPhase` + `PHASE_MS` (the only writer of phase/deadline), tiered least-staged selection, `advance`, scoring at every REVEAL, leaver rules — all in `packages/shared/src/round.ts`, re-exported from `index.ts`; `state.ts` wires `startGame`/`leave`/`submitEntry`/`submitGuess` into it; 48 new tests in `test/round.test.ts` |
 | T4 view projections + anonymity | done | `3a8ee2c` | `view.ts` is the only reader of `round.entries`; `viewForPlayer` moved there out of `state.ts` with `scoreboardFor`; all seven phases projected; `WritingView.submittedCount` → `submittedIds` and `GuessingView.guessedCount` added; 106 tests in `test/snapshot.test.ts`, four mutations run |
-| T5 rooms dispatch + socket tests | done | `—` | connected-player ids threaded from the DO into the engine for early resolve only (`ConnectedIds`, optional trailing arg); `resolveIfEveryoneReady` called from `webSocketClose`; 8 socket tests in `apps/rooms/test/round.test.ts` (full round on alarms alone, message round-trip, locked phone, eviction, idle self-destruct, voided REVEAL) + 7 engine tests in `packages/shared/test/round.test.ts`; four mutations run |
+| T5 rooms dispatch + socket tests | done | `c13c0b3` | connected-player ids threaded from the DO into the engine for early resolve only (`ConnectedIds`, optional trailing arg); `resolveIfEveryoneReady` called from `webSocketClose`; 8 socket tests in `apps/rooms/test/round.test.ts` (full round on alarms alone, message round-trip, locked phone, eviction, idle self-destruct, voided REVEAL) + 7 engine tests in `packages/shared/test/round.test.ts`; four mutations run |
 | T6 web plumbing + Writing | not started | — | |
 | T7 Guessing + Reveal | not started | — | |
 | T8 RoundEnd + Finale + lobby | not started | — | |
@@ -460,3 +460,28 @@ guessers names them by omission the moment everyone else has voted.
 T3 deletes a leaver's entry, so their answer vanishes from the round-end recap.
 Nobody has decided whether it should still be shown. Leaving it as-is for now;
 decide it if a playtest makes it feel wrong.
+
+### Resume point (session checkpoint, 2026-08-25)
+
+T0–T5 are done, verified and pushed: the game is fully built and tested on the
+server side. `main` deploys to `aha-web`/`aha-rooms`; the old game still serves
+at `alibi.adrez.dev` from the untouched `alibi-*` workers.
+
+280 tests green (shared 217, rooms 25, web 38); rooms suite run 3× without flake.
+
+**Next is T6 — web plumbing + the Writing screen**, which must also:
+
+1. **Revert `submittedIds` to `submittedCount`** in `protocol.ts`, `view.ts` and
+   the snapshot tests (see the ruling above — it is a real leak, and my error).
+   The rooms tests deliberately avoid that field, so they will not be affected.
+2. **Build the shared `LeaveButton.svelte` and `ConfirmDialog.svelte`** in
+   `apps/web/src/lib/components/`, per the navigation ruling, for T7/T8 to
+   compose rather than reinvent.
+
+Then T7 (Guessing + Reveal), T8 (RoundEnd + Finale + lobby settings), T9
+(rulebook, brand copy, e2e, repoint the domain).
+
+**Still outstanding and not a code task:** the paper playtest at 3, 6 and 10
+players. At 8+ players only 4 of 8 answers are staged, so half the room writes
+something nobody sees. `MAX_STAGED` is one exported constant — cheap to change
+now, expensive once five screens assume the current shape.
