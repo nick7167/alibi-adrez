@@ -547,6 +547,20 @@ WRITING is a real screen. 284 tests green (shared 217, rooms 25, web 42 — the
 four new web tests are `head-canvas.test.ts`'s `it.each` picking up
 `Writing.svelte`; that file is unedited).
 
+**T6b (short-viewport priority fix, 2026-08-25)**: `Writing.svelte` clipped the
+entry card under the submit button at 390×420 (keyboard-up height) whenever the
+prompt ran two lines or more. Fixed with a `@media (max-height: 600px)` block
+scoped to the component: the prompt's type scale shrinks and clamps to two
+lines (`-webkit-line-clamp`), `pt-safe`/`pb-safe` and the card/footer paddings
+tighten, and the entry card keeps a 128px floor instead of 240px — the submit
+button's size is untouched. Verified in Playwright (WebKit-equivalent Chromium,
+real app, three-context room to WRITING) at 390×844 and 390×420, including a
+forced 57-char/3-line prompt: at 420 the entry field and submit button are both
+fully inside the viewport with no overlap and no page scroll
+(`scrollHeight === innerHeight`); at 844 every measured box (card, prompt,
+button) is pixel-identical before and after the fix. The query never matches
+at 844, so the full-height screen is provably unchanged.
+
 **Next is T7 — Guessing + Reveal.** It composes `LeaveButton` (rulings 44–45),
 renders `answerIndex`/`answerTotal` as given (ruling 28), must not recompute
 scoring from `awarded` (ruling 32), must tolerate a REVEAL turning into the

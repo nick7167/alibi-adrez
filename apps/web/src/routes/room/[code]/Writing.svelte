@@ -128,16 +128,20 @@
 			</p>
 			<h1
 				data-testid="prompt"
-				class="mt-2 font-display text-[34px] leading-[1.08] font-semibold tracking-[-0.015em] text-balance text-white"
+				class="wr-prompt-title mt-2 font-display text-[34px] leading-[1.08] font-semibold tracking-[-0.015em] text-balance text-white"
 			>
 				{room.prompt}
 			</h1>
 		</div>
 
-		<div class="flex flex-1 shrink-0 flex-col justify-center py-5">
-			<!-- White is the answer card and only the answer card. -->
+		<div class="wr-card-wrap flex flex-1 shrink-0 flex-col justify-center py-5">
+			<!-- White is the answer card and only the answer card. Short-viewport
+			     priority (docs/plans/plan3-ledger.md): when the keyboard eats the
+			     height, this card is the one thing that must never be clipped —
+			     the compact media query below shrinks the prompt and paddings
+			     around it instead, never this. -->
 			<div
-				class="flex min-h-[240px] flex-col rounded-card bg-surface p-6 text-ink shadow-[0_8px_0_rgba(22,11,61,0.45)]"
+				class="wr-card flex min-h-[240px] flex-col rounded-card bg-surface p-6 text-ink shadow-[0_8px_0_rgba(22,11,61,0.45)]"
 			>
 				<label for="entry" class="sr-only">{m['writing.placeholder']()}</label>
 				<textarea
@@ -152,7 +156,7 @@
 					value={text}
 					oninput={onInput}
 					onkeydown={onKeydown}
-					class="w-full flex-1 resize-none bg-transparent font-display text-[26px] leading-[1.18] font-semibold tracking-[-0.01em] text-ink outline-none placeholder:font-normal placeholder:text-ink/25"
+					class="wr-textarea w-full flex-1 resize-none bg-transparent font-display text-[26px] leading-[1.18] font-semibold tracking-[-0.01em] text-ink outline-none placeholder:font-normal placeholder:text-ink/25"
 				></textarea>
 
 				<div class="mt-2 flex shrink-0 items-center justify-between gap-3">
@@ -193,7 +197,7 @@
 			</div>
 
 			{#if hasSubmitted}
-				<p class="mt-3 text-center text-[13px] font-medium text-white/70">
+				<p class="wr-edit-hint mt-3 text-center text-[13px] font-medium text-white/70">
 					{m['writing.editHint']()}
 				</p>
 			{/if}
@@ -201,7 +205,7 @@
 	</div>
 
 	<!-- Footer: the one primary action, then the roomful counter. -->
-	<div class="shrink-0 pt-4">
+	<div class="wr-footer shrink-0 pt-4">
 		<button
 			type="button"
 			data-testid="submit-entry"
@@ -213,7 +217,7 @@
 		</button>
 		<p
 			data-testid="written-count"
-			class="mt-3 text-center text-[13px] font-semibold text-white/75"
+			class="wr-written-count mt-3 text-center text-[13px] font-semibold text-white/75"
 			aria-live="polite"
 		>
 			{m['writing.progress']({ count: room.submittedCount, total: room.players.length })}
@@ -231,5 +235,68 @@
 		font-weight: 700;
 		line-height: 1;
 		letter-spacing: 0;
+	}
+
+	/* Short-viewport priority (docs/plans/plan3-ledger.md, "Short-viewport
+	   priority" — binding on this screen): when the keyboard eats the
+	   height (≈390×420, the height iOS leaves while a player is typing),
+	   the prompt is context and the entry card is the task. The prompt
+	   yields — smaller type, clamped to two lines — so the card keeps a
+	   real minimum height and the "Hand it in" button never gets clipped
+	   or overlapped. At full height this query never matches, so the
+	   screen renders exactly as it always has — nothing below changes
+	   that case.
+
+	   These rules are unlayered Svelte component styles, which is what
+	   lets a two-class selector (scoped class + component hash) or even a
+	   single new class outrank Tailwind's own (layered) utility classes and
+	   app.css's unlayered `.pt-safe`/`.pb-safe` (see app.css's comment on
+	   why those are unlayered) without touching either. */
+	@media (max-height: 600px) {
+		.pt-safe {
+			padding-top: max(1rem, env(safe-area-inset-top));
+		}
+
+		.pb-safe {
+			padding-bottom: max(1rem, env(safe-area-inset-bottom));
+		}
+
+		.wr-prompt-title {
+			margin-top: 0.25rem;
+			font-size: 19px;
+			line-height: 1.15;
+			display: -webkit-box;
+			-webkit-line-clamp: 2;
+			-webkit-box-orient: vertical;
+			line-clamp: 2;
+			overflow: hidden;
+		}
+
+		.wr-card-wrap {
+			padding-top: 0.5rem;
+			padding-bottom: 0.5rem;
+		}
+
+		.wr-card {
+			min-height: 128px;
+			padding: 0.75rem;
+		}
+
+		.wr-textarea {
+			font-size: 19px;
+			line-height: 1.25;
+		}
+
+		.wr-edit-hint {
+			margin-top: 0.375rem;
+		}
+
+		.wr-footer {
+			padding-top: 0.5rem;
+		}
+
+		.wr-written-count {
+			margin-top: 0.25rem;
+		}
 	}
 </style>
