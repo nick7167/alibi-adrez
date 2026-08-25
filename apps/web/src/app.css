@@ -23,31 +23,20 @@
   --color-accent-right: #22e39a;
   --color-accent-wrong: #ff7bae;
 
-  /* Legacy Alibi token names, aliased onto the AHA palette above. T2 deleted
-     the Alibi game screens and T8 rewrote the lobby; the landing page, the
-     join form and the rulebook still compose these, so they go with T9. Do
-     not add new uses of them. */
-  --color-paper: var(--color-surface);
-  --color-cobalt: var(--color-field);
-  --color-sunshine: var(--color-action);
-  --color-coral: var(--color-surface-2);
-  --color-mint: var(--color-accent-right);
-  --color-grape: var(--color-field);
-  --color-night: var(--color-ink);
-
-  /* Case-file surface. Legacy Alibi primitive — T8's lobby rewrite dropped
-	   its settings panel, but the landing page and the rulebook still compose
-	   it, so it survives until T9 rewrites those. */
-  --color-manila: var(--color-surface);
+  /* Seven tokens, and that is the palette. The legacy Alibi colour names
+     (--color-paper / -cobalt / -sunshine / -coral / -mint / -grape / -night)
+     and --color-manila were aliases onto these; T9 re-skinned the last three
+     screens that composed them — the landing page, the join form and the
+     rulebook — and deleted them. */
 
   --radius-card: 1.75rem;
 
   /* Two faces, one rule (docs/plans/plan3-ledger.md, "Chosen identity — A ·
 	   AHA"): --font-display = content → answers and player names, in
 	   Fredoka. --font-sans = chrome → labels, counts, hints and button
-	   copy, in Figtree. --font-mono stays Courier Prime: it's a legacy
-	   Alibi primitive (room codes, stamps, evidence labels) still used by
-	   the landing page, join form, lobby, rulebook and Countdown. */
+	   copy, in Figtree. --font-mono is Courier Prime and has
+	   exactly one user left: Countdown.svelte, which hardcodes `font-mono`
+	   and is on the plan's untouched list. Nothing else should reach for it. */
   --font-display: "Fredoka", "Avenir Next Rounded", "Trebuchet MS", system-ui, sans-serif;
   --font-sans: "Figtree", "Helvetica Neue", system-ui, sans-serif;
   --font-mono: "Courier Prime", "Courier New", monospace;
@@ -67,7 +56,7 @@ body {
    Full-bleed colored pages override with a plain `html, html > body`
    selector + their field color (see +page.svelte / room/[code]/+page.svelte). */
 :where(html, html > body) {
-  background-color: var(--color-paper);
+  background-color: var(--color-field);
 }
 
 html,
@@ -99,15 +88,12 @@ body {
    Unlayered on purpose, exactly like the viewport helpers above: these merge
    over Tailwind utilities instead of depending on source order.
 
-   .sticker and .field-label are generic and carry forward into AHA. The
-   rest below (.stamp, .ruled) are Alibi's "evidence" vocabulary — Courier
-   Prime in coral stamps, manila case-file surfaces.
-
-   T8's lobby rewrite freed two of them: .stamp-frame (the lobby room code)
-   and .leader (the dotted rule in the lobby settings) had no other user and
-   are deleted. What is left is still referenced by a screen T8 does not
-   rewrite — .stamp (landing, rulebook), .ruled (landing, join form,
-   rulebook) — and goes with T9. Do not build new UI on them.
+   Two primitives, and that is the lot. .sticker is the pressable feel;
+   .field-label is the small-caps caption on a light surface. Alibi's
+   "evidence" vocabulary on top of them is gone — T8 deleted .stamp-frame and
+   .leader with the lobby rewrite, T9 deleted .stamp and .ruled with the
+   landing page, join form and rulebook. Screens compose Tailwind utilities
+   over the tokens above rather than growing this file.
    --------------------------------------------------------------------------- */
 
 /* Pressable things: a hard offset shadow that depresses on touch. */
@@ -123,40 +109,15 @@ body {
   box-shadow: 0 2px 0 rgba(20, 20, 51, 0.2);
 }
 
-/* Evidence label: every field caption, section heading and count. */
+/* Small-caps caption: field labels and section headings on a light surface.
+   Figtree, like every other piece of chrome in this system. */
 .field-label {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: color-mix(in oklab, var(--color-ink) 65%, transparent);
-}
-
-/* Rubber stamp: role tags and status marks. Rotation is part of it — a
-   stamp that sits perfectly square reads as a badge, not a stamp. */
-.stamp {
-  display: inline-block;
-  border: 2px solid var(--color-coral);
-  border-radius: 4px;
-  background: var(--color-paper);
-  padding: 0.125rem 0.4375rem;
-  rotate: -6deg;
-  color: var(--color-coral);
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-/* Ruled paper. Sits under content on paper and manila surfaces. */
-.ruled {
-  background-image: repeating-linear-gradient(
-    0deg,
-    rgba(20, 20, 51, 0.045) 0 1px,
-    transparent 1px 28px
-  );
+  color: color-mix(in oklab, var(--color-ink) 60%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

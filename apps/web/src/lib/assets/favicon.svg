@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-	<rect width="64" height="64" rx="16" fill="#FFC93C" />
+	<rect width="64" height="64" rx="16" fill="#4A1FD6" />
 	<path
 		d="M32 14 L46 50 M32 14 L18 50 M22.5 38 H41.5"
-		stroke="#141433"
+		stroke="#FFE14D"
 		stroke-width="7"
 		stroke-linecap="round"
 		stroke-linejoin="round"
 		fill="none"
 	/>
-	<rect x="44" y="44" width="9" height="9" fill="#F95D62" transform="rotate(45 48.5 48.5)" />
+	<rect x="44" y="44" width="9" height="9" fill="#22E39A" transform="rotate(45 48.5 48.5)" />
 </svg>

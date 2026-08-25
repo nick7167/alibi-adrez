@@ -21,7 +21,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T6 web plumbing + Writing | done | `1cc2ee4` | `submittedIds` reverted to `submittedCount`; shared `LeaveButton.svelte` + `ConfirmDialog.svelte`; `Writing.svelte` (prompt, 140-char upsert entry, remaining count, deadline countdown, "n of m written"); router routes WRITING to it and every placeholder now carries a leave control |
 | T7 Guessing + Reveal | done | `87e75f2` | `Guessing.svelte` (artboard composition, `candidates` untouched, `myGuess` latched per `answer.id`, ticker-driven client-side grid lock, author variant with no grid) + `Reveal.svelte` (author reveal, per-player `awarded` rows, right/wrong as large marks); router wires both and `submitGuess`; 21 new copy keys in both catalogues |
 | T8 RoundEnd + Finale + lobby | done | `0fee890` | `RoundEnd.svelte` (every answer of the round with its author, staged and un-staged, marked not re-sorted; running scoreboard as a horizontal strip; countdown names its destination) + `Finale.svelte` (podium keyed to rank so a tie reads as a tie, full standings, no countdown, `confirm={false}` leave) + the lobby rewritten onto the AHA field with this game's dials and the prompt-pack switches; one protocol addition, `RoundEndAnswer.staged`; `.stamp-frame` and `.leader` deleted from `app.css` |
-| T9 rulebook, brand copy, e2e, domain | not started | — | |
+| T9 rulebook, brand copy, e2e, CSS | done | `—` | landing page and rulebook re-skinned onto the AHA field and rewritten for this game (every number taken from the code); the mask emoji is gone and the favicon/manifest are AHA's; the enabled packs are visible to every player in the lobby; `.stamp`, `.ruled`, `--color-manila` and the whole legacy alias block deleted from `app.css`; `e2e/round.spec.ts` plays a full five-player game to FINALE and asserts anonymity over the wire; the six T1 prompt cuts applied. Domain repoint cancelled (already done by the user) |
 
 ## Rulings
 
@@ -603,6 +603,93 @@ are both disqualifying, however revealing they are.
     leaver during ROUND_END or FINALE was not driven — T7 ruling 63's gap is
     still open and still T9's.
 
+### T9 — brand copy, the rulebook, consent in the lobby, the full-round e2e
+
+78. **The mask emoji was replaced with nothing, and that is the decision, not a
+    dodge.** The `<title>` is now plain `AHA`. An emoji next to the title is a
+    second mark competing with the favicon, and Alibi's 🎭 worked precisely
+    because the mask *was* that game's mark — AHA's mark is the wordmark, which
+    the tab already carries as an icon. Picking 🎉/😲/💥 would have inherited
+    the pattern without inheriting the meaning. What did change instead: the
+    **favicon** (both copies — `static/favicon.svg` and `src/lib/assets/favicon.svg`,
+    which `+layout.svelte` imports) is the same A-with-a-mark glyph redrawn in
+    the AHA palette — action yellow on the field, accent-right for the spark —
+    and `app.html`'s `theme-color` plus the manifest's `theme_color` /
+    `background_color` / `description` moved from Alibi's sunshine to `#4A1FD6`.
+79. **The rulebook's numbers are cited, not remembered.** `content/rules.ts`
+    carries a header comment naming the file each number comes from
+    (`MIN_PLAYERS`/`MAX_PLAYERS`/`MAX_ENTRY_LENGTH` and `DEFAULT_SETTINGS` from
+    `protocol.ts`, the 1–10 / 20–120 / 10–60 bounds from `state.ts`'s
+    `nextSettings`, INTRO 3s / REVEAL 7s / ROUND_END 8s / `MAX_STAGED` 4 and the
+    +2/+1 from `round.ts`). **Any change to those constants changes this file in
+    the same commit.** Two scoring details are stated because they are not
+    guessable: a player who never guesses scores 0 *and* pays the author
+    nothing, and points land at every REVEAL rather than at the end.
+80. **The pack summary sits ABOVE the roster for guests, not below it.** It was
+    below first and at 390×420 the roster pushed it out of the scroll box —
+    a consent notice one scroll away from a screen you are about to tap "ready"
+    on is the same problem the ruling was written about. All four packs are
+    listed, on *and* off (a pack missing from a list of enabled ones is
+    ambiguous; off has to look off), and when confessions is on the guest reads
+    the same material-naming line the host read. The host's panel is unchanged.
+81. **The landing page's identity group centres itself, and stops centring at
+    390×420.** `justify-center` inside a scrolling box clips the *top* of
+    anything taller than the box — the overflow spills both ways and only the
+    bottom half is reachable — which is exactly what happened first: the
+    wordmark lost its top third. At `max-height: 600px` the group aligns to the
+    top, the "3–16 players" line is hidden, the mark drops to 52px, and with the
+    join panel open the three-beat strip is hidden too (`.ho-compact`), because
+    whoever opened that box was handed a code and does not need the explanation.
+    Measured at 390×420 in both languages: every control fully visible, no page
+    scroll in either axis.
+82. **The e2e proves anonymity over the wire, not in the DOM.** Each page
+    records its own WebSocket frames. During WRITING no page may be *sent*
+    another player's answer text; during GUESSING no page may be sent an
+    `authorId` at any depth (the `deepKeys` walk from the unit helpers, ported
+    into the spec). A DOM-only check would prove the screen didn't render the
+    secret — it would not prove the server never told the browser, which is
+    where the guarantee actually lives. The DOM checks stay as well
+    (`[data-author]` count 0 on a guesser's page; zero `guess-grid` and zero
+    `guess-chip` on the author's, against four chips on everyone else's).
+83. **Scoring is asserted arithmetically.** Every staged answer is guessed
+    correctly by exactly one player (+2) and wrongly by the other three (+1 to
+    the author each), so the whole four-answer round must total exactly 20
+    points at the finale. Combined with the per-REVEAL "the named author is the
+    player who actually wrote it" assertion, a right total paid to the wrong
+    player still fails.
+84. **The lobby drops a pending settings patch when it unmounts, and that is a
+    real footgun the e2e tripped over.** The stepper is debounced 300ms and the
+    teardown effect deliberately cancels the in-flight patch (T8's reasoning:
+    no stray `updateSettings` after the phase leaves LOBBY). Tapping a stepper
+    and hitting **Start** inside that 300ms therefore *silently loses the
+    setting* — the first run of the e2e played a 4-round game it had configured
+    to 1. The spec now waits for the server's own echo (a LOBBY `state` frame
+    carrying `rounds: 1`) rather than for the number on screen, which is only
+    the local draft. **Left unfixed in the product**; the window is 300ms and
+    the fix (flush on unmount) risks re-introducing the stray patch T8 removed.
+    Worth revisiting if a host ever reports "my setting didn't stick".
+85. **The e2e drives the leave that T7 ruling 63 asked for.** Second test: four
+    players, the staged author leaves mid-GUESSING, the room voids the answer,
+    skips it, and the remaining three reach the finale with the leaver's answer
+    absent from the recap. It also covers the INTRO-splash fallback path
+    incidentally, since that is what a voided in-flight phase renders.
+86. **The six T1 prompt cuts were applied here** (they were ruled "T9 at the
+    latest"). Replacements, keeping the per-pack counts exactly:
+    `alarm-tomorrow` → `notes-app-last-line`, `most-used-emoji` →
+    `phone-greeting`, `bedtime-last-night` → `home-alone-mutter`, `worst-sound`
+    → `menu-red-flag`, `emoji-to-delete` → `phrase-banned-from-email`,
+    `pretended-to-know` → `secretly-googled`; `pettiest-grudge`'s Danish
+    shortened from 67 to 44 characters. Every replacement is a prompt two people
+    answer *differently in voice* rather than with the same word or a number.
+    The 20 content tests still pass unchanged, counts included (25/20/20/15).
+87. **`.field-label` survived but stopped being Alibi's.** It was Courier Prime
+    at 0.2em — the "evidence label" — and it is now Figtree 800 at 0.16em, the
+    same chrome every AHA screen writes inline. Its only remaining user is
+    `JoinForm.svelte`. `--font-mono` itself stays, with exactly one user:
+    `Countdown.svelte`, which hardcodes `font-mono` and is on the plan's
+    untouched list — so every countdown in the game is still in Courier Prime.
+    That is the one visible piece of Alibi's type left in the product.
+
 ### Chosen identity — A · AHA (orchestrator, after T0b)
 
 Name **AHA** — the noise the room makes at the reveal, spelled and said
@@ -768,13 +855,52 @@ around it. `.stamp-frame` and `.leader` are deleted; `.stamp`, `.ruled` and
 `--color-manila` are still held by the landing page, `JoinForm.svelte` and the
 rulebook, so the legacy alias block in `app.css` goes with **T9**.
 
-**Next is T9 — rulebook, brand copy, full-round e2e, repoint the domain.** It
-inherits: the landing page and rulebook are still Alibi-styled end to end
-(T2 ruling 13) and are the last holders of the legacy CSS; the e2e should
-drive a leave during GUESSING and during REVEAL (T7 ruling 63) and, now,
-during ROUND_END; `home.tagline` still sells "busted alibis"; the six prompt
-cuts ruled after T1 are still unapplied; and a guest-visible read-only
-settings summary is worth considering (ruling 74).
+**T9 is done, and with it Plan 3.** (rulings 78–87)
+
+## Plan 3 complete
+
+**What works, verified:** the whole game end to end. A host creates a room,
+3–16 players join on their own phones in English or Danish, everyone answers
+the same anonymous prompt, up to four answers are put to the room one at a
+time, the room guesses, the author is revealed and points land, every answer of
+the round is shown with its author, and the finale ranks the room. The server
+is the authority on all of it; the client can only ask.
+
+- **312 unit tests green** — shared 229, rooms 25, web 58. `pnpm -r typecheck`,
+  `pnpm -r test`, `pnpm -r build` all clean.
+- **3 Playwright e2e green locally** (not in CI, deliberately): the lobby spec,
+  a full five-player game to FINALE with the anonymity property asserted over
+  the wire, and a staged author leaving mid-guess without hanging the room.
+- **Anonymity** is structural (the private store is keyed by author, the public
+  stage by opaque shuffled ids, and only `view.ts` reads `round.entries`),
+  covered by a 118-test projection matrix that has been mutation-tested five
+  times, and now confirmed in real browsers against real socket frames.
+- **Every screen** works at 390×420 as well as 390×844, carries a leave control,
+  and wears one field colour with a matching canvas so iOS never shows a seam.
+- **Both games are live**: `aha.adrez.dev` (this) and `alibi.adrez.dev` (the
+  retired concept, untouched workers, tag `alibi-v1.0`).
+
+**Explicitly still outstanding:**
+
+1. **The paper playtest at 3, 6 and 10 players — the only thing that can tell
+   us whether the game is fun.** At 8+ players only 4 of N answers are staged,
+   so half the room writes something nobody is asked about; ROUND_END is a
+   mitigation, not a fix. `MAX_STAGED` is one exported constant and is cheap to
+   change now, expensive once anything else assumes 4.
+2. **Prompt volume.** 80 bilingual prompts ship; the design pass argued ~120 is
+   the real number before a group hits repeats on night two.
+3. **A 16-player room has never been rendered**, at any viewport (T8 ruling 77a).
+   The 8-second ROUND_END is certainly too short to read sixteen answers, which
+   is a game-design question, not a layout one.
+4. **The empty round** (`roundEnd.empty`, fewer than two writers) is unit-covered
+   and has never been seen on screen (T8 ruling 77b).
+5. **A settings tap lost inside the 300ms debounce** if the host starts the game
+   immediately after it (ruling 84). Known, unfixed, 300ms wide.
+6. **Every countdown in the game is still Courier Prime** — `Countdown.svelte`
+   is on the plan's untouched list and hardcodes `font-mono` (ruling 87). It is
+   the last visible piece of Alibi's type.
+7. **A leaver's answer at ROUND_END** stays unruled (see the open item above):
+   their entry is deleted, so their answer vanishes from the recap.
 
 **Still outstanding and not a code task:** the paper playtest at 3, 6 and 10
 players. At 8+ players only 4 of 8 answers are staged, so half the room writes

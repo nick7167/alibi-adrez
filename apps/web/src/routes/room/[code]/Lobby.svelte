@@ -18,12 +18,17 @@
 	 *    called what it is — confessions — and its line names the material
 	 *    rather than winking at it.
 	 *
+	 * T9 added the third rule: **the enabled packs are visible to everyone**,
+	 * not just to the host. Only the host has the switches, but a guest can be
+	 * asked to answer a personal prompt, so they get a read-only summary of what
+	 * is on before they agree to play. Consent only the host can see is not
+	 * consent.
+	 *
 	 * The screen wears the AHA field like every other screen on this route (the
-	 * ledger's "Chosen identity" ruling), which is also what finally releases
-	 * the last Alibi CSS primitives it was built on: `.stamp-frame` (the room
-	 * code) and `.leader` (the settings rows) have no other user and go with
-	 * this rewrite. `.stamp` and `--color-manila` are still held by the landing
-	 * page and the rulebook until T9.
+	 * ledger's "Chosen identity" ruling), which is also what released the last
+	 * Alibi CSS primitives it was built on: `.stamp-frame` (the room code) and
+	 * `.leader` (the settings rows). The rest went with T9's landing page and
+	 * rulebook rewrite.
 	 */
 	import { m } from '$lib/paraglide/messages';
 	import {
@@ -247,6 +252,45 @@
 
 	<div class="relative min-h-0 flex-1">
 		<div class="h-full overflow-x-hidden overflow-y-auto px-0.5">
+			{#if !isHost}
+				<!-- Consent only the host can see is not consent (ledger, "Non-hosts
+				     cannot see whether Confessions is on"). A guest cannot change the
+				     packs, but they are about to be asked personal questions if the
+				     confessions pack is on, so they get to read that before they agree
+				     to play. All four are listed, on and off: a pack simply missing
+				     from a list of enabled ones is ambiguous — off has to be visibly
+				     off. When confessions IS on, the same line the host read is
+				     repeated here, because that is the line that names the material. -->
+				<section
+					data-testid="packs-summary"
+					class="reveal mt-3 flex flex-col gap-2 rounded-card border-2 border-white/15 bg-white/10 p-3.5"
+				>
+					<h3 class="text-[11px] font-extrabold tracking-[0.16em] text-action uppercase">
+						{m['lobby.settings.packs']()}
+					</h3>
+					<div class="flex flex-wrap gap-1.5">
+						{#each PACKS as pack (pack.id)}
+							{@const on = room.settings.packs.includes(pack.id)}
+							<span
+								data-testid="pack-chip"
+								data-pack={pack.id}
+								data-on={on}
+								class="rounded-full px-2.5 py-1 text-[12px] font-bold {on
+									? 'bg-action text-ink'
+									: 'bg-white/5 text-white/40 line-through'}"
+							>
+								{m[pack.nameKey]()}
+							</span>
+						{/each}
+					</div>
+					{#if room.settings.packs.includes('spicy')}
+						<p data-testid="spicy-note" class="text-[11.5px] leading-snug font-medium text-white/70">
+							{m['lobby.packs.spicyBody']()}
+						</p>
+					{/if}
+				</section>
+			{/if}
+
 			<div class="mt-3 flex items-baseline justify-between">
 				<h2
 					bind:this={headingEl}

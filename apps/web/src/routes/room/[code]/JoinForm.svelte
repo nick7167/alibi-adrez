@@ -28,31 +28,31 @@
 	}
 
 	const AVATAR_FILLS = [
-		'bg-sunshine text-ink',
-		'bg-mint text-ink',
-		'bg-coral text-white',
-		'bg-grape text-white'
+		'bg-action text-ink',
+		'bg-accent-right text-ink',
+		'bg-surface-2 text-white',
+		'bg-accent-wrong text-ink'
 	];
 </script>
 
 <!-- Root fills the viewport as a flex column; the middle section is the
      screen's single scrollable region, so focus-scrolling can lift the
      nickname field above the on-screen keyboard. -->
-<div class="fill-vp relative flex flex-col bg-cobalt">
+<div class="fill-vp relative flex flex-col bg-field">
 	<!-- pixel-confetti layer (decorative) -->
 	<div class="pointer-events-none absolute inset-0" aria-hidden="true">
-		<span class="absolute top-[11%] left-[8%] h-3 w-3 rotate-12 bg-sunshine opacity-20"></span>
-		<span class="absolute top-[17%] right-[9%] h-2.5 w-2.5 rotate-45 bg-paper opacity-20"></span>
-		<span class="absolute bottom-[16%] left-[10%] h-3.5 w-3.5 -rotate-6 bg-mint opacity-15"></span>
-		<span class="absolute right-[7%] bottom-[24%] h-2.5 w-2.5 rotate-45 bg-coral opacity-20"></span>
-		<span class="absolute top-[46%] left-[4%] h-2 w-2 rotate-45 bg-sunshine opacity-15"></span>
+		<span class="absolute top-[11%] left-[8%] h-3 w-3 rotate-12 bg-action opacity-30"></span>
+		<span class="absolute top-[17%] right-[9%] h-2.5 w-2.5 rotate-45 bg-surface opacity-20"></span>
+		<span class="absolute bottom-[16%] left-[10%] h-3.5 w-3.5 -rotate-6 bg-accent-right opacity-30"></span>
+		<span class="absolute right-[7%] bottom-[24%] h-2.5 w-2.5 rotate-45 bg-accent-wrong opacity-30"></span>
+		<span class="absolute top-[46%] left-[4%] h-2 w-2 rotate-45 bg-action opacity-25"></span>
 	</div>
 
 	<div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 pt-safe">
 		<section
-			class="pop-in ruled relative z-10 mx-auto mt-4 w-full max-w-md rounded-[24px] border-[3px] border-ink bg-paper p-5 shadow-[0_8px_0_rgba(23,21,49,0.35)] sm:p-6"
+			class="pop-in relative z-10 mx-auto mt-4 w-full max-w-md rounded-[24px] bg-surface p-5 text-ink shadow-[0_6px_0_rgba(22,11,61,0.45)] sm:p-6"
 		>
-			<h1 class="text-center text-[34px] leading-tight font-extrabold tracking-tight text-ink">
+			<h1 class="text-center font-display text-[32px] leading-tight font-bold tracking-tight text-ink">
 				{m['join.title']()}
 			</h1>
 
@@ -71,7 +71,7 @@
 					autocapitalize="off"
 					spellcheck="false"
 					placeholder={m['join.title']()}
-					class="mt-2 h-14 w-full rounded-full border-4 border-ink bg-white px-5 font-mono text-[19px] font-bold text-ink caret-coral placeholder:font-sans placeholder:text-base placeholder:font-bold placeholder:text-ink/35 focus:outline-none focus-visible:ring-4 focus-visible:ring-cobalt"
+					class="mt-2 h-14 w-full rounded-full border-2 border-ink/15 bg-ink/[0.04] px-5 font-display text-[19px] font-semibold text-ink caret-field placeholder:font-sans placeholder:text-base placeholder:font-semibold placeholder:text-ink/35 focus:outline-none focus-visible:ring-4 focus-visible:ring-field"
 				/>
 
 				<p class="field-label mt-5 block">{m['join.pickAvatar']()}</p>
@@ -88,11 +88,11 @@
 							aria-label={avatar}
 							data-testid={`avatar-${i}`}
 							onclick={() => (emoji = avatar)}
-							class={`grid h-14 w-full place-items-center rounded-full text-2xl transition-transform duration-150 focus:outline-none focus-visible:ring-4 focus-visible:ring-cobalt ${
+							class={`grid h-14 w-full place-items-center rounded-full text-2xl transition-transform duration-150 focus:outline-none focus-visible:ring-4 focus-visible:ring-field ${
 								AVATAR_FILLS[i % AVATAR_FILLS.length]
 							} ${
 								emoji === avatar
-									? 'shadow-[0_0_0_3px_var(--color-paper),0_0_0_6px_var(--color-coral)]'
+									? 'shadow-[0_0_0_3px_var(--color-surface),0_0_0_6px_var(--color-ink)]'
 									: 'hover:scale-105'
 							}`}
 						>
@@ -110,7 +110,7 @@
 			form="join-fields"
 			data-testid="join-submit"
 			disabled={!canJoin}
-			class="sticker flex min-h-14 w-full items-center justify-center rounded-full bg-sunshine px-8 text-lg font-bold text-ink disabled:opacity-40"
+			class="sticker flex min-h-14 w-full items-center justify-center rounded-full bg-action px-8 font-display text-[19px] font-bold text-ink disabled:opacity-40"
 		>
 			{m['join.enter']()}
 		</button>

@@ -1,13 +1,13 @@
 {
 	"name": "AHA",
 	"short_name": "AHA",
-	"description": "Et festspil med skrøner og afslørede alibier.",
+	"description": "Alle svarer på det samme. Hvem skrev hvad?",
 	"start_url": "/",
 	"scope": "/",
 	"display": "standalone",
 	"orientation": "portrait",
-	"background_color": "#FFC93C",
-	"theme_color": "#FFC93C",
+	"background_color": "#4A1FD6",
+	"theme_color": "#4A1FD6",
 	"icons": [
 		{
 			"src": "/favicon.svg",

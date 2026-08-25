@@ -206,14 +206,14 @@
 </svelte:head>
 
 
-<main class="relative flex fill-vp flex-col overflow-hidden bg-paper text-ink">
+<main class="relative flex fill-vp flex-col overflow-hidden bg-field text-white">
 	{#if screen === 'join'}
 		<button
 			type="button"
 			data-testid="back-home"
 			aria-label={m['nav.back']()}
 			onclick={() => void goto('/')}
-			class="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 grid size-11 place-items-center rounded-full border-4 border-ink bg-paper text-ink"
+			class="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 grid size-11 place-items-center rounded-full border-2 border-white/30 bg-white/10 text-white"
 		>
 			<svg
 				width="20"
@@ -274,22 +274,22 @@
 	{#if offlineLong && screen !== 'INTRO'}
 		<div
 			data-testid="offline-overlay"
-			class="fixed inset-0 z-50 grid place-items-center bg-paper/95"
+			class="fixed inset-0 z-50 grid place-items-center bg-field/95"
 			role="status"
 		>
 			<div class="flex flex-col items-center gap-4">
 				<div class="pixel-loader mx-auto" aria-hidden="true">
 					<span></span><span></span><span></span>
 				</div>
-				<p class="text-xl font-extrabold text-ink">{m['offline.title']()}</p>
-				<p class="field-label">{m['offline.retry']()}</p>
+				<p class="font-display text-xl font-bold text-white">{m['offline.title']()}</p>
+				<p class="text-[11px] font-extrabold tracking-[0.16em] text-white/70 uppercase">{m['offline.retry']()}</p>
 			</div>
 		</div>
 	{/if}
 
 	{#if toastMsg}
 		<div
-			class="pop-in fixed inset-x-4 bottom-6 z-[60] mx-auto max-w-sm rounded-full bg-coral px-6 py-3 text-center font-bold text-white shadow-[0_6px_0_rgba(23,21,49,0.25)]"
+			class="pop-in fixed inset-x-4 bottom-6 z-[60] mx-auto max-w-sm rounded-full bg-surface-2 px-6 py-3 text-center font-bold text-white shadow-[0_6px_0_rgba(22,11,61,0.35)]"
 			role="status"
 		>
 			{toastMsg}
@@ -322,17 +322,17 @@
 	.pixel-loader span {
 		width: 14px;
 		height: 14px;
-		background: var(--color-sunshine);
+		background: var(--color-action);
 		animation: pixel-bounce 900ms ease-in-out infinite;
 	}
 
 	.pixel-loader span:nth-child(2) {
-		background: var(--color-coral);
+		background: var(--color-accent-wrong);
 		animation-delay: 120ms;
 	}
 
 	.pixel-loader span:nth-child(3) {
-		background: var(--color-mint);
+		background: var(--color-accent-right);
 		animation-delay: 240ms;
 	}
 

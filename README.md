@@ -1,6 +1,6 @@
 # AHA
 
-An online party game of interrogation: question the suspects and catch whoever's alibi falls apart.
+An online party game: everyone answers the same question anonymously, then the room guesses who wrote what.
 
 pnpm monorepo: `apps/rooms` (Cloudflare Worker REST + WebSocket lobby backed by a Durable Object), `apps/web` (SvelteKit 2 + Svelte 5 client), and `packages/shared` (protocol, room codes, state machine).
 
@@ -17,23 +17,41 @@ Requires Node 22+ and pnpm 10 (pinned via `packageManager`).
 | `pnpm test` | Run unit tests in all workspaces |
 | `pnpm build` | Build all workspaces |
 
-Playwright e2e lives in `apps/web/e2e`; run it locally from that workspace. It is not part of CI yet.
+Playwright e2e lives in `apps/web/e2e` and is **not** part of CI — run it
+locally with `pnpm --filter web exec playwright test` (the config starts both
+dev servers itself). `lobby.spec.ts` covers create/join/start; `round.spec.ts`
+plays a complete five-player game to the finale and asserts the anonymity
+property over the wire.
 
 ## Frontend conventions
 
-**Design system — AHA.** Tokens live in `apps/web/src/app.css`: `--font-sans`
-(Figtree) is chrome — labels, counts, hints, buttons; `--font-display`
-(Fredoka) carries answers and player names. Palette per
-`docs/plans/plan3-ledger.md` ("Chosen identity — A · AHA"): `--color-field`,
-`--color-surface`, `--color-surface-2`, `--color-ink`, `--color-action`,
-`--color-accent-right`, `--color-accent-wrong` (the last is 3.5:1 on the
-field — large marks only, never body text). `.sticker` and `.field-label` are
-generic primitives that carry forward; `.stamp`, `.stamp-frame`, `.ruled`,
-`.leader` and the legacy `--color-paper` / `--color-cobalt` / `--color-sunshine`
-/ `--color-coral` / `--color-mint` / `--color-grape` / `--color-night` /
-`--color-manila` tokens are Alibi's "Party File" system, aliased onto the AHA
-palette so the Alibi screens still compile and render (in the wrong colours,
-deliberately) until they're deleted in T2.
+**Design system — AHA.** Tokens live in `apps/web/src/app.css`, and the palette
+is seven colours, nothing else: `--color-field` (#4A1FD6, every screen's
+ground), `--color-surface` (white — answer cards and reading surfaces only),
+`--color-surface-2` (chips), `--color-ink`, `--color-action` (#FFE14D, the
+primary action and every eyebrow label), `--color-accent-right` and
+`--color-accent-wrong`. The last is 3.5:1 on the field — **large marks only,
+never body text**. Two faces, one rule: `--font-display` (Fredoka) carries
+content — answers, player names, headings — and `--font-sans` (Figtree) carries
+chrome — labels, counts, hints, buttons. `--font-mono` (Courier Prime) has one
+remaining user, `Countdown.svelte`.
+
+Two class primitives survive: `.sticker` (the pressable offset shadow) and
+`.field-label` (small-caps caption on a light surface). Alibi's "Party File"
+vocabulary — `.stamp`, `.stamp-frame`, `.ruled`, `.leader`, `--color-manila`
+and the aliased `--color-paper` / `-cobalt` / `-sunshine` / `-coral` / `-mint` /
+`-grape` / `-night` tokens — is **deleted**. Screens compose Tailwind utilities
+over the tokens rather than growing `app.css`.
+
+**Short-viewport priority.** Every screen is checked at 390×844 *and* 390×420,
+the height iOS leaves when the software keyboard is up. When space is short the
+context yields — smaller type, clamped lines, hidden decoration — and the input
+and the primary action do not. A screen that only works at 844px tall does not
+work on a phone.
+
+**Every in-room screen carries the shared `LeaveButton`** in the same top-left
+slot, and it owns its own confirmation, so a screen cannot ship an unguarded
+exit. Pass `confirm={false}` only where nothing is lost (lobby, finale).
 
 **Screen canvas color.** Every full-bleed screen paints the `html`+`body` canvas
 with its own field color, so iOS can never expose a system zone (status bar,
@@ -61,11 +79,20 @@ plus that a screen's `theme-color` and canvas hexes stay in sync.
 
 ## Production URLs
 
+Two games are live. **AHA** is this repo's `main`; **Alibi** is the retired
+concept, still serving from the untouched `alibi-*` workers and recoverable at
+tag `alibi-v1.0` (branch `archive/alibi-v1`).
+
 | Service | URL |
 | --- | --- |
-| Web app | https://aha-web.nicklas-andreasen2000.workers.dev |
-| Rooms worker (health) | https://aha-rooms.nicklas-andreasen2000.workers.dev/health |
-| Web app (Alibi, frozen) | https://alibi-web.nicklas-andreasen2000.workers.dev |
-| Rooms worker (Alibi, frozen) | https://alibi-rooms.nicklas-andreasen2000.workers.dev/health |
+| AHA (play here) | https://aha.adrez.dev |
+| AHA web worker | https://aha-web.nicklas-andreasen2000.workers.dev |
+| AHA rooms worker (health) | https://aha-rooms.nicklas-andreasen2000.workers.dev/health |
+| Alibi (retired, still playable) | https://alibi.adrez.dev |
+| Alibi web worker (frozen) | https://alibi-web.nicklas-andreasen2000.workers.dev |
+| Alibi rooms worker (health, frozen) | https://alibi-rooms.nicklas-andreasen2000.workers.dev/health |
+
+Deploys from `main` only ever touch the `aha-*` workers; nothing in this repo
+deploys to the Alibi pair any more.
 
 First pipeline deploy: 2026-08-23 (run 32608396401).

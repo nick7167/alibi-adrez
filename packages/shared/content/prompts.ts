@@ -62,16 +62,16 @@ export const PROMPTS: readonly Prompt[] = [
     da: "Den ældste fane du stadig har åben på telefonen.",
   },
   {
-    id: "alarm-tomorrow",
+    id: "notes-app-last-line",
     pack: "everyday",
-    en: "What time your alarm is set for tomorrow.",
-    da: "Hvad tid din alarm ringer i morgen.",
+    en: "The last thing you typed into your notes app.",
+    da: "Det sidste du skrev i din noteapp.",
   },
   {
-    id: "most-used-emoji",
+    id: "phone-greeting",
     pack: "everyday",
-    en: "Your most used emoji.",
-    da: "Din mest brugte emoji.",
+    en: "Exactly what you say when you answer the phone.",
+    da: "Præcis hvad du siger, når du tager telefonen.",
   },
   {
     id: "last-message-sent",
@@ -158,10 +158,10 @@ export const PROMPTS: readonly Prompt[] = [
     da: "Den app du har den højeste skærmtid på.",
   },
   {
-    id: "bedtime-last-night",
+    id: "home-alone-mutter",
     pack: "everyday",
-    en: "What time you actually went to bed last night.",
-    da: "Hvad tid du rent faktisk gik i seng i går.",
+    en: "Something you say out loud when nobody is home.",
+    da: "Noget du siger højt, når der ikke er nogen hjemme.",
   },
   {
     id: "word-you-overuse",
@@ -244,10 +244,10 @@ export const PROMPTS: readonly Prompt[] = [
     da: "Den værste ugedag – og det er ikke mandag.",
   },
   {
-    id: "worst-sound",
+    id: "menu-red-flag",
     pack: "opinions",
-    en: "The worst sound in the world.",
-    da: "Verdens værste lyd.",
+    en: "The clearest red flag on a restaurant menu.",
+    da: "Det tydeligste faresignal på et spisekort.",
   },
   {
     id: "tiny-thing-ruins-day",
@@ -286,10 +286,10 @@ export const PROMPTS: readonly Prompt[] = [
     da: "Det eneste rigtige tilbehør til pommes frites.",
   },
   {
-    id: "emoji-to-delete",
+    id: "phrase-banned-from-email",
     pack: "opinions",
-    en: "An emoji that should be deleted.",
-    da: "En emoji der burde slettes.",
+    en: "A phrase that should be banned from emails.",
+    da: "En vending der burde forbydes i mails.",
   },
   {
     id: "worst-kind-of-gift",
@@ -431,7 +431,7 @@ export const PROMPTS: readonly Prompt[] = [
     id: "pettiest-grudge",
     pack: "spicy",
     en: "The pettiest reason you've stopped talking to someone.",
-    da: "Den mest smålige grund til at du er holdt op med at tale med nogen.",
+    da: "Den mest smålige grund til at du droppede en ven.",
   },
   {
     id: "last-white-lie",
@@ -440,10 +440,10 @@ export const PROMPTS: readonly Prompt[] = [
     da: "Den seneste hvide løgn du fortalte.",
   },
   {
-    id: "pretended-to-know",
+    id: "secretly-googled",
     pack: "spicy",
-    en: "Something you've pretended to know about.",
-    da: "Noget du har foregivet at have styr på.",
+    en: "Something you've googled secretly mid-conversation.",
+    da: "Noget du i smug har googlet midt i en samtale.",
   },
   {
     id: "gift-you-pretended-to-like",

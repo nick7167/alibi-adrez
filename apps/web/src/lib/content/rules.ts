@@ -16,6 +16,18 @@ export interface RuleSection {
 	blocks: RuleBlock[];
 }
 
+/* Every number below is taken from the code, not from memory — a rulebook that
+   contradicts the engine is worse than no rulebook at all:
+
+     MIN_PLAYERS 3 / MAX_PLAYERS 16 / MAX_ENTRY_LENGTH 140  packages/shared/src/protocol.ts
+     DEFAULT_SETTINGS rounds 4, writeSec 60, guessSec 25     packages/shared/src/protocol.ts
+     bounds 1–10 / 20–120 / 10–60                            packages/shared/src/state.ts (nextSettings)
+     INTRO 3s, REVEAL 7s, ROUND_END 8s, MAX_STAGED 4         packages/shared/src/round.ts
+     +2 correct guess, +1 per fooled guesser                 packages/shared/src/round.ts
+     packs, spicy opt-in                                     packages/shared/content/prompts.ts
+
+   If any of those change, this file changes in the same commit. */
+
 const en: RuleSection[] = [
 	{
 		id: 'concept',
@@ -23,7 +35,7 @@ const en: RuleSection[] = [
 		blocks: [
 			{
 				type: 'paragraph',
-				text: "Alibi is a party game of tall tales. Each round, two players become the suspects — secretly sharing the exact same made-up alibi. Everyone else plays detective, trying to catch them contradicting each other. The app runs the show: it keeps the secrets, runs the clock, and keeps score. Everyone plays on their own phone, whether you're all crammed onto one couch or scattered across a call."
+				text: "Everyone in the room answers the same question at the same time, anonymously, in one line. The app then puts a few of the answers up one at a time, and everyone else guesses who wrote it. Then the name lands — and the noise the room makes at that moment is what the game is named after. Everyone plays on their own phone, whether you're crammed onto one sofa or spread across a call."
 			}
 		]
 	},
@@ -35,10 +47,14 @@ const en: RuleSection[] = [
 				type: 'list',
 				items: [
 					'3 to 16 players.',
-					'One person creates a room and shares the 4-letter code.',
+					'One person creates a room and reads out the 4-letter code.',
 					'Everyone else joins with a nickname and an avatar.',
-					'The host can change the settings, then starts the game.'
+					'The host sets the length and the question packs, then starts.'
 				]
+			},
+			{
+				type: 'paragraph',
+				text: 'A 3-second splash opens the game, and then the first question is on everyone at once.'
 			}
 		]
 	},
@@ -50,29 +66,24 @@ const en: RuleSection[] = [
 				type: 'steps',
 				items: [
 					{
-						title: 'Intro',
-						meta: '5 sec',
-						body: 'The round number goes up, and the two suspects for this round are revealed to everyone.'
+						title: 'Write',
+						meta: '60 sec default · 20–120 host-set',
+						body: 'Everyone gets the same question and writes one answer, up to 140 characters. Nobody sees anyone else’s. You can keep changing yours until the clock runs out, and the round moves on the moment everyone has handed something in.'
 					},
 					{
-						title: 'Planning',
-						meta: '45 sec default · 15–120 host-set',
-						body: "The two suspects secretly receive the exact same scenario — a short story plus four specific details — and get a private chat, visible only to the two of them, to agree their story. Detectives just see a waiting screen and who the suspects are; they never see the scenario."
-					},
-					{
-						title: 'Interrogation',
-						meta: '6 questions default · 3–10 host-set',
-						body: "Detectives type questions, up to 5 each per round. If nobody has asked anything when a question is needed, the app asks about one of the scenario's own details. Each question goes to both suspects, one at a time, under a timer (30 sec default, 10–90 host-set). Neither suspect sees the other's answer, and running out of time counts as no answer."
-					},
-					{
-						title: 'Deliberation',
-						meta: 'up to 60 sec',
-						body: "Both suspects' answers appear side by side for everyone. Detectives vote Consistent or Busted. It ends the moment every detective has voted, or when the clock runs out."
+						title: 'Guess',
+						meta: '25 sec default · 10–60 host-set',
+						body: 'One answer goes up on its own, with the question still above it. Everyone except the author taps the player they think wrote it — one tap, no takebacks. The author gets no buttons at all; they just sit there being hunted.'
 					},
 					{
 						title: 'Reveal',
-						meta: '10 sec',
-						body: 'The verdict lands, the scenario is made public, and the points go up on the board.'
+						meta: '7 sec',
+						body: 'The author’s name lands, along with who guessed whom and what everyone earned. Then the next answer goes up. Up to 4 answers are put to the room per round.'
+					},
+					{
+						title: 'Round over',
+						meta: '8 sec',
+						body: 'Every answer of the round appears with its author — including the ones that were never put to the room — plus the scoreboard so far. Then the next question, or the finale.'
 					}
 				]
 			}
@@ -84,34 +95,52 @@ const en: RuleSection[] = [
 		blocks: [
 			{
 				type: 'table',
-				headers: ['Role', 'Points'],
+				headers: ['What happened', 'Points'],
 				rows: [
-					['Suspects', '+2 each if the verdict is Consistent'],
-					['Suspects, bonus', '+1 each more if the detectives were unanimous'],
-					['Detectives', '+2 each for voting with the majority'],
-					['Detectives, no vote', "0 — a detective who doesn't vote scores nothing"]
+					['You named the author correctly', '+2'],
+					['Someone named the wrong player on your answer', '+1 to you, per wrong guess'],
+					['You ran out of time and never guessed', '0 — and the author gets nothing either']
 				]
 			},
 			{
 				type: 'stamp',
-				label: 'Rule',
-				text: 'A tied vote counts as Consistent — the suspects get the benefit of the doubt.'
+				label: 'Note',
+				text: 'Points land at every reveal, so the scoreboard moves all game rather than all at once at the end.'
 			}
 		]
 	},
 	{
-		id: 'rounds',
-		heading: 'Rounds & the finale',
+		id: 'packs',
+		heading: 'The question packs',
 		blocks: [
-			{
-				type: 'paragraph',
-				text: 'Games run 3 rounds by default (the host can set 1–10). Nobody plays suspect twice until everyone at the table has had a turn.'
-			},
 			{
 				type: 'list',
 				items: [
-					'A podium for the top scores.',
-					'Superlative awards: most convincing liar, sharpest detective, and most curious.'
+					'Everyday — small true things from your day.',
+					'Opinions — hot takes you’d actually defend.',
+					'Absurd — made-up nonsense with no right answer.',
+					'Confessions — personal admissions: white lies, cringe, petty revenge.'
+				]
+			},
+			{
+				type: 'stamp',
+				label: 'Confessions',
+				text: 'The first three are on by default. Confessions is off until the host switches it on, and every player can see in the lobby whether it is on before the game starts.'
+			}
+		]
+	},
+	{
+		id: 'settings',
+		heading: 'What the host can set',
+		blocks: [
+			{
+				type: 'table',
+				headers: ['Setting', 'Default', 'Range'],
+				rows: [
+					['Rounds', '4', '1–10'],
+					['Writing time', '60 sec', '20–120 sec'],
+					['Guessing time', '25 sec', '10–60 sec'],
+					['Question packs', 'Everyday, Opinions, Absurd', 'At least one has to stay on']
 				]
 			}
 		]
@@ -123,9 +152,12 @@ const en: RuleSection[] = [
 			{
 				type: 'list',
 				items: [
-					'Each player reads the game in their own language — English or Danish — including the scenario.',
-					'If someone leaves and fewer than 3 players remain, the game ends and the scores stand.',
-					'If a suspect leaves mid-round, that round is abandoned with no points.'
+					'Each player reads the game in their own language — English or Danish — questions included.',
+					'No question comes up twice in the same game.',
+					'Only 4 answers per round go to the room, so in a big group not everyone is put up every round. The app spreads it out: whoever has been put up least goes next.',
+					'Anyone can be guessed, including players who wrote nothing that round. Who you can pick never narrows the field.',
+					'Two people writing exactly the same thing is not a bug and is never merged. It is usually the best moment of the round.',
+					'If someone leaves, their answer leaves with them. Below 3 players the game ends and the scores stand as they are.'
 				]
 			}
 		]
@@ -139,7 +171,7 @@ const da: RuleSection[] = [
 		blocks: [
 			{
 				type: 'paragraph',
-				text: 'Alibi er et festspil med skrøner. I hver runde bliver to spillere til de mistænkte — de deler i hemmelighed nøjagtig det samme opdigtede alibi. Alle de andre er detektiver, der prøver at fange dem i at modsige hinanden. Appen er værten: den holder på hemmelighederne, styrer uret og holder styr på pointene. Alle spiller på deres egen telefon, uanset om I sidder proppet sammen på én sofa eller er spredt ud over et opkald.'
+				text: 'Alle i rummet svarer på det samme spørgsmål på samme tid, anonymt og på én linje. Appen tager derefter et par af svarene frem ét ad gangen, og alle andre gætter, hvem der har skrevet det. Så falder navnet — og lyden, rummet laver i det sekund, er den, spillet er opkaldt efter. Alle spiller på deres egen telefon, uanset om I sidder proppet sammen i én sofa eller er spredt ud over et opkald.'
 			}
 		]
 	},
@@ -151,10 +183,14 @@ const da: RuleSection[] = [
 				type: 'list',
 				items: [
 					'3 til 16 spillere.',
-					'Én person opretter et rum og deler den 4-bogstavers kode.',
-					'Alle andre deltager med et kaldenavn og en avatar.',
-					'Værten kan ændre indstillingerne og starter derefter spillet.'
+					'Én opretter et rum og læser den 4-bogstavers kode højt.',
+					'Alle andre går ind med et kaldenavn og en avatar.',
+					'Værten sætter længden og spørgsmålspakkerne og starter så spillet.'
 				]
+			},
+			{
+				type: 'paragraph',
+				text: 'Spillet åbner med 3 sekunders optakt, og så rammer det første spørgsmål alle på én gang.'
 			}
 		]
 	},
@@ -166,29 +202,24 @@ const da: RuleSection[] = [
 				type: 'steps',
 				items: [
 					{
-						title: 'Intro',
-						meta: '5 sek.',
-						body: 'Rundenummeret vises, og de to mistænkte i denne runde bliver afsløret for alle.'
+						title: 'Skriv',
+						meta: '60 sek. som standard · 20–120 sat af værten',
+						body: 'Alle får det samme spørgsmål og skriver ét svar på højst 140 tegn. Ingen kan se de andres. Du må rette i dit, indtil tiden løber ud, og runden går videre i samme øjeblik alle har afleveret.'
 					},
 					{
-						title: 'Planlægning',
-						meta: '45 sek. som standard · 15–120 sat af værten',
-						body: 'De to mistænkte modtager i hemmelighed nøjagtig det samme scenarie — en kort historie plus fire konkrete detaljer — og får en privat chat, som kun de to kan se, til at blive enige om historien. Detektiverne ser kun en venteskærm og hvem de mistænkte er — de ser aldrig scenariet.'
-					},
-					{
-						title: 'Afhøring',
-						meta: '6 spørgsmål som standard · 3–10 sat af værten',
-						body: 'Detektiverne skriver spørgsmål, op til 5 hver pr. runde. Hvis ingen har stillet et spørgsmål, når der skal bruges ét, spørger appen om en af scenariets egne detaljer. Hvert spørgsmål besvares af begge mistænkte, én ad gangen, under et nedtællingsur (30 sek. som standard, 10–90 sat af værten). Ingen af de mistænkte ser den andens svar, og løber tiden ud, tæller det som intet svar.'
-					},
-					{
-						title: 'Rådslagning',
-						meta: 'op til 60 sek.',
-						body: 'Begge mistænktes svar vises side om side for alle. Detektiverne stemmer Konsistent eller Afsløret. Det slutter, så snart alle detektiver har stemt, eller når tiden løber ud.'
+						title: 'Gæt',
+						meta: '25 sek. som standard · 10–60 sat af værten',
+						body: 'Ét svar kommer op alene med spørgsmålet stadig over sig. Alle andre end den, der skrev det, trykker på den spiller, de tror står bag — ét tryk, ingen fortrydelse. Den, der skrev svaret, får slet ingen knapper og må bare sidde og se på.'
 					},
 					{
 						title: 'Afsløring',
-						meta: '10 sek.',
-						body: 'Dommen falder, scenariet bliver offentligt, og pointene lægges til på tavlen.'
+						meta: '7 sek.',
+						body: 'Navnet på den, der skrev svaret, falder sammen med hvem der gættede på hvem, og hvad alle fik ud af det. Så kommer det næste svar op. Der bliver højst taget 4 svar frem pr. runde.'
+					},
+					{
+						title: 'Runden er slut',
+						meta: '8 sek.',
+						body: 'Alle rundens svar vises med deres afsender — også dem, der aldrig kom frem — plus stillingen indtil nu. Derefter kommer næste spørgsmål, eller finalen.'
 					}
 				]
 			}
@@ -200,34 +231,52 @@ const da: RuleSection[] = [
 		blocks: [
 			{
 				type: 'table',
-				headers: ['Rolle', 'Point'],
+				headers: ['Hvad skete der', 'Point'],
 				rows: [
-					['Mistænkte', '+2 hver, hvis dommen er Konsistent'],
-					['Mistænkte, bonus', '+1 hver mere, hvis detektiverne var enstemmige'],
-					['Detektiver', '+2 hver for at stemme med flertallet'],
-					['Detektiver, ingen stemme', 'Ingen point — en detektiv, der ikke stemmer, får intet']
+					['Du gættede den rigtige afsender', '+2'],
+					['En anden gættede forkert på dit svar', '+1 til dig, pr. forkert gæt'],
+					['Du nåede ikke at gætte', 'Ingen — og afsenderen får heller ikke noget']
 				]
 			},
 			{
 				type: 'stamp',
-				label: 'Regel',
-				text: 'En uafgjort stemme tæller som Konsistent — de mistænkte får tvivlens fordel.'
+				label: 'Bemærk',
+				text: 'Pointene lægges til ved hver afsløring, så stillingen rykker sig hele vejen igennem i stedet for at komme samlet til sidst.'
 			}
 		]
 	},
 	{
-		id: 'rounds',
-		heading: 'Runder & finalen',
+		id: 'packs',
+		heading: 'Spørgsmålspakkerne',
 		blocks: [
-			{
-				type: 'paragraph',
-				text: 'Som standard spilles der 3 runder (værten kan sætte 1–10). Ingen er mistænkt to gange, før alle ved bordet har haft en tur.'
-			},
 			{
 				type: 'list',
 				items: [
-					'Et podie for de højeste point.',
-					'Særlige priser: mest overbevisende løgner, skarpeste detektiv og mest nysgerrig.'
+					'Hverdag — små sande ting fra din dag.',
+					'Holdninger — skarpe meninger, du gerne forsvarer.',
+					'Absurd — opdigtet vrøvl uden rigtige svar.',
+					'Tilståelser — personlige tilståelser: hvide løgne, pinlige minder og smålig hævn.'
+				]
+			},
+			{
+				type: 'stamp',
+				label: 'Tilståelser',
+				text: 'De tre første er slået til fra start. Tilståelser er slået fra, indtil værten tænder for den, og alle i rummet kan se i lobbyen, om den er tændt, inden spillet går i gang.'
+			}
+		]
+	},
+	{
+		id: 'settings',
+		heading: 'Det værten kan skrue på',
+		blocks: [
+			{
+				type: 'table',
+				headers: ['Indstilling', 'Standard', 'Interval'],
+				rows: [
+					['Runder', '4', '1–10'],
+					['Skrivetid', '60 sek.', '20–120 sek.'],
+					['Gættetid', '25 sek.', '10–60 sek.'],
+					['Spørgsmålspakker', 'Hverdag, Holdninger, Absurd', 'Mindst én skal være tændt']
 				]
 			}
 		]
@@ -239,9 +288,12 @@ const da: RuleSection[] = [
 			{
 				type: 'list',
 				items: [
-					'Hver spiller læser spillet på sit eget sprog — engelsk eller dansk — inklusive scenariet.',
-					'Hvis nogen forlader spillet, og der er færre end 3 spillere tilbage, slutter spillet, og pointene står ved magt.',
-					'Hvis en mistænkt forlader midt i en runde, kasseres runden uden point.'
+					'Hver spiller læser spillet på sit eget sprog — dansk eller engelsk — spørgsmålene med.',
+					'Det samme spørgsmål kommer ikke to gange i samme spil.',
+					'Der kommer højst 4 svar frem pr. runde, så i et stort selskab bliver alle ikke taget frem hver gang. Appen fordeler det: den, der har været fremme færrest gange, er den næste.',
+					'Alle kan gættes på — også dem, der ikke fik skrevet noget i runden. Feltet af mulige afsendere bliver aldrig smallere.',
+					'To ens svar er ikke en fejl og bliver aldrig slået sammen. Det er som regel rundens bedste øjeblik.',
+					'Forlader nogen spillet, ryger deres svar med. Bliver I færre end 3, slutter spillet, og pointene står ved magt.'
 				]
 			}
 		]
