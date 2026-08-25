@@ -76,7 +76,7 @@ export interface GuessLine { playerId: string; guessedId: string }
 export interface AwardLine { playerId: string; points: number }
 
 /** Fields carried by every in-game (non-LOBBY, non-FINALE) view. */
-interface GameViewCommon {
+export interface GameViewCommon {
   code: string;
   /** 1-based; 0 before the first round has started. */
   round: number;
@@ -93,8 +93,19 @@ export interface WritingView extends GameViewCommon {
   phase: "WRITING";
   /** The prompt, in the reader's language. Everyone gets the same one. */
   prompt: string;
-  /** How many players have submitted. An aggregate — it names nobody. */
-  submittedCount: number;
+  /**
+   * Who has handed something in. Public: the writing screen shows the room
+   * filling up, and nothing is staged yet, so this names no author of
+   * anything.
+   *
+   * It does narrow the field for later — a player who submitted nothing
+   * cannot have written a staged answer, and a client could remember that
+   * into GUESSING. That is accepted (T4 ruling 30): `candidates` still lists
+   * everyone so the *view* never names the author, and in a room where
+   * everybody writes there is nothing to narrow. The guessing counter is
+   * deliberately NOT the same shape — see `GuessingView.guessedCount`.
+   */
+  submittedIds: string[];
   /**
    * This reader's own entry, echoed back so a reconnect mid-WRITING doesn't
    * lose it and an edit starts from what they wrote. Absent until they submit
@@ -129,6 +140,12 @@ export interface GuessingView extends GameViewCommon {
   youWrote?: true;
   /** This reader's locked-in guess, once cast. Absent before that. */
   myGuess?: string;
+  /**
+   * How many players have guessed on this answer. A count, never a list:
+   * the author never guesses, so `guessedIds` would name them by omission
+   * the instant everyone else had voted. A number names nobody.
+   */
+  guessedCount: number;
 }
 
 export interface RevealView extends GameViewCommon {

@@ -1,12 +1,9 @@
 import type {
   ClientMessage,
   ErrorCode,
-  IntroView,
   PackId,
   Phase,
   Player,
-  RoomView,
-  ScoreEntry,
   ServerMessage,
   Settings,
 } from "./protocol";
@@ -15,6 +12,7 @@ import { PACK_IDS } from "../content/prompts";
 import type { RoundState } from "./round";
 import { applyRoundMessage, beginGame, handlePlayerLeft } from "./round";
 import { hashToken } from "./token";
+import { viewForPlayer } from "./view";
 
 export interface SessionSecret { playerId: string; tokenHash: string }
 
@@ -189,55 +187,13 @@ export async function applyEvent(
 
 // ------------------------------------------------------------------ snapshots
 
-/** Highest score first; ties by playerId so the ordering is stable. */
-export function scoreboardFor(room: InternalRoom): ScoreEntry[] {
-  return room.players
-    .map((p) => ({ playerId: p.id, score: room.scores[p.id] ?? 0 }))
-    .sort((a, b) => b.score - a.score || (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0));
-}
-
 /**
- * The per-player view. T4 replaces this with the typed projection builders in
- * `packages/shared/src/view.ts` — the whole point of that boundary being that
- * a view's *type* structurally lacks the secret, so a leak is a compile error.
- * Until then every in-game phase still renders the same minimal INTRO view:
- * T3 made WRITING/GUESSING/REVEAL/ROUND_END reachable on the server, but
- * nothing projects them yet, so the app shows the intro splash throughout. No
- * round content — no prompt, no answer, no author — reaches a client until
- * T4, which is the safe direction for a placeholder to be wrong in.
+ * The per-player view lives in `packages/shared/src/view.ts`, together with
+ * every other projection: that file is the only reader of `round.entries`,
+ * and a rule like that is only checkable if it has one address. `state.ts`
+ * keeps the lobby, the sessions and the event dispatch — it never sees an
+ * answer.
  */
-function placeholderView(room: InternalRoom): RoomView {
-  if (room.phase === "LOBBY") {
-    return {
-      phase: "LOBBY",
-      code: room.code,
-      hostId: room.hostId,
-      players: structuredClone(room.players),
-      settings: structuredClone(room.settings),
-    };
-  }
-
-  const scoreboard = scoreboardFor(room);
-  if (room.phase === "FINALE") {
-    return {
-      phase: "FINALE",
-      code: room.code,
-      players: structuredClone(room.players),
-      scoreboard,
-    };
-  }
-
-  const view: IntroView = {
-    phase: "INTRO",
-    code: room.code,
-    round: room.rounds.length,
-    roundCount: room.settings.rounds,
-    deadline: room.deadline,
-    players: structuredClone(room.players),
-    scoreboard,
-  };
-  return view;
-}
 
 /**
  * `now` is stamped on every snapshot so clients can render the phase
@@ -254,7 +210,7 @@ export function snapshotForPlayer(
     t: "state",
     you: playerId,
     isHost: room.hostId === playerId,
-    room: placeholderView(room),
+    room: viewForPlayer(room, playerId),
     now,
   };
 }

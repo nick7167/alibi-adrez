@@ -16,7 +16,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T1 prompt packs | done | `6001a98` | 80 bilingual prompts, 4 packs, 20 tests |
 | T2 protocol + demolition | done | `68e22fe` | new phases/messages/views in `protocol.ts`, `state.ts` cut to lobby-only, Alibi files deleted, placeholder phase screens, catalogues pruned 93 → 42 keys and paraglide regenerated |
 | T3 round engine | done | `606d8f0` | `enterPhase` + `PHASE_MS` (the only writer of phase/deadline), tiered least-staged selection, `advance`, scoring at every REVEAL, leaver rules — all in `packages/shared/src/round.ts`, re-exported from `index.ts`; `state.ts` wires `startGame`/`leave`/`submitEntry`/`submitGuess` into it; 48 new tests in `test/round.test.ts` |
-| T4 view projections + anonymity | not started | — | |
+| T4 view projections + anonymity | done | `—` | `view.ts` is the only reader of `round.entries`; `viewForPlayer` moved there out of `state.ts` with `scoreboardFor`; all seven phases projected; `WritingView.submittedCount` → `submittedIds` and `GuessingView.guessedCount` added; 106 tests in `test/snapshot.test.ts`, four mutations run |
 | T5 rooms dispatch + socket tests | not started | — | |
 | T6 web plumbing + Writing | not started | — | |
 | T7 Guessing + Reveal | not started | — | |
@@ -202,6 +202,79 @@ are both disqualifying, however revealing they are.
     `IntroView` and the app shows the intro splash for a whole game. No round
     content leaks — that is the safe direction for a placeholder to be wrong
     in — but **the app is not playable until T4**.
+
+### T4 — view projections and the anonymity matrix
+
+26. **`viewForPlayer` lives in `packages/shared/src/view.ts`, not in
+    `state.ts`.** The rule that carries this game's one security property is
+    "only `view.ts` reads `round.entries`", and a rule like that is only
+    checkable if every projection has one address — a `viewForPlayer` left in
+    `state.ts` would have had to read the private store from outside the
+    boundary on its first line. `scoreboardFor` moved across with it (it is a
+    projection), `placeholderView` is gone, and the runtime dependency stays
+    one-way — `state.ts` -> `view.ts` -> `round.ts` — because `view.ts`
+    imports only *types* from `state.ts`, exactly as `round.ts` does.
+    `grep -rn "\.entries" apps/*/src packages/*/src` hits only `round.ts`
+    (owner) and `view.ts` (projector); **T5–T8 must keep it that way** — a
+    screen that wants an author asks for a view field, it does not reach past
+    the boundary.
+27. **Two answer builders, and the type is the guarantee.**
+    `stagedAnswer(round, id): StagedAnswer` (`{ id, text }`) is what GUESSING
+    sends; `openAnswer(round, id): RevealedAnswer` (`+ authorId`) is called
+    from exactly two places, REVEAL and ROUND_END. Both go through T3's
+    `authorOf` (ruling 16) — the private `liveEntry` helper resolves an
+    `answerId` to an author *and then* reads `entries` by author id, so no
+    second reverse lookup exists. Objects are built as fresh literals, never
+    by deleting a field off a bigger one: absent and blanked are different
+    guarantees and only the first survives a refactor.
+28. **Counters are live, non-voided values,** implementing the orchestrator's
+    ruling: `answerIndex`/`answerTotal` are computed over `order` filtered to
+    answers that still have an author, so a leaver turns "2 of 4" into "2 of
+    3" mid-round. **T7 renders these as given and must not recompute from
+    `order`.**
+29. **When an in-game phase has no content to project, the fallback is the
+    contentless INTRO view — never ROUND_END.** Reachable when the staged
+    answer is voided while its phase is still live; T3 ruling 23 deliberately
+    lets an in-flight REVEAL finish, and the leaver's entry (hence the text
+    *and* the author) is deleted underneath it. Falling back to ROUND_END
+    would have been friendlier and is catastrophically wrong: it publishes
+    every un-staged answer of a round the room has not finished guessing.
+    **Consequence for T6–T8: any in-game phase can briefly render as the INTRO
+    splash.** Screens switch on `view.phase` and must not assume it matches
+    the phase they last saw.
+30. **`WritingView.submittedCount` became `submittedIds: string[]`** (per the
+    T4 brief) and **`GuessingView` gained `guessedCount: number`**. The
+    asymmetry is deliberate and load-bearing: nothing is staged during
+    WRITING, so naming who has submitted names no author — but the author
+    never guesses, so a `guessedIds` list would name them by omission the
+    instant everyone else had voted, which is the same leak `candidates` is
+    shaped to avoid. **Never turn `guessedCount` into a list.**
+    Accepted residual: `submittedIds` does let a client remember that a
+    non-writer cannot have written a staged answer, narrowing the field in a
+    room where somebody sat the round out. `candidates` still lists everyone,
+    so the view never names the author; if playtesting shows this mattering,
+    the fix is to fold it back to a count, and only the Writing screen changes.
+31. **ROUND_END order: staged answers first, in the order the room guessed
+    them, then the un-staged ones in roster order.** A leaver's entry was
+    deleted when they left, so their answer never appears — the round shows
+    who is still there.
+32. **REVEAL's `awarded` is passed straight through** (every present player,
+    zeros included, T3 ruling 22) and `guesses` lists only players who
+    actually cast one, in roster order. T7 does not recompute scoring.
+33. **A reader who is not seated** (a snapshot built for someone who just
+    left) gets the default language, no `myEntry` and no `youWrote`, rather
+    than a throw.
+34. **The matrix is proven by mutation, not by assertion count.**
+    `test/snapshot.test.ts` is 106 tests: every phase × every reader role
+    (author of the staged answer / a guesser / a player who wrote nothing) ×
+    every staged answer index, each serialized over the wire and checked with
+    the T2 helpers for absent author keys, absent foreign entry text, absent
+    foreign answer ids, and a `myEntry` that is only ever the reader's own.
+    Four deliberate leaks were introduced and reverted: `authorId` on the
+    staged answer (24 failures), `myEntry` falling back to another player's
+    text (6), `candidates` dropping the author (8), and ignoring the reader's
+    language (1). **A leak test that has never failed is not evidence — any
+    later task changing these views should re-run at least one mutation.**
 
 ### Chosen identity — A · AHA (orchestrator, after T0b)
 
