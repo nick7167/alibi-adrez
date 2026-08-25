@@ -11,10 +11,10 @@ Update this file at the end of every task, in the same commit as the work.
 
 | Task | Status | Commit | Notes |
 |---|---|---|---|
-| T0 preserve + rename | done | `—` | workers renamed to aha-rooms/aha-web, `@alibi/shared` → `@aha/shared`, AHA design tokens installed in app.css |
+| T0 preserve + rename | done | `519c8de` | workers renamed to aha-rooms/aha-web, `@alibi/shared` → `@aha/shared`, AHA design tokens installed in app.css |
 | T0b identity directions | done | `—` (canvas only) | Four directions explored; **A · AHA chosen** |
 | T1 prompt packs | done | `6001a98` | 80 bilingual prompts, 4 packs, 20 tests |
-| T2 protocol + demolition | done | `—` | new phases/messages/views in `protocol.ts`, `state.ts` cut to lobby-only, Alibi files deleted, placeholder phase screens, catalogues pruned 93 → 42 keys and paraglide regenerated |
+| T2 protocol + demolition | done | `68e22fe` | new phases/messages/views in `protocol.ts`, `state.ts` cut to lobby-only, Alibi files deleted, placeholder phase screens, catalogues pruned 93 → 42 keys and paraglide regenerated |
 | T3 round engine | not started | — | |
 | T4 view projections + anonymity | not started | — | |
 | T5 rooms dispatch + socket tests | not started | — | |
