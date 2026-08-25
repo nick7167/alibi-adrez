@@ -33,8 +33,8 @@ test('create → two guests join → all see 3 players → host starts (INTRO sp
 	expect(new URL(guest.url()).pathname.split('/').at(-1)).toBe(code); // uppercased by the UI
 
 	// 4. Both clients see the same two-player lobby — but the game can't
-	// start yet (scope decision 1: 3-player minimum, 2 suspects + a
-	// detective). The host sees the "need 3" note and a disabled button.
+	// start yet (MIN_PLAYERS is 3). The host sees the "need 3" note and a
+	// disabled button.
 	await expect(host.getByTestId('player-card')).toHaveCount(2);
 	await expect(guest.getByTestId('player-card')).toHaveCount(2);
 	await expect(host.getByTestId('start-game')).toBeDisabled();
@@ -58,11 +58,11 @@ test('create → two guests join → all see 3 players → host starts (INTRO sp
 	await expect(guest2.getByTestId('waiting-host')).toBeVisible();
 
 	// 8. Host tweaks a setting (debounced patch round-trips through the server).
-	await expect(host.getByTestId('value-rounds')).toHaveText('3');
+	await expect(host.getByTestId('value-rounds')).toHaveText('4'); // DEFAULT_SETTINGS.rounds
 	await host.getByTestId('inc-rounds').click();
-	await expect(host.getByTestId('value-rounds')).toHaveText('4');
+	await expect(host.getByTestId('value-rounds')).toHaveText('5');
 	await host.waitForTimeout(700); // debounce (300ms) + server broadcast round-trip
-	await expect(host.getByTestId('value-rounds')).toHaveText('4'); // not reverted
+	await expect(host.getByTestId('value-rounds')).toHaveText('5'); // not reverted
 
 	// 9. Start is now enabled with three players → host starts the game →
 	// INTRO splash on every client.

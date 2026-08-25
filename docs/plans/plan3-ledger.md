@@ -14,7 +14,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T0 preserve + rename | done | `—` | workers renamed to aha-rooms/aha-web, `@alibi/shared` → `@aha/shared`, AHA design tokens installed in app.css |
 | T0b identity directions | done | `—` (canvas only) | Four directions explored; **A · AHA chosen** |
 | T1 prompt packs | done | `6001a98` | 80 bilingual prompts, 4 packs, 20 tests |
-| T2 protocol + demolition | not started | — | |
+| T2 protocol + demolition | done | `—` | new phases/messages/views in `protocol.ts`, `state.ts` cut to lobby-only, Alibi files deleted, placeholder phase screens, catalogues pruned 93 → 42 keys and paraglide regenerated |
 | T3 round engine | not started | — | |
 | T4 view projections + anonymity | not started | — | |
 | T5 rooms dispatch + socket tests | not started | — | |
@@ -50,6 +50,81 @@ clausey on a phone card).
 **Rule for replacements and all future prompts:** a prompt is only good if two
 people would answer it *differently in voice*. Convergence and bare-fact answers
 are both disqualifying, however revealing they are.
+
+### T2 — protocol + demolition
+
+1. **The three salvaged helpers.** `deepKeys()` and the raw-JSON absence
+   harness now live in `packages/shared/test/helpers.ts` (`deepKeys`,
+   `overTheWire`, `expectAbsent`); `until()`, the deadline-backdating
+   `expirePhase()` and `expireIdle()` live in `apps/rooms/test/helpers.ts`.
+   Both files carry the *why* — keys alone miss a secret leaked as a value,
+   raw-JSON alone misses a nested key; fixed sleeps flake under load;
+   `runDurableObjectAlarm` fires immediately and workerd's clock cannot be
+   faked, so backdating the stored deadline is the only honest expiry test.
+   **T4 and T5 import these, they do not reinvent them.**
+2. **`advance` is a no-op stub in `state.ts`.** T3 replaces it with
+   `enterPhase` + `PHASE_MS`. `do.ts` keeps its single `advance` import and all
+   its alarm plumbing — only the `dispatch` case list changed. Consequence
+   until T3: `startGame` enters INTRO with `deadline: null`, so no phase is
+   timed and the DO's alarm serves only the idle self-destruct. A stub that
+   set a deadline nothing could advance past would have re-armed the alarm
+   forever against a deadline already in the past.
+3. **`InternalRoom.rounds` is `RoundState[]` where `export type RoundState =
+   never`** (declared in `state.ts`). It is a placeholder: storing a
+   half-invented round before the engine exists is a compile error. **T3
+   replaces the alias with the real interface from `src/round.ts`.**
+   `wasSuspect` is gone; `stagedCount: Record<string, number>` replaces it and
+   is seeded to 0 for every player by `startGame`.
+4. **Homes for things that outlived their file.** `Lang` moved from the
+   deleted `content/scenarios.ts` to `content/prompts.ts` (next to `PackId`),
+   which also gained `PACK_IDS` so settings can filter a patch to real packs.
+   `MIN_PLAYERS` moved from the deleted `round.ts` to `protocol.ts`.
+   `MAX_TEXT_LENGTH` was **removed** — no protocol field is 240 chars any
+   more; `MAX_ENTRY_LENGTH = 140` is the only text limit, and `validText` now
+   takes the ceiling as an argument.
+5. **`viewForPlayer` is gone.** `snapshotForPlayer` calls a private
+   `placeholderView` that builds LOBBY, FINALE, and a minimal `IntroView` for
+   every other phase. **T4 replaces it wholesale with `view.ts`'s typed
+   projections**; `scoreboardFor` is now exported for that.
+6. **Canvas colour: one hex for the whole room route.** Every screen wears the
+   AHA field, so `themeColor` is `$derived('#4A1FD6')` — a single literal
+   inside the `$derived`, never a lookup object — with one static canvas
+   style block to match. `head-canvas.test.ts` passes **unedited** (25 tests).
+   A degenerate ternary over identical branches was rejected as dead code: if
+   a screen ever needs a different field, turn this back into a literal
+   ternary AND add the matching `{#if}` branch in the head, together.
+7. **Placeholder screens.** `+page.svelte` has one
+   `{#snippet placeholder(label, todo, room)}` — phase name, round counter,
+   countdown, and a visible `TODO(T6)`/`TODO(T7)`/`TODO(T8)` chip — rendered
+   for WRITING / GUESSING / REVEAL / ROUND_END / FINALE, with
+   `data-testid="phase-placeholder"` and `data-phase`. T6-T8 swap each
+   `{@render placeholder(...)}` call for the real component (Alibi ruling 33's
+   pattern). **INTRO keeps `data-testid="intro-splash"`** — `e2e/lobby.spec.ts`
+   asserts on it.
+8. **The Alibi CSS primitives could NOT be deleted.** `.stamp` (landing,
+   lobby host tag, rulebook), `.stamp-frame` (lobby room code), `.ruled`
+   (landing, join form, rulebook), `.leader` (lobby settings) and
+   `--color-manila` (landing, lobby settings panel, rulebook) are all still
+   referenced by screens T2 does not rewrite. They go with those screens:
+   **T8 (lobby) and T9 (landing, rulebook)** — `app.css` now says so.
+9. **`leave` no longer ends the game below `MIN_PLAYERS`,** and no longer
+   voids anything: T2 only deletes the leaver's `scores`/`stagedCount`
+   entries. **T3 owns the leaver rules** (void their entry, skip voided
+   stages, end the game below 3) — there is a `TODO(T3)` at the call site.
+10. **`FinaleView` has no `awards`.** Alibi's superlatives went with the
+    Alibi round model and the plan does not specify replacements. T8 adds a
+    field if the Finale screen wants one; T2 does not invent unimplemented
+    protocol surface.
+11. **`submitGuess` ids are capped at 64 chars** by the parser (`validId`),
+    the same defensive bound `MAX_ENTRY_LENGTH` gives entry text.
+12. **`e2e/lobby.spec.ts` needed one edit** — `DEFAULT_SETTINGS.rounds` is now
+    4, so the stepper assertions read 4 → 5 instead of 3 → 4. Everything else
+    in that spec is untouched and passing, which is the proof the demolition
+    left the lobby alone.
+13. **`MaskMark.svelte` was deleted while the landing page still used it,** so
+    the landing header is now the wordmark alone. That page is Alibi-styled
+    end to end (sunshine canvas, case-file card, "busted alibis" tagline) and
+    is **T9's** to re-skin; T2 deliberately did not half-restyle it.
 
 ### Chosen identity — A · AHA (orchestrator, after T0b)
 

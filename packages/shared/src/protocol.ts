@@ -1,21 +1,28 @@
 import { AVATARS } from "./emojis";
-import type { Lang, ScenarioText } from "../content/scenarios";
+import type { Lang, PackId } from "../content/prompts";
 
 export { AVATARS };
-export type { Lang, ScenarioText };
+export type { Lang, PackId };
 
 /** Language a client reads when nothing says otherwise. */
 export const DEFAULT_LANG: Lang = "en";
 
 export const PROTOCOL_VERSION = 1;
 export const MAX_PLAYERS = 16;
+/** Below this a room cannot start, and a running game ends. */
+export const MIN_PLAYERS = 3;
 export const MAX_NAME_LENGTH = 20;
 export const MAX_MESSAGE_BYTES = 2048;
-export const MAX_TEXT_LENGTH = 240;
+/**
+ * An entry is one line, read aloud-fast on a phone card. Short on purpose:
+ * the game is won by recognising *how* someone writes, and a paragraph both
+ * buries the voice and makes the guessing screen scroll.
+ */
+export const MAX_ENTRY_LENGTH = 140;
 
 export type Phase =
-  | "LOBBY" | "INTRO" | "PLANNING"
-  | "INTERROGATION" | "DELIBERATION" | "REVEAL" | "FINALE";
+  | "LOBBY" | "INTRO" | "WRITING"
+  | "GUESSING" | "REVEAL" | "ROUND_END" | "FINALE";
 
 export type EmojiId = string;
 
@@ -29,27 +36,44 @@ export interface Player {
 
 export interface Settings {
   rounds: number;
-  planningSec: number;
-  answerSec: number;
-  questionCount: number;
-  scenarioSource: "curated" | "ai" | "mix";
+  /** Seconds everyone has to answer the prompt. */
+  writeSec: number;
+  /** Seconds to guess who wrote one staged answer. */
+  guessSec: number;
+  /** Prompt packs in play. Never empty; `spicy` is opt-in. */
+  packs: PackId[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  rounds: 3, planningSec: 45, answerSec: 30, questionCount: 6, scenarioSource: "mix",
+  rounds: 4, writeSec: 60, guessSec: 25, packs: ["everyday", "opinions", "absurd"],
 };
 
 export interface LobbyView {
   phase: "LOBBY"; code: string; hostId: string; players: Player[]; settings: Settings;
 }
 
-export type Verdict = "consistent" | "busted";
-export type Role = "suspect" | "detective";
-
 export interface ScoreEntry { playerId: string; score: number }
-export interface ChatLine { playerId: string; text: string }
-export interface AnswerLine { playerId: string; text: string }
-export interface TranscriptEntry { question: string; answers: AnswerLine[] }
+
+/**
+ * One answer on the public stage.
+ *
+ * There is deliberately **no `authorId` field**: the private store is keyed by
+ * author (`entries: Record<playerId, { answerId, text }>`) while the stage is a
+ * list keyed by an opaque `answerId`, so leaking authorship would take an
+ * active reverse lookup rather than forgetting to delete a field — and adding
+ * the field here to "just pass it through" is a compile error at every call
+ * site that builds one. `id` must never encode a `playerId`.
+ */
+export interface StagedAnswer { id: string; text: string }
+
+/** An answer whose author is public: REVEAL and ROUND_END only. */
+export interface RevealedAnswer { id: string; text: string; authorId: string }
+
+/** One player's guess at who wrote the answer under scrutiny. */
+export interface GuessLine { playerId: string; guessedId: string }
+
+/** Points a player earned from one staged answer (zero entries included). */
+export interface AwardLine { playerId: string; points: number }
 
 /** Fields carried by every in-game (non-LOBBY, non-FINALE) view. */
 interface GameViewCommon {
@@ -61,53 +85,69 @@ interface GameViewCommon {
   deadline: number | null;
   players: Player[];
   scoreboard: ScoreEntry[];
-  /** Empty until a suspect pair has been chosen for the round. */
-  suspectIds: readonly string[];
 }
 
 export interface IntroView extends GameViewCommon { phase: "INTRO" }
 
-export interface PlanningView extends GameViewCommon {
-  phase: "PLANNING";
-  role: Role;
-  /** Suspects only. */
-  scenario?: ScenarioText;
-  /** Suspects only. */
-  chat?: ChatLine[];
+export interface WritingView extends GameViewCommon {
+  phase: "WRITING";
+  /** The prompt, in the reader's language. Everyone gets the same one. */
+  prompt: string;
+  /** How many players have submitted. An aggregate — it names nobody. */
+  submittedCount: number;
+  /**
+   * This reader's own entry, echoed back so a reconnect mid-WRITING doesn't
+   * lose it and an edit starts from what they wrote. Absent until they submit
+   * — never another player's entry, and never blanked.
+   */
+  myEntry?: string;
 }
 
-export interface InterrogationView extends GameViewCommon {
-  phase: "INTERROGATION";
-  role: Role;
-  questionIndex: number;
-  questionTotal: number;
-  question: string | null;
-  onTheClock: string | null;
-  transcript: TranscriptEntry[];
-  /** Suspects only. */
-  scenario?: ScenarioText;
-  /** Detectives only. */
-  myQuestionsLeft?: number;
-  /** Suspects only. */
-  awaitingMyAnswer?: boolean;
-}
-
-export interface DeliberationView extends GameViewCommon {
-  phase: "DELIBERATION";
-  role: Role;
-  transcript: TranscriptEntry[];
-  votesCast: number;
-  votesNeeded: number;
-  /** Detectives only. */
-  myVote?: Verdict | null;
+export interface GuessingView extends GameViewCommon {
+  phase: "GUESSING";
+  /** Kept visible while one answer is under scrutiny. */
+  prompt: string;
+  answer: StagedAnswer;
+  /** 1-based position of this answer within the round's staged answers. */
+  answerIndex: number;
+  answerTotal: number;
+  /**
+   * Who this reader may accuse: **everyone except themselves**, including
+   * players who wrote nothing this round.
+   *
+   * Two leaks this rules out, both by construction. Dropping the author for
+   * every guesser reveals authorship by omission. Filtering to players who
+   * submitted reveals who didn't write. So the only id ever missing from this
+   * list is the reader's own.
+   */
+  candidates: string[];
+  /**
+   * Present only for the author of the staged answer, who does not guess.
+   * Presence *is* the signal — there is no `role` in this game, and the only
+   * asymmetry is per-answer authorship.
+   */
+  youWrote?: true;
+  /** This reader's locked-in guess, once cast. Absent before that. */
+  myGuess?: string;
 }
 
 export interface RevealView extends GameViewCommon {
   phase: "REVEAL";
-  verdict: Verdict;
-  unanimous: boolean;
-  scenario: ScenarioText;
-  awarded: { playerId: string; points: number }[];
+  prompt: string;
+  answer: StagedAnswer;
+  answerIndex: number;
+  answerTotal: number;
+  /** Public now, and carried by the *view* — never by `StagedAnswer`. */
+  authorId: string;
+  guesses: GuessLine[];
+  awarded: AwardLine[];
+}
+
+export interface RoundEndView extends GameViewCommon {
+  phase: "ROUND_END";
+  prompt: string;
+  /** Every entry with its author, including the ones never staged. */
+  answers: RevealedAnswer[];
 }
 
 export interface FinaleView {
@@ -115,16 +155,15 @@ export interface FinaleView {
   code: string;
   players: Player[];
   scoreboard: ScoreEntry[];
-  awards: { key: string; playerId: string }[];
 }
 
 export type RoomView =
   | LobbyView
   | IntroView
-  | PlanningView
-  | InterrogationView
-  | DeliberationView
+  | WritingView
+  | GuessingView
   | RevealView
+  | RoundEndView
   | FinaleView;
 
 export type ClientMessage =
@@ -135,17 +174,30 @@ export type ClientMessage =
   | { v: 1; t: "startGame" }
   | { v: 1; t: "leave" }
   | { v: 1; t: "ping" }
-  | { v: 1; t: "submitQuestion"; text: string }
-  | { v: 1; t: "suspectChat"; text: string }
-  | { v: 1; t: "submitAnswer"; text: string }
-  | { v: 1; t: "castVote"; verdict: Verdict }
+  /**
+   * WRITING only, and an **upsert**: re-submitting overwrites, so a player can
+   * keep editing until the deadline. There is deliberately no
+   * `ALREADY_ANSWERED`.
+   */
+  | { v: 1; t: "submitEntry"; text: string }
+  /**
+   * `answerId` is carried explicitly so a tap that lands after the stage
+   * advanced is rejected with `STALE_ANSWER` rather than silently applied to
+   * the next answer. On a phone that is a real race, not a theoretical one.
+   */
+  | { v: 1; t: "submitGuess"; answerId: string; playerId: string }
   | { v: 1; t: "setLang"; lang: Lang };
 
 export type ErrorCode =
   | "BAD_MESSAGE" | "ROOM_FULL" | "NAME_TAKEN"
   | "NOT_HOST" | "UNKNOWN_PLAYER" | "GAME_STARTED" | "INTERNAL"
-  | "NOT_SUSPECT" | "NOT_DETECTIVE" | "WRONG_PHASE"
-  | "ALREADY_ANSWERED" | "ALREADY_VOTED" | "RATE_LIMITED";
+  | "WRONG_PHASE" | "RATE_LIMITED"
+  /** You wrote the answer under scrutiny; you cannot guess on it. */
+  | "IS_AUTHOR"
+  /** One guess per answer, and it is final. */
+  | "ALREADY_GUESSED"
+  /** The stage moved on before the tap landed. */
+  | "STALE_ANSWER";
 
 export type ServerMessage =
   | { v: 1; t: "welcome"; playerId: string; token: string }
@@ -174,14 +226,15 @@ function validEmoji(e: unknown): e is EmojiId {
   return typeof e === "string" && (AVATARS as readonly string[]).includes(e);
 }
 
-function validText(text: unknown): text is string {
+function validText(text: unknown, max: number): text is string {
   return typeof text === "string"
     && text.trim().length > 0
-    && text.trim().length <= MAX_TEXT_LENGTH;
+    && text.trim().length <= max;
 }
 
-function validVerdict(v: unknown): v is Verdict {
-  return v === "consistent" || v === "busted";
+/** An opaque id minted by the server (`playerId`, `answerId`). */
+function validId(v: unknown): v is string {
+  return typeof v === "string" && v.length > 0 && v.length <= 64;
 }
 
 function validLang(v: unknown): v is Lang {
@@ -214,18 +267,12 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     case "leave":
     case "ping":
       return { v: 1, t: data.t };
-    case "submitQuestion":
-      return validText(data.text)
-        ? { v: 1, t: "submitQuestion", text: data.text.trim() } : null;
-    case "suspectChat":
-      return validText(data.text)
-        ? { v: 1, t: "suspectChat", text: data.text.trim() } : null;
-    case "submitAnswer":
-      return validText(data.text)
-        ? { v: 1, t: "submitAnswer", text: data.text.trim() } : null;
-    case "castVote":
-      return validVerdict(data.verdict)
-        ? { v: 1, t: "castVote", verdict: data.verdict } : null;
+    case "submitEntry":
+      return validText(data.text, MAX_ENTRY_LENGTH)
+        ? { v: 1, t: "submitEntry", text: data.text.trim() } : null;
+    case "submitGuess":
+      return validId(data.answerId) && validId(data.playerId)
+        ? { v: 1, t: "submitGuess", answerId: data.answerId, playerId: data.playerId } : null;
     case "setLang":
       return validLang(data.lang) ? { v: 1, t: "setLang", lang: data.lang } : null;
     default:

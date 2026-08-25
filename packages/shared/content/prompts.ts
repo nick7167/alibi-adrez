@@ -1,7 +1,16 @@
-import type { Lang } from "./scenarios";
+/**
+ * Languages the app is authored in. Lived in `content/scenarios.ts`
+ * until T2 deleted that file with the rest of the Alibi content; it sits
+ * next to `PackId` now because both describe what a prompt is written in.
+ */
+export type Lang = "en" | "da";
 
 /** Prompt packs a host can switch on. `spicy` is opt-in and off by default. */
 export type PackId = "everyday" | "opinions" | "absurd" | "spicy";
+
+/** Every known pack id, so settings can filter a client patch to ids that
+    actually have prompts behind them. */
+export const PACK_IDS: readonly PackId[] = ["everyday", "opinions", "absurd", "spicy"];
 
 export interface Prompt {
   id: string;

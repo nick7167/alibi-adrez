@@ -76,11 +76,14 @@
 	});
 
 	/* Host-only numeric steppers → debounced updateSettings patches */
+	/* Ranges mirror the clamps in shared/src/state.ts's nextSettings — the
+	   server is authoritative, these just keep the stepper from sending a
+	   value it would clamp anyway. `packs` (the spicy opt-in) is a toggle, not
+	   a stepper, and lands with the real lobby in T8. */
 	const NUM_FIELDS = [
 		{ key: 'rounds', min: 1, max: 10, step: 1, labelKey: 'lobby.settings.rounds' },
-		{ key: 'planningSec', min: 15, max: 120, step: 5, labelKey: 'lobby.settings.planning' },
-		{ key: 'answerSec', min: 10, max: 90, step: 5, labelKey: 'lobby.settings.answers' },
-		{ key: 'questionCount', min: 3, max: 10, step: 1, labelKey: 'lobby.settings.questions' }
+		{ key: 'writeSec', min: 20, max: 120, step: 5, labelKey: 'lobby.settings.writing' },
+		{ key: 'guessSec', min: 10, max: 60, step: 5, labelKey: 'lobby.settings.guessing' }
 	] as const;
 
 	// Seeded neutrally; the sync effect below immediately adopts the

@@ -1,39 +1,29 @@
-import type { Lang } from "../content/scenarios";
-import { resolveScenario } from "../content/scenarios";
 import type {
   ClientMessage,
-  DeliberationView,
   ErrorCode,
-  InterrogationView,
+  IntroView,
+  PackId,
   Phase,
-  PlanningView,
   Player,
-  Role,
   RoomView,
-  ScenarioText,
   ScoreEntry,
   ServerMessage,
   Settings,
-  TranscriptEntry,
 } from "./protocol";
-import { DEFAULT_LANG, DEFAULT_SETTINGS, MAX_PLAYERS } from "./protocol";
-import type { RoundState } from "./round";
-import {
-  MIN_PLAYERS,
-  applyRoundMessage,
-  beginGame,
-  currentRound,
-  detectiveIds,
-  finaleAwards,
-  handlePlayerLeft,
-  interrogationPosition,
-  isSuspect,
-  questionFor,
-  questionsLeftFor,
-} from "./round";
+import { DEFAULT_LANG, DEFAULT_SETTINGS, MAX_PLAYERS, MIN_PLAYERS } from "./protocol";
+import { PACK_IDS } from "../content/prompts";
 import { hashToken } from "./token";
 
 export interface SessionSecret { playerId: string; tokenHash: string }
+
+/**
+ * Placeholder for the round model T3 introduces in `packages/shared/src/round.ts`
+ * (`{ index, promptId, entries, order, stage, guesses, awarded }`). `never`
+ * until then, so `rounds` can only ever be empty and storing a half-invented
+ * round before the engine exists is a compile error. T3 replaces this alias
+ * with the real interface.
+ */
+export type RoundState = never;
 
 export interface InternalRoom {
   code: string;
@@ -44,8 +34,12 @@ export interface InternalRoom {
   sessions: Record<string /*playerId*/, SessionSecret>;
   /** playerId -> running score. */
   scores: Record<string, number>;
-  /** playerId -> has already been a suspect in the current rotation. */
-  wasSuspect: Record<string, boolean>;
+  /**
+   * playerId -> how many times their entry has been staged this game. Staging
+   * is tiered least-staged, so this is a counter rather than Alibi's binary
+   * "has been a suspect" flag: the pool is whoever has the minimum count.
+   */
+  stagedCount: Record<string, number>;
   /** Every round played so far; the last entry is the live one. */
   rounds: RoundState[];
   /** Epoch ms when the current phase ends, or null when untimed. */
@@ -57,7 +51,7 @@ export interface EventDeps {
   newToken(): string;
   /** Epoch ms. Injected so phase timing is deterministic in tests. */
   now(): number;
-  /** 0 <= random() < 1. Injected so pair/scenario choice is deterministic. */
+  /** 0 <= random() < 1. Injected so staging and prompt choice are deterministic. */
   random(): number;
 }
 
@@ -74,10 +68,20 @@ export function createRoom(code: string): InternalRoom {
     settings: structuredClone(DEFAULT_SETTINGS),
     sessions: {},
     scores: {},
-    wasSuspect: {},
+    stagedCount: {},
     rounds: [],
     deadline: null,
   };
+}
+
+/**
+ * T3 replaces this with the real phase engine (`enterPhase` + `PHASE_MS`).
+ * Until then no phase has a deadline, so there is nothing to advance and the
+ * Durable Object's catch-up loop settles on the first step. Kept here so
+ * `do.ts` keeps its single import and its alarm plumbing stays exercised.
+ */
+export function advance(room: InternalRoom, _deps: EventDeps): { room: InternalRoom; changed: boolean } {
+  return { room, changed: false };
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -92,16 +96,27 @@ function hasOwn(patch: Partial<Settings>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(patch, key);
 }
 
+/**
+ * Packs: keep only ids we actually have prompts for, drop duplicates, and
+ * refuse to end up with none — an empty pack list would leave the round engine
+ * with nothing to ask, so a patch that would empty it is ignored rather than
+ * half-applied.
+ */
+function nextPacks(current: PackId[], value: unknown): PackId[] {
+  if (!Array.isArray(value)) return current;
+  const known = new Set<PackId>();
+  for (const item of value) {
+    if ((PACK_IDS as readonly string[]).includes(item as string)) known.add(item as PackId);
+  }
+  return known.size > 0 ? [...known] : current;
+}
+
 function nextSettings(current: Settings, patch: Partial<Settings>): Settings {
   const s = structuredClone(current);
   if (hasOwn(patch, "rounds")) s.rounds = clampField(s.rounds, patch.rounds, 1, 10);
-  if (hasOwn(patch, "planningSec")) s.planningSec = clampField(s.planningSec, patch.planningSec, 15, 120);
-  if (hasOwn(patch, "answerSec")) s.answerSec = clampField(s.answerSec, patch.answerSec, 10, 90);
-  if (hasOwn(patch, "questionCount")) s.questionCount = clampField(s.questionCount, patch.questionCount, 3, 10);
-  if (hasOwn(patch, "scenarioSource")
-      && (patch.scenarioSource === "curated" || patch.scenarioSource === "ai" || patch.scenarioSource === "mix")) {
-    s.scenarioSource = patch.scenarioSource;
-  }
+  if (hasOwn(patch, "writeSec")) s.writeSec = clampField(s.writeSec, patch.writeSec, 20, 120);
+  if (hasOwn(patch, "guessSec")) s.guessSec = clampField(s.guessSec, patch.guessSec, 10, 60);
+  if (hasOwn(patch, "packs")) s.packs = nextPacks(s.packs, patch.packs);
   return s;
 }
 
@@ -145,10 +160,19 @@ export async function applyEvent(
     case "startGame": {
       if (room.phase !== "LOBBY") return { ok: false, code: "WRONG_PHASE", room };
       if (senderId !== room.hostId) return { ok: false, code: "NOT_HOST", room };
-      // Scope decision 1: two suspects plus at least one detective.
       if (room.players.length < MIN_PLAYERS) return { ok: false, code: "BAD_MESSAGE", room };
       const next = structuredClone(room);
-      beginGame(next, deps);
+      next.phase = "INTRO";
+      // Everyone starts on zero and unstaged. T3 replaces this with
+      // `enterPhase(next, "INTRO", deps)`, which is also what will give INTRO
+      // its deadline — until then no phase is timed (see `advance` above).
+      next.scores = {};
+      next.stagedCount = {};
+      for (const p of next.players) {
+        next.scores[p.id] = 0;
+        next.stagedCount[p.id] = 0;
+      }
+      next.deadline = null;
       return { ok: true, room: next };
     }
     case "leave": {
@@ -157,12 +181,15 @@ export async function applyEvent(
       const next = structuredClone(room);
       next.players.splice(idx, 1);
       delete next.sessions[senderId];
+      delete next.scores[senderId];
+      delete next.stagedCount[senderId];
       if (next.players.length === 0) {
         next.hostId = "";
       } else if (senderId === next.hostId) {
         next.hostId = next.players[0]!.id;
       }
-      handlePlayerLeft(next, senderId, deps);
+      // TODO(T3): void the leaver's entry, skip their staged answer, and end
+      // the game when the room drops below MIN_PLAYERS.
       return { ok: true, room: next };
     }
     case "setLang": {
@@ -177,59 +204,32 @@ export async function applyEvent(
     }
     case "ping":
       return { ok: true, room };
-    case "submitQuestion":
-    case "suspectChat":
-    case "submitAnswer":
-    case "castVote":
-      return applyRoundMessage(room, senderId, msg, deps);
+    case "submitEntry":
+    case "submitGuess":
+      // Parsed and routed, but there is no round engine yet: T3 implements
+      // both. Rejecting keeps the tree honest — a client that sends one is
+      // told the room is not in a phase that accepts it, which is true.
+      return { ok: false, code: "WRONG_PHASE", room };
   }
 }
 
 // ------------------------------------------------------------------ snapshots
 
 /** Highest score first; ties by playerId so the ordering is stable. */
-function scoreboardFor(room: InternalRoom): ScoreEntry[] {
+export function scoreboardFor(room: InternalRoom): ScoreEntry[] {
   return room.players
     .map((p) => ({ playerId: p.id, score: room.scores[p.id] ?? 0 }))
     .sort((a, b) => b.score - a.score || (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0));
 }
 
-const UNKNOWN_SCENARIO: ScenarioText = { story: "", details: ["", "", "", ""] };
-
-function scenarioFor(round: RoundState, lang: Lang): ScenarioText {
-  return structuredClone(resolveScenario(round.scenarioId, lang) ?? UNKNOWN_SCENARIO);
-}
-
 /**
- * Only *fully* answered questions make the transcript, so the suspect who is
- * second on the clock never sees what the first one just said, and detectives
- * only ever read a question once both answers are in.
+ * The per-player view. T4 replaces this with the typed projection builders in
+ * `packages/shared/src/view.ts` — the whole point of that boundary being that
+ * a view's *type* structurally lacks the secret, so a leak is a compile error.
+ * Until then only LOBBY and INTRO are reachable (nothing moves the phase past
+ * INTRO), so every in-game phase renders the same minimal INTRO view.
  */
-function transcriptFor(room: InternalRoom, round: RoundState, lang: Lang): TranscriptEntry[] {
-  const entries: TranscriptEntry[] = [];
-  for (let i = 0; i < round.questions.length; i++) {
-    const slot = round.answers[i];
-    if (slot === undefined) continue;
-    if (!round.suspectIds.every((id) => Object.prototype.hasOwnProperty.call(slot, id))) continue;
-    entries.push({
-      question: questionFor(round, i, lang) ?? "",
-      answers: round.suspectIds.map((id) => ({ playerId: id, text: slot[id]! })),
-    });
-  }
-  return entries;
-}
-
-/**
- * The per-player view of the room. Everything a detective must not know — the
- * scenario before REVEAL and the suspects' private chat, ever — is added only
- * on the suspect branch, so those keys are *absent* from a detective's object
- * rather than empty. Scenario text and app-supplied questions are resolved in
- * the reader's own language.
- */
-function viewForPlayer(room: InternalRoom, playerId: string): RoomView {
-  const me = room.players.find((p) => p.id === playerId);
-  const lang: Lang = me?.lang ?? DEFAULT_LANG;
-
+function placeholderView(room: InternalRoom): RoomView {
   if (room.phase === "LOBBY") {
     return {
       phase: "LOBBY",
@@ -247,85 +247,19 @@ function viewForPlayer(room: InternalRoom, playerId: string): RoomView {
       code: room.code,
       players: structuredClone(room.players),
       scoreboard,
-      awards: finaleAwards(room),
     };
   }
 
-  const round = currentRound(room);
-  const common = {
+  const view: IntroView = {
+    phase: "INTRO",
     code: room.code,
-    round: round?.index ?? 0,
+    round: room.rounds.length,
     roundCount: room.settings.rounds,
     deadline: room.deadline,
     players: structuredClone(room.players),
     scoreboard,
-    suspectIds: round === undefined ? [] : [...round.suspectIds],
   };
-  // A live phase without a round should be impossible; INTRO is the safe view.
-  if (round === undefined) return { phase: "INTRO", ...common };
-
-  const suspect = me !== undefined && isSuspect(round, playerId);
-  const role: Role = suspect ? "suspect" : "detective";
-
-  switch (room.phase) {
-    case "INTRO":
-      return { phase: "INTRO", ...common };
-
-    case "PLANNING": {
-      const view: PlanningView = { phase: "PLANNING", ...common, role };
-      if (suspect) {
-        view.scenario = scenarioFor(round, lang);
-        view.chat = structuredClone(round.chat);
-      }
-      return view;
-    }
-
-    case "INTERROGATION": {
-      const pos = interrogationPosition(room, round);
-      const view: InterrogationView = {
-        phase: "INTERROGATION",
-        ...common,
-        role,
-        questionIndex: pos.questionIndex,
-        questionTotal: room.settings.questionCount,
-        question: questionFor(round, pos.questionIndex, lang),
-        onTheClock: pos.onTheClock,
-        transcript: transcriptFor(room, round, lang),
-      };
-      if (suspect) {
-        view.scenario = scenarioFor(round, lang);
-        view.awaitingMyAnswer = pos.onTheClock === playerId;
-      } else {
-        view.myQuestionsLeft = questionsLeftFor(room, round, playerId);
-      }
-      return view;
-    }
-
-    case "DELIBERATION": {
-      const detectives = detectiveIds(room, round);
-      const view: DeliberationView = {
-        phase: "DELIBERATION",
-        ...common,
-        role,
-        transcript: transcriptFor(room, round, lang),
-        votesCast: detectives.filter((id) => round.votes[id] !== undefined).length,
-        votesNeeded: detectives.length,
-      };
-      if (!suspect) view.myVote = round.votes[playerId] ?? null;
-      return view;
-    }
-
-    case "REVEAL":
-      return {
-        phase: "REVEAL",
-        ...common,
-        verdict: round.verdict ?? "consistent",
-        unanimous: round.unanimous ?? false,
-        // Public from REVEAL on: the whole table is told what the alibi was.
-        scenario: scenarioFor(round, lang),
-        awarded: structuredClone(round.awarded ?? []),
-      };
-  }
+  return view;
 }
 
 /**
@@ -343,7 +277,7 @@ export function snapshotForPlayer(
     t: "state",
     you: playerId,
     isHost: room.hostId === playerId,
-    room: viewForPlayer(room, playerId),
+    room: placeholderView(room),
     now,
   };
 }

@@ -1,5 +1,5 @@
 import { isValidRoomCode, PROTOCOL_VERSION } from "@aha/shared";
-import type { ClientMessage, Lang, ServerMessage, Verdict } from "@aha/shared";
+import type { ClientMessage, Lang, ServerMessage } from "@aha/shared";
 
 export async function createRoom(): Promise<{ code: string }> {
 	const res = await fetch("/api/rooms", { method: "POST" });
@@ -33,15 +33,13 @@ export interface RoomSocket {
 	send(msg: ClientMessage): void;
 	close(): void;
 	leave(): void;
-	/** Detective → app: submit a question for the current interrogation slot. */
-	submitQuestion(text: string): void;
-	/** Suspect → suspect: the private two-person planning chat. */
-	suspectChat(text: string): void;
-	/** Suspect → app: answer the question currently on the clock. */
-	submitAnswer(text: string): void;
-	/** Detective → app: cast (or change) a deliberation vote. */
-	castVote(verdict: Verdict): void;
-	/** Either role, any phase: follow the reader to a new language. */
+	/** WRITING: answer the prompt. An upsert — send it again to edit. */
+	submitEntry(text: string): void;
+	/** GUESSING: accuse `playerId` of writing `answerId`. The answerId is sent
+	    explicitly so a tap that lands after the stage moved on is rejected
+	    rather than applied to whatever is on screen now. */
+	submitGuess(answerId: string, playerId: string): void;
+	/** Any phase: follow the reader to a new language. */
 	setLang(lang: Lang): void;
 }
 
@@ -180,17 +178,11 @@ export function openRoomSocket(code: string, opts: RoomSocketOptions): RoomSocke
 			}
 			shutdown();
 		},
-		submitQuestion(text: string): void {
-			send({ v: PROTOCOL_VERSION, t: "submitQuestion", text });
+		submitEntry(text: string): void {
+			send({ v: PROTOCOL_VERSION, t: "submitEntry", text });
 		},
-		suspectChat(text: string): void {
-			send({ v: PROTOCOL_VERSION, t: "suspectChat", text });
-		},
-		submitAnswer(text: string): void {
-			send({ v: PROTOCOL_VERSION, t: "submitAnswer", text });
-		},
-		castVote(verdict: Verdict): void {
-			send({ v: PROTOCOL_VERSION, t: "castVote", verdict });
+		submitGuess(answerId: string, playerId: string): void {
+			send({ v: PROTOCOL_VERSION, t: "submitGuess", answerId, playerId });
 		},
 		setLang(lang: Lang): void {
 			send({ v: PROTOCOL_VERSION, t: "setLang", lang });

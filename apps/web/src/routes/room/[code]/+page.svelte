@@ -5,15 +5,10 @@
 	import { clearIdentity, loadIdentity, saveIdentity } from '$lib/stores/session.svelte';
 	import type { Identity } from '$lib/stores/session.svelte';
 	import { currentLocale } from '$lib/i18n';
-	import type { Phase, RoomView, ServerMessage, Settings, Verdict } from '@aha/shared';
+	import type { Phase, RoomView, ServerMessage, Settings } from '@aha/shared';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';
-	import Planning from './Planning.svelte';
-	import Interrogation from './Interrogation.svelte';
-	import Deliberation from './Deliberation.svelte';
-	import Reveal from './Reveal.svelte';
-	import Finale from './Finale.svelte';
 
 	let { data } = $props();
 
@@ -147,59 +142,14 @@
 		sockRef?.send({ v: 1, t: 'updateSettings', patch });
 	}
 
-	function sendChat(text: string) {
-		sockRef?.suspectChat(text);
-	}
-
-	function sendQuestion(text: string) {
-		sockRef?.submitQuestion(text);
-	}
-
-	function sendAnswer(text: string) {
-		sockRef?.submitAnswer(text);
-	}
-
-	function sendVote(verdict: Verdict) {
-		sockRef?.castVote(verdict);
-	}
-
-	/** Which field the room route is showing — the ONE place this branch lives.
-	    The browser-chrome tint, the canvas style block, and the placeholder
-	    phase screens below all key off it, so they can never drift apart. */
-	const field = $derived(screen);
-
-	/** Field colours per the ledger's fixed table (deliberately repeated for
-	    INTRO/INTERROGATION and PLANNING/FINALE — those phases never sit next
-	    to each other). Kept as one literal ternary (not a lookup object) so
-	    apps/web/test/head-canvas.test.ts can statically diff this against the
-	    canvas style blocks below (see the svelte:head block for why literal
-	    "style" tag text can't appear in a comment up here — it confuses
-	    svelte-check's tag scanner into reporting a bogus unclosed script). */
-	const themeColor = $derived(
-		field === 'join'
-			? '#3d50e0'
-			: field === 'LOBBY'
-				? '#fff6ea'
-				: field === 'REVEAL'
-					? '#ffc93c'
-					: field === 'DELIBERATION'
-						? '#3d50e0'
-						: field === 'PLANNING' || field === 'FINALE'
-							? '#7a3be0'
-							: '#171531' // INTRO, INTERROGATION
-	);
-
-	/** Text/background utility classes for full-bleed phase screens that
-	    aren't Lobby/JoinForm (which manage their own). Matches themeColor
-	    above 1:1 but isn't read by the canvas test (Tailwind classes, not
-	    hexes), so it can live as a lookup. */
-	const PHASE_SURFACE: Partial<Record<Phase, string>> = {
-		INTRO: 'bg-night text-paper',
-		INTERROGATION: 'bg-night text-paper',
-		DELIBERATION: 'bg-cobalt text-paper',
-		REVEAL: 'bg-sunshine text-ink',
-		FINALE: 'bg-grape text-paper'
-	};
+	/** AHA has one field colour and every screen wears it (see the ledger's
+	    "Chosen identity — A · AHA" ruling): join, lobby, and every phase.
+	    Kept as a literal inside the $derived — never a lookup object — because
+	    apps/web/test/head-canvas.test.ts statically extracts the hexes from
+	    here and diffs them against the canvas style blocks below. A screen
+	    that ever needs a different field turns this back into a literal
+	    ternary over `field` and adds the matching branch in the head. */
+	const themeColor = $derived('#4A1FD6');
 
 	/* Offline overlay: connection has been down for over 5 seconds.
 	   The very first handshake gets a grace period; once the socket has
@@ -225,54 +175,54 @@
 <svelte:head>
 	<title>{m['app.title']()} · {data.code}</title>
 	<meta name="theme-color" content={themeColor} />
-	<!-- Static style blocks only (see landing page note): each branch's text is
-	    fully static so Svelte renders it inline instead of compiling it into a
-	    scoped stylesheet that could never match html/body. Hexes must match
-	    themeColor above — test/head-canvas.test.ts fails the build if they drift. -->
-	{#if field === 'join'}
-		<style>
-			html,
-			html > body {
-				background-color: #3d50e0;
-			}
-		</style>
-	{:else if field === 'LOBBY'}
-		<style>
-			html,
-			html > body {
-				background-color: #fff6ea;
-			}
-		</style>
-	{:else if field === 'REVEAL'}
-		<style>
-			html,
-			html > body {
-				background-color: #ffc93c;
-			}
-		</style>
-	{:else if field === 'DELIBERATION'}
-		<style>
-			html,
-			html > body {
-				background-color: #3d50e0;
-			}
-		</style>
-	{:else if field === 'PLANNING' || field === 'FINALE'}
-		<style>
-			html,
-			html > body {
-				background-color: #7a3be0;
-			}
-		</style>
-	{:else}
-		<style>
-			html,
-			html > body {
-				background-color: #171531;
-			}
-		</style>
-	{/if}
+	<!-- Static style text only: each branch's text must be fully static so
+	    Svelte renders it inline instead of compiling it into a scoped
+	    stylesheet that could never match html/body. The hexes must match
+	    themeColor above — test/head-canvas.test.ts fails the build if they
+	    drift. -->
+	<style>
+		html,
+		html > body {
+			background-color: #4a1fd6;
+		}
+	</style>
 </svelte:head>
+
+<!--
+	Temporary phase screens. Every phase below LOBBY renders the same stub —
+	its name and the phase countdown — until the task named in its TODO builds
+	the real one (T6 Writing, T7 Guessing/Reveal, T8 RoundEnd/Finale). They
+	exist so the tree compiles and deploys while the round engine (T3) and the
+	view projections (T4) land; none of them is a design.
+-->
+{#snippet placeholder(
+	label: string,
+	todo: string,
+	room: { round: number; roundCount: number; deadline: number | null } | null
+)}
+	<section
+		data-testid="phase-placeholder"
+		data-phase={label}
+		class="grid fill-vp place-items-center bg-field px-4 text-center text-white"
+	>
+		<div class="flex flex-col items-center gap-5 pb-safe">
+			<span class="rounded-full bg-surface-2 px-4 py-1 text-xs font-bold tracking-[0.18em] uppercase">
+				{todo}
+			</span>
+			<h1 class="font-display text-5xl font-bold tracking-tight">{label}</h1>
+			{#if room}
+				<p class="text-sm font-semibold text-white/70">
+					{m['game.round']({ round: room.round, roundCount: room.roundCount })}
+				</p>
+				<Countdown
+					deadline={room.deadline}
+					{offset}
+					class="font-display text-6xl font-bold tabular-nums"
+				/>
+			{/if}
+		</div>
+	</section>
+{/snippet}
 
 <main class="relative flex fill-vp flex-col overflow-hidden bg-paper text-ink">
 	{#if screen === 'join'}
@@ -309,38 +259,32 @@
 	{:else if view?.room.phase === 'INTRO'}
 		<section
 			data-testid="intro-splash"
-			class="pop-in grid fill-vp place-items-center bg-night px-4 text-center"
+			class="pop-in grid fill-vp place-items-center bg-field px-4 text-center"
 		>
 			<div class="flex flex-col items-center pb-safe">
 				<div class="pixel-loader" aria-hidden="true">
 					<span></span><span></span><span></span>
 				</div>
-				<h1 tabindex="-1" class="mt-8 text-6xl font-extrabold tracking-tight text-paper">
+				<h1 tabindex="-1" class="mt-8 font-display text-6xl font-bold tracking-tight text-white">
 					{m['intro.starting']()}
 				</h1>
 				<span
-					class="stamp-frame mt-6 bg-night px-4 pt-1.5 pb-1 font-mono text-2xl font-bold tracking-[0.14em] text-coral tabular-nums"
+					class="mt-6 rounded-full bg-surface-2 px-5 pt-1.5 pb-1 text-2xl font-bold tracking-[0.14em] text-white tabular-nums"
 				>
 					{data.code}
 				</span>
 			</div>
 		</section>
-	{:else if view?.room.phase === 'PLANNING'}
-		<Planning room={view.room} you={view.you} {offset} onSendChat={sendChat} />
-	{:else if view?.room.phase === 'INTERROGATION'}
-		<Interrogation
-			room={view.room}
-			you={view.you}
-			{offset}
-			onSubmitQuestion={sendQuestion}
-			onSubmitAnswer={sendAnswer}
-		/>
-	{:else if view?.room.phase === 'DELIBERATION'}
-		<Deliberation room={view.room} you={view.you} {offset} onCastVote={sendVote} />
+	{:else if view?.room.phase === 'WRITING'}
+		{@render placeholder(m['game.phase.writing'](), 'TODO(T6)', view.room)}
+	{:else if view?.room.phase === 'GUESSING'}
+		{@render placeholder(m['game.phase.guessing'](), 'TODO(T7)', view.room)}
 	{:else if view?.room.phase === 'REVEAL'}
-		<Reveal room={view.room} you={view.you} {offset} />
+		{@render placeholder(m['game.phase.reveal'](), 'TODO(T7)', view.room)}
+	{:else if view?.room.phase === 'ROUND_END'}
+		{@render placeholder(m['game.phase.roundEnd'](), 'TODO(T8)', view.room)}
 	{:else if view?.room.phase === 'FINALE'}
-		<Finale room={view.room} you={view.you} onLeave={leaveRoom} />
+		{@render placeholder(m['game.phase.finale'](), 'TODO(T8)', null)}
 	{/if}
 
 	{#if offlineLong && screen !== 'INTRO'}

@@ -232,10 +232,8 @@ export class RoomDurableObject implements DurableObject {
       case "updateSettings":
       case "startGame":
       case "setLang":
-      case "submitQuestion":
-      case "suspectChat":
-      case "submitAnswer":
-      case "castVote": {
+      case "submitEntry":
+      case "submitGuess": {
         // catchUp() first: the phase this message is judged against must be
         // the phase the clock says we are in, not the one we went to sleep in.
         const room = await this.catchUp();
@@ -252,8 +250,7 @@ export class RoomDurableObject implements DurableObject {
         }
         await this.save(result.room);
         this.broadcastState(result.room);
-        // Starting the game, a deliberation resolved early by the last vote,
-        // an answer handing the clock to the other suspect, a leave that ends
+        // Starting the game, the last guess landing early, a leave that ends
         // the game — any of these moves the phase deadline.
         await this.rescheduleAlarm(result.room);
         if (msg.t === "leave") ws.close(1000, "left");

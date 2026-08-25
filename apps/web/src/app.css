@@ -23,11 +23,11 @@
   --color-accent-right: #22e39a;
   --color-accent-wrong: #ff7bae;
 
-  /* Legacy Alibi token names, aliased onto the AHA palette above so the
-     Alibi screens keep compiling and rendering — in AHA's colours, which is
-     expected to look wrong (see docs/plans/plan3-ledger.md, task T0). These
-     names are deleted in T2 along with the screens that reference them; do
-     not add new uses of them. */
+  /* Legacy Alibi token names, aliased onto the AHA palette above. T2 deleted
+     the Alibi game screens, but the landing page, the join form, the lobby
+     and the rulebook still compose these — they are rewritten in T8 (lobby)
+     and T9 (landing, rulebook), which is when these aliases can go. Do not
+     add new uses of them. */
   --color-paper: var(--color-surface);
   --color-cobalt: var(--color-field);
   --color-sunshine: var(--color-action);
@@ -38,7 +38,8 @@
 
   /* Case-file surface: anything that behaves like paperwork (the landing
 	   logo card, the settings panel) sits on manila, never on paper. Legacy
-	   Alibi primitive — kept for now, deleted in T2. */
+	   Alibi primitive — still referenced by the landing page, the lobby's
+	   settings panel and the rulebook, so it survives T2. */
   --color-manila: var(--color-surface);
 
   --radius-card: 1.75rem;
@@ -47,8 +48,8 @@
 	   AHA"): --font-display = content → answers and player names, in
 	   Fredoka. --font-sans = chrome → labels, counts, hints and button
 	   copy, in Figtree. --font-mono stays Courier Prime: it's a legacy
-	   Alibi primitive (room codes, stamps, evidence labels) kept only for
-	   the Alibi screens still using it, deleted in T2. */
+	   Alibi primitive (room codes, stamps, evidence labels) still used by
+	   the landing page, join form, lobby, rulebook and Countdown. */
   --font-display: "Fredoka", "Avenir Next Rounded", "Trebuchet MS", system-ui, sans-serif;
   --font-sans: "Figtree", "Helvetica Neue", system-ui, sans-serif;
   --font-mono: "Courier Prime", "Courier New", monospace;
@@ -102,9 +103,13 @@ body {
 
    .sticker and .field-label are generic and carry forward into AHA. The
    rest below (.stamp, .stamp-frame, .ruled, .leader) are Alibi's "evidence"
-   vocabulary — Courier Prime in coral stamps, manila case-file surfaces —
-   kept only because the Alibi screens still reference them. Deleted in T2
-   with those screens; do not build new UI on them.
+   vocabulary — Courier Prime in coral stamps, manila case-file surfaces.
+   T2 checked whether they could go with the Alibi game screens: they could
+   not. Every one is still referenced by a screen T2 does not rewrite —
+   .stamp (landing, lobby host tag, rulebook), .stamp-frame (lobby room
+   code), .ruled (landing, join form, rulebook), .leader (lobby settings).
+   They go when those screens do: T8 (lobby) and T9 (landing, rulebook).
+   Do not build new UI on them.
    --------------------------------------------------------------------------- */
 
 /* Pressable things: a hard offset shadow that depresses on touch. */

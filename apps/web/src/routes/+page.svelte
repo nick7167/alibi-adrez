@@ -3,7 +3,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import { currentLocale, setLocale, type Locale } from '$lib/i18n';
 	import { createRoom, isValidCodeInput } from '$lib/api';
-	import MaskMark from '$lib/components/MaskMark.svelte';
 
 	const locales: Locale[] = ['en', 'da'];
 
@@ -106,10 +105,6 @@
 				<span class="stamp absolute -top-3.5 -right-1.5 !rotate-[-6deg] text-[11px] tracking-[0.2em]">
 					{m['home.caseOpen']()}
 				</span>
-
-				<div class="flex justify-center">
-					<MaskMark size={92} />
-				</div>
 
 				<h1 class="mt-3 text-center text-[68px] leading-[0.94] font-extrabold tracking-tight">
 					{m['app.title']()}

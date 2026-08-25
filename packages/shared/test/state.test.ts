@@ -56,9 +56,25 @@ describe("lobby state machine", () => {
     const room = await lobbyWithPlayers(3);
     const bad = await applyEvent(room, "p2", { v: 1, t: "updateSettings", patch: { rounds: 99 } }, deps);
     expect(bad).toMatchObject({ ok: false, code: "NOT_HOST" });
-    const good = await applyEvent(room, "p1", { v: 1, t: "updateSettings", patch: { rounds: 99, answerSec: 0 } }, deps);
+    const good = await applyEvent(
+      room, "p1", { v: 1, t: "updateSettings", patch: { rounds: 99, guessSec: 0, writeSec: 999 } }, deps);
     expect(good.ok && good.room.settings.rounds).toBe(10);
-    expect(good.ok && good.room.settings.answerSec).toBe(10);
+    expect(good.ok && good.room.settings.guessSec).toBe(10);
+    expect(good.ok && good.room.settings.writeSec).toBe(120);
+  });
+  it("filters packs to known ids and refuses to leave the list empty", async () => {
+    const deps = makeDeps();
+    const room = await lobbyWithPlayers(2);
+    const spicy = await applyEvent(
+      room, "p1", { v: 1, t: "updateSettings", patch: { packs: ["spicy", "nope", "spicy"] as never } }, deps);
+    expect(spicy.ok && spicy.room.settings.packs).toEqual(["spicy"]);
+    // Nothing known left in the patch: keep what the room already had.
+    const empty = await applyEvent(
+      room, "p1", { v: 1, t: "updateSettings", patch: { packs: ["nope"] as never } }, deps);
+    expect(empty.ok && empty.room.settings.packs).toEqual(["everyday", "opinions", "absurd"]);
+    const notAnArray = await applyEvent(
+      room, "p1", { v: 1, t: "updateSettings", patch: { packs: "spicy" as never } }, deps);
+    expect(notAnArray.ok && notAnArray.room.settings.packs).toEqual(["everyday", "opinions", "absurd"]);
   });
   it("drops unknown and injected keys from settings patches", async () => {
     const deps = makeDeps();
@@ -69,7 +85,7 @@ describe("lobby state machine", () => {
     if (!r.ok) return;
     expect(r.room.settings.rounds).toBe(5);
     expect(Object.keys(r.room.settings).sort())
-      .toEqual(["answerSec", "planningSec", "questionCount", "rounds", "scenarioSource"]);
+      .toEqual(["guessSec", "packs", "rounds", "writeSec"]);
     expect(({} as { polluted?: unknown }).polluted).toBeUndefined();
   });
   it("startGame requires host and 3+ players, moves to INTRO", async () => {
@@ -82,6 +98,19 @@ describe("lobby state machine", () => {
     const room = await lobbyWithPlayers(3);
     const r = await applyEvent(room, "p1", { v: 1, t: "startGame" }, deps);
     expect(r.ok && r.room.phase).toBe("INTRO");
+    // Everyone starts on zero points and unstaged (staging is tiered
+    // least-staged, so the counter has to exist for every player from move 1).
+    if (!r.ok) return;
+    expect(r.room.scores).toEqual({ p1: 0, p2: 0, p3: 0 });
+    expect(r.room.stagedCount).toEqual({ p1: 0, p2: 0, p3: 0 });
+  });
+  it("parses but rejects the game messages until T3 implements them", async () => {
+    const deps = makeDeps();
+    const room = await lobbyWithPlayers(3);
+    expect(await applyEvent(room, "p1", { v: 1, t: "submitEntry", text: "x" }, deps))
+      .toMatchObject({ ok: false, code: "WRONG_PHASE" });
+    expect(await applyEvent(room, "p1", { v: 1, t: "submitGuess", answerId: "a1", playerId: "p2" }, deps))
+      .toMatchObject({ ok: false, code: "WRONG_PHASE" });
   });
   it("rejects joining after the game has started", async () => {
     const deps = makeDeps();
@@ -96,6 +125,7 @@ describe("lobby state machine", () => {
     const room = await lobbyWithPlayers(3);
     const r = await applyEvent(room, "p1", { v: 1, t: "leave" }, deps);
     expect(r.ok && r.room.hostId).toBe("p2");
+    expect(r.ok && Object.keys(r.room.scores)).toEqual([]);
   });
   it("snapshots never expose sessions or tokens", async () => {
     const room = await lobbyWithPlayers(2);
