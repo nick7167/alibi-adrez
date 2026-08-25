@@ -188,6 +188,30 @@
 			{/if}
 		</div>
 
+		<div class="reveal mt-4 flex justify-center" style="animation-delay: 350ms">
+			<a
+				href="/rules"
+				data-testid="rules-link"
+				class="flex min-h-11 items-center gap-2 rounded-full border-2 border-dotted border-ink/35 px-5 font-mono text-xs font-bold tracking-[0.16em] text-ink/70 uppercase"
+			>
+				<svg
+					width="14"
+					height="14"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.4"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+					<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+				</svg>
+				{m['nav.rules']()}
+			</a>
+		</div>
+
 		<div
 			class="reveal mt-5 flex items-center justify-end gap-1.5 font-mono text-[13px] font-bold tracking-[0.14em] opacity-65"
 			style="animation-delay: 400ms"
