@@ -20,12 +20,17 @@
 </svelte:head>
 
 <main class="relative flex fill-vp flex-col overflow-hidden bg-paper text-ink">
+	<!-- Solid bar, not a floating button: the rulebook scrolls a long way and a
+	     bare button let manila cards slide under it and swallow their own text. -->
+	<div
+		class="relative z-20 flex shrink-0 items-center gap-3 bg-paper px-4 pt-safe pb-3 shadow-[0_6px_12px_-8px_rgba(20,20,51,0.45)]"
+	>
 	<button
 		type="button"
 		data-testid="back-home"
 		aria-label={m['nav.back']()}
 		onclick={() => void goto('/')}
-		class="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 grid size-11 place-items-center rounded-full border-4 border-ink bg-paper text-ink"
+		class="grid size-11 shrink-0 place-items-center rounded-full border-4 border-ink bg-paper text-ink"
 	>
 		<svg
 			width="20"
@@ -41,10 +46,11 @@
 			<path d="M15 5 8 12l7 7" />
 		</svg>
 	</button>
+	</div>
 
-	<div class="relative min-h-0 flex-1 pt-safe">
+	<div class="relative min-h-0 flex-1">
 		<div class="h-full overflow-x-hidden overflow-y-auto px-5 pb-safe">
-			<header class="mt-14 text-center">
+			<header class="mt-6 text-center">
 				<span class="stamp">{m['rules.tag']()}</span>
 				<h1 class="mt-3 text-[32px] leading-tight font-extrabold tracking-tight">
 					{m['rules.pageTitle']()}
