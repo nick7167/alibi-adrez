@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
-	import { AVATARS } from '@alibi/shared';
+	import { AVATARS } from '@aha/shared';
 
 	let {
 		pending = false,

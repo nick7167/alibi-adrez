@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
-	import type { RevealView, Player } from '@alibi/shared';
+	import type { RevealView, Player } from '@aha/shared';
 	import Countdown from '$lib/components/Countdown.svelte';
 
 	let {

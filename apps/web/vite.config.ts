@@ -34,7 +34,7 @@ export default defineConfig(({ command }) => ({
 	// cannot forward HTTP upgrades into SvelteKit endpoints, so a WebSocket
 	// opened at /api/room/<code>/ws never reaches src/routes/api/** locally —
 	// it is proxied raw to the rooms dev worker instead. Run
-	// `pnpm --filter @alibi/rooms dev` alongside (port 8787). Deployed builds
+	// `pnpm --filter @aha/rooms dev` alongside (port 8787). Deployed builds
 	// don't use this: there, /api/* flows through the ROOMS service binding in
 	// src/routes/api/[...path]/+server.ts.
 	server:

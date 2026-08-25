@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { isValidRoomCode } from '@alibi/shared';
+import { isValidRoomCode } from '@aha/shared';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = ({ params }) => {

@@ -7,7 +7,7 @@
 
 export type Identity = { playerId: string; token: string; name: string; emoji: string };
 
-const storageKey = (code: string) => `alibi:identity:${code.trim().toUpperCase()}`;
+const storageKey = (code: string) => `aha:identity:${code.trim().toUpperCase()}`;
 
 function isIdentity(v: unknown): v is Identity {
 	if (typeof v !== "object" || v === null) return false;

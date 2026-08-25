@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
-	import type { DeliberationView, Player, Verdict } from '@alibi/shared';
+	import type { DeliberationView, Player, Verdict } from '@aha/shared';
 	import Countdown from '$lib/components/Countdown.svelte';
 
 	let {

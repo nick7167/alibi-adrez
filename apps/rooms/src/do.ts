@@ -8,7 +8,7 @@ import {
   type EventDeps,
   type ErrorCode,
   type InternalRoom,
-} from "@alibi/shared";
+} from "@aha/shared";
 import type { Env } from "./env";
 
 const SELF_DESTRUCT_MS = 600_000;

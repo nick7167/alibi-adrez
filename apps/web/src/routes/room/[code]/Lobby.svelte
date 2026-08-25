@@ -6,7 +6,7 @@
 		MIN_PLAYERS,
 		type LobbyView,
 		type Settings
-	} from '@alibi/shared';
+	} from '@aha/shared';
 
 	let {
 		isHost,
@@ -29,7 +29,7 @@
 	async function shareCode() {
 		try {
 			if (typeof navigator.share === 'function') {
-				await navigator.share({ title: 'ALIBI', text: room.code });
+				await navigator.share({ title: 'AHA', text: room.code });
 				return;
 			}
 			await navigator.clipboard.writeText(room.code);

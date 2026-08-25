@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
-	import type { Award, FinaleView, Player } from '@alibi/shared';
+	import type { Award, FinaleView, Player } from '@aha/shared';
 
 	let {
 		room,

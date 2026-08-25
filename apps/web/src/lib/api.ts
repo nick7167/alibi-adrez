@@ -1,5 +1,5 @@
-import { isValidRoomCode, PROTOCOL_VERSION } from "@alibi/shared";
-import type { ClientMessage, Lang, ServerMessage, Verdict } from "@alibi/shared";
+import { isValidRoomCode, PROTOCOL_VERSION } from "@aha/shared";
+import type { ClientMessage, Lang, ServerMessage, Verdict } from "@aha/shared";
 
 export async function createRoom(): Promise<{ code: string }> {
 	const res = await fetch("/api/rooms", { method: "POST" });

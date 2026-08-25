@@ -3,9 +3,9 @@ import { appendFileSync } from 'node:fs';
 
 export const CODE_RE = /\/room\/[A-HJ-KMNP-Z2-9]{4}$/; // shared ROOM_CODE_ALPHABET (no I/L/O/0/1)
 
-const TRACE_LOG = process.env.ALIBI_E2E_LOG ?? '';
+const TRACE_LOG = process.env.AHA_E2E_LOG ?? '';
 
-/** Attach console/network diagnostics to a page (written when ALIBI_E2E_LOG is set). */
+/** Attach console/network diagnostics to a page (written when AHA_E2E_LOG is set). */
 export function watch(page: Page, label: string) {
 	if (!TRACE_LOG) return;
 	page.on('console', (msg) =>

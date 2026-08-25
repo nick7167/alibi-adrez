@@ -5,7 +5,7 @@ import {
   runInDurableObject,
 } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { SCENARIOS } from "@alibi/shared";
+import { SCENARIOS } from "@aha/shared";
 
 /**
  * T5: the Durable Object drives the round loop. Everything here goes over a

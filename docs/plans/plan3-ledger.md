@@ -11,7 +11,7 @@ Update this file at the end of every task, in the same commit as the work.
 
 | Task | Status | Commit | Notes |
 |---|---|---|---|
-| T0 preserve + rename | part done | `6ac84c4` | tag, archive branch and docs done; the rename waits on the new name from T0b |
+| T0 preserve + rename | done | `—` | workers renamed to aha-rooms/aha-web, `@alibi/shared` → `@aha/shared`, AHA design tokens installed in app.css |
 | T0b identity directions | done | `—` (canvas only) | Four directions explored; **A · AHA chosen** |
 | T1 prompt packs | done | `6001a98` | 80 bilingual prompts, 4 packs, 20 tests |
 | T2 protocol + demolition | not started | — | |

@@ -13,7 +13,7 @@ export default defineConfig({
 	},
 	webServer: [
 		{
-			command: 'pnpm --filter @alibi/rooms dev',
+			command: 'pnpm --filter @aha/rooms dev',
 			url: 'http://localhost:8787/health',
 			reuseExistingServer: !process.env.CI,
 			timeout: 120_000

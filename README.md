@@ -1,4 +1,4 @@
-# Alibi
+# AHA
 
 An online party game of interrogation: question the suspects and catch whoever's alibi falls apart.
 
@@ -12,7 +12,7 @@ Requires Node 22+ and pnpm 10 (pinned via `packageManager`).
 | --- | --- |
 | `pnpm install` | Install all workspace dependencies |
 | `pnpm dev:web` | Run the web app dev server |
-| `pnpm --filter @alibi/rooms dev` | Run the rooms worker locally via wrangler |
+| `pnpm --filter @aha/rooms dev` | Run the rooms worker locally via wrangler |
 | `pnpm typecheck` | Typecheck all workspaces |
 | `pnpm test` | Run unit tests in all workspaces |
 | `pnpm build` | Build all workspaces |
@@ -21,17 +21,19 @@ Playwright e2e lives in `apps/web/e2e`; run it locally from that workspace. It i
 
 ## Frontend conventions
 
-**Design system — "Party File".** One rule governs every screen, current and
-future: **play** is Baloo 2 on a bright field, with pill controls that press
-(`.sticker`); **evidence** is Courier Prime in coral stamps, and it is reserved
-for room codes, field labels, list numbering, roles and counts. Manila
-(`--color-manila`) is the surface for anything that behaves like paperwork — the
-landing's logo card, the lobby's settings panel — never a general background.
-Primitives live in `apps/web/src/app.css`: `.sticker`, `.field-label`, `.stamp`,
-`.stamp-frame`, `.ruled`, `.leader`. New screens compose those; if manila or the
-mono face shows up somewhere that isn't evidence, the system has been broken.
-Field colours stay as they are: sunshine landing, cobalt join, paper lobby,
-night splash.
+**Design system — AHA.** Tokens live in `apps/web/src/app.css`: `--font-sans`
+(Figtree) is chrome — labels, counts, hints, buttons; `--font-display`
+(Fredoka) carries answers and player names. Palette per
+`docs/plans/plan3-ledger.md` ("Chosen identity — A · AHA"): `--color-field`,
+`--color-surface`, `--color-surface-2`, `--color-ink`, `--color-action`,
+`--color-accent-right`, `--color-accent-wrong` (the last is 3.5:1 on the
+field — large marks only, never body text). `.sticker` and `.field-label` are
+generic primitives that carry forward; `.stamp`, `.stamp-frame`, `.ruled`,
+`.leader` and the legacy `--color-paper` / `--color-cobalt` / `--color-sunshine`
+/ `--color-coral` / `--color-mint` / `--color-grape` / `--color-night` /
+`--color-manila` tokens are Alibi's "Party File" system, aliased onto the AHA
+palette so the Alibi screens still compile and render (in the wrong colours,
+deliberately) until they're deleted in T2.
 
 **Screen canvas color.** Every full-bleed screen paints the `html`+`body` canvas
 with its own field color, so iOS can never expose a system zone (status bar,
@@ -61,7 +63,9 @@ plus that a screen's `theme-color` and canvas hexes stay in sync.
 
 | Service | URL |
 | --- | --- |
-| Web app | https://alibi-web.nicklas-andreasen2000.workers.dev |
-| Rooms worker (health) | https://alibi-rooms.nicklas-andreasen2000.workers.dev/health |
+| Web app | https://aha-web.nicklas-andreasen2000.workers.dev |
+| Rooms worker (health) | https://aha-rooms.nicklas-andreasen2000.workers.dev/health |
+| Web app (Alibi, frozen) | https://alibi-web.nicklas-andreasen2000.workers.dev |
+| Rooms worker (Alibi, frozen) | https://alibi-rooms.nicklas-andreasen2000.workers.dev/health |
 
 First pipeline deploy: 2026-08-23 (run 32608396401).

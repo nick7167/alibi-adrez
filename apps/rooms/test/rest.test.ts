@@ -1,6 +1,6 @@
 import { SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { isValidRoomCode } from "@alibi/shared";
+import { isValidRoomCode } from "@aha/shared";
 
 describe("POST /api/rooms", () => {
   it("returns a valid fresh code", async () => {

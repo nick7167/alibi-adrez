@@ -5,7 +5,7 @@
 	import { clearIdentity, loadIdentity, saveIdentity } from '$lib/stores/session.svelte';
 	import type { Identity } from '$lib/stores/session.svelte';
 	import { currentLocale } from '$lib/i18n';
-	import type { Phase, RoomView, ServerMessage, Settings, Verdict } from '@alibi/shared';
+	import type { Phase, RoomView, ServerMessage, Settings, Verdict } from '@aha/shared';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';

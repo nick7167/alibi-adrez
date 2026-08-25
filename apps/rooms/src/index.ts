@@ -1,4 +1,4 @@
-import { makeRoomCode, isValidRoomCode } from "@alibi/shared";
+import { makeRoomCode, isValidRoomCode } from "@aha/shared";
 import { RoomDurableObject } from "./do";
 import type { Env } from "./env";
 

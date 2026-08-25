@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
-	import { MAX_TEXT_LENGTH, type InterrogationView, type Player } from '@alibi/shared';
+	import { MAX_TEXT_LENGTH, type InterrogationView, type Player } from '@aha/shared';
 	import Countdown from '$lib/components/Countdown.svelte';
 
 	let {
