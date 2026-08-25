@@ -86,3 +86,34 @@ Contrast, measured: ink on white card 18.3:1; white on field 8.5:1; white on chi
 The full spec (all four directions, palettes, tradeoffs) is in the session
 scratchpad at `identity/DIRECTIONS.md` and on the canvas artifact
 `ef9559a1-f2d1-4d98-ae77-e6957b192f79`.
+
+### Navigation and leave confirmation (orchestrator — binding on T6–T8)
+
+Alibi's game screens had no exit at all: once a round started you were stuck
+until it ended. Every screen in this game gets a way out.
+
+**Every screen carries a leave control** in the same place — top-left, matching
+the existing back/leave buttons on the join and lobby screens, 44px minimum,
+with an `aria-label`. Screens: Writing, Guessing, Reveal, RoundEnd, Finale, plus
+the existing Join and Lobby.
+
+**Leaving mid-game is destructive, so it is confirmed.** Tapping leave opens a
+confirmation that states the real consequence rather than a generic "are you
+sure":
+
+- your score for this game is gone;
+- if the room drops below 3 players, the game ends for everyone.
+
+Two actions: cancel (default, dismissive) and leave (destructive styling).
+Escape and a backdrop tap cancel; focus moves into the dialog and returns to the
+leave button on cancel; `aria-modal` with a labelled title.
+
+**Where confirmation is NOT required:** the join screen and the lobby (nothing is
+lost yet) and the finale (the game is over). Guarding those would train players
+to dismiss the dialog without reading it, which is what makes a real warning
+useless.
+
+**Build it once.** T6 creates a shared `LeaveButton.svelte` plus a
+`ConfirmDialog.svelte` in `apps/web/src/lib/components/`, and T7/T8 compose them
+— they do not each invent one. The dialog is generic (title, body, confirm
+label, destructive flag) so later flows can reuse it.
