@@ -12,18 +12,11 @@ import type {
 } from "./protocol";
 import { DEFAULT_LANG, DEFAULT_SETTINGS, MAX_PLAYERS, MIN_PLAYERS } from "./protocol";
 import { PACK_IDS } from "../content/prompts";
+import type { RoundState } from "./round";
+import { applyRoundMessage, beginGame, handlePlayerLeft } from "./round";
 import { hashToken } from "./token";
 
 export interface SessionSecret { playerId: string; tokenHash: string }
-
-/**
- * Placeholder for the round model T3 introduces in `packages/shared/src/round.ts`
- * (`{ index, promptId, entries, order, stage, guesses, awarded }`). `never`
- * until then, so `rounds` can only ever be empty and storing a half-invented
- * round before the engine exists is a compile error. T3 replaces this alias
- * with the real interface.
- */
-export type RoundState = never;
 
 export interface InternalRoom {
   code: string;
@@ -72,16 +65,6 @@ export function createRoom(code: string): InternalRoom {
     rounds: [],
     deadline: null,
   };
-}
-
-/**
- * T3 replaces this with the real phase engine (`enterPhase` + `PHASE_MS`).
- * Until then no phase has a deadline, so there is nothing to advance and the
- * Durable Object's catch-up loop settles on the first step. Kept here so
- * `do.ts` keeps its single import and its alarm plumbing stays exercised.
- */
-export function advance(room: InternalRoom, _deps: EventDeps): { room: InternalRoom; changed: boolean } {
-  return { room, changed: false };
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -162,17 +145,10 @@ export async function applyEvent(
       if (senderId !== room.hostId) return { ok: false, code: "NOT_HOST", room };
       if (room.players.length < MIN_PLAYERS) return { ok: false, code: "BAD_MESSAGE", room };
       const next = structuredClone(room);
-      next.phase = "INTRO";
-      // Everyone starts on zero and unstaged. T3 replaces this with
-      // `enterPhase(next, "INTRO", deps)`, which is also what will give INTRO
-      // its deadline — until then no phase is timed (see `advance` above).
-      next.scores = {};
-      next.stagedCount = {};
-      for (const p of next.players) {
-        next.scores[p.id] = 0;
-        next.stagedCount[p.id] = 0;
-      }
-      next.deadline = null;
+      // Everyone on zero and unstaged, then the INTRO splash. `beginGame` is
+      // the only thing that knows what a fresh game looks like, and
+      // `enterPhase` inside it is the only thing that sets phase + deadline.
+      beginGame(next, deps);
       return { ok: true, room: next };
     }
     case "leave": {
@@ -188,8 +164,9 @@ export async function applyEvent(
       } else if (senderId === next.hostId) {
         next.hostId = next.players[0]!.id;
       }
-      // TODO(T3): void the leaver's entry, skip their staged answer, and end
-      // the game when the room drops below MIN_PLAYERS.
+      // Voids their entry, skips the answer they authored, resolves a phase
+      // they were the last holdout for, and ends the game below MIN_PLAYERS.
+      handlePlayerLeft(next, senderId, deps);
       return { ok: true, room: next };
     }
     case "setLang": {
@@ -206,10 +183,7 @@ export async function applyEvent(
       return { ok: true, room };
     case "submitEntry":
     case "submitGuess":
-      // Parsed and routed, but there is no round engine yet: T3 implements
-      // both. Rejecting keeps the tree honest — a client that sends one is
-      // told the room is not in a phase that accepts it, which is true.
-      return { ok: false, code: "WRONG_PHASE", room };
+      return applyRoundMessage(room, senderId, msg, deps);
   }
 }
 
@@ -226,8 +200,11 @@ export function scoreboardFor(room: InternalRoom): ScoreEntry[] {
  * The per-player view. T4 replaces this with the typed projection builders in
  * `packages/shared/src/view.ts` — the whole point of that boundary being that
  * a view's *type* structurally lacks the secret, so a leak is a compile error.
- * Until then only LOBBY and INTRO are reachable (nothing moves the phase past
- * INTRO), so every in-game phase renders the same minimal INTRO view.
+ * Until then every in-game phase still renders the same minimal INTRO view:
+ * T3 made WRITING/GUESSING/REVEAL/ROUND_END reachable on the server, but
+ * nothing projects them yet, so the app shows the intro splash throughout. No
+ * round content — no prompt, no answer, no author — reaches a client until
+ * T4, which is the safe direction for a placeholder to be wrong in.
  */
 function placeholderView(room: InternalRoom): RoomView {
   if (room.phase === "LOBBY") {

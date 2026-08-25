@@ -15,7 +15,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T0b identity directions | done | `—` (canvas only) | Four directions explored; **A · AHA chosen** |
 | T1 prompt packs | done | `6001a98` | 80 bilingual prompts, 4 packs, 20 tests |
 | T2 protocol + demolition | done | `68e22fe` | new phases/messages/views in `protocol.ts`, `state.ts` cut to lobby-only, Alibi files deleted, placeholder phase screens, catalogues pruned 93 → 42 keys and paraglide regenerated |
-| T3 round engine | not started | — | |
+| T3 round engine | done | `—` | `enterPhase` + `PHASE_MS` (the only writer of phase/deadline), tiered least-staged selection, `advance`, scoring at every REVEAL, leaver rules — all in `packages/shared/src/round.ts`, re-exported from `index.ts`; `state.ts` wires `startGame`/`leave`/`submitEntry`/`submitGuess` into it; 48 new tests in `test/round.test.ts` |
 | T4 view projections + anonymity | not started | — | |
 | T5 rooms dispatch + socket tests | not started | — | |
 | T6 web plumbing + Writing | not started | — | |
@@ -125,6 +125,83 @@ are both disqualifying, however revealing they are.
     the landing header is now the wordmark alone. That page is Alibi-styled
     end to end (sunshine canvas, case-file card, "busted alibis" tagline) and
     is **T9's** to re-skin; T2 deliberately did not half-restyle it.
+
+### T3 — round engine
+
+14. **`enterPhase(room, phase, deps)` is the only writer of `room.phase` and
+    `room.deadline`,** backed by `PHASE_MS: Record<Phase, (room) => number |
+    null>`. Nothing outside `round.ts` assigns either field, and inside it
+    every transition goes through `enterPhase`. `createRoom`'s object literal
+    is the one exception and is construction, not a transition. **T4 and T5
+    must not set `phase` or `deadline` directly** — a phase entered without a
+    deadline hangs the room permanently, because the DO's alarm is armed
+    solely off `room.deadline`. Durations: INTRO 3s, WRITING
+    `settings.writeSec`, GUESSING `settings.guessSec`, REVEAL 7s, ROUND_END
+    8s, LOBBY and FINALE `null`. Seven mutation tests confirm the suite bites
+    on this and on the anonymity structure (see the report).
+15. **INTRO happens once per game, not once per round.** `startGame` →
+    INTRO(3s) → WRITING creates round 1; ROUND_END → WRITING creates round
+    *n+1* directly. The plan's phase list (`… → ROUND_END(8s) → … → FINALE`)
+    did not settle this. Reasons: `IntroView` carries no `prompt` field so it
+    could not introduce a round anyway; `GameViewCommon.round` is documented
+    as "0 before the first round has started", which is only reachable if
+    INTRO precedes round 1; and ROUND_END's 8s already is the between-rounds
+    beat. **Consequence for T6–T8: INTRO is a one-off "get ready" splash, and
+    the round counter reads 0 while it is showing.**
+16. **The reverse lookup lives in exactly one function.** `authorOf(round,
+    answerId)` is the only code that walks `entries` looking for an
+    `answerId`; `undefined` means the answer is **voided** (its author left).
+    **T4 must build its projections through `authorOf` and must never take an
+    `authorId` from anywhere else** — that single call site is what makes an
+    authorship leak something you have to write rather than something you
+    forget to delete.
+17. **A voided answer is skipped, never spliced.** `order` is append-only for
+    the life of a round; `enterStage` walks past voided slots (discarding
+    their guesses) so `stage` can never be invalidated underneath itself. **T4
+    must therefore expect `order` to contain ids with no author, and derive
+    `answerIndex`/`answerTotal` accordingly** — `answerTotal` from
+    `order.length` will over-count once someone has left. That is a T4
+    decision; the engine does not paper over it.
+18. **`submitEntry` mints the `answerId` once.** An edit updates `text` and
+    keeps the same `answerId`, so a player who keeps typing does not migrate
+    to a different stage slot.
+19. **Guessing yourself, or a player who is not in the room, is
+    `BAD_MESSAGE`,** not a new error code. `candidates` is "everyone except
+    me", so both are malformed rather than rule violations. Rejection order on
+    `submitGuess` is: phase → `STALE_ANSWER` → `IS_AUTHOR` →
+    `ALREADY_GUESSED` → `BAD_MESSAGE`. An unknown `answerId` is
+    `STALE_ANSWER` (the client cannot tell a stale id from an invented one,
+    and neither reading changes what it should do).
+20. **Fewer than two entries stages nothing and spends no `stagedCount`.**
+    The round goes WRITING → ROUND_END with `order: []` and `awarded: {}`. A
+    player whose lone answer was never put to the room keeps their place in
+    the fairness rotation.
+21. **Staging fairness is exact, not approximate.** Tiered least-staged with
+    random-within-tier keeps `max(stagedCount) - min(stagedCount) <= 1` for
+    the whole game; the test plays 6 players × 6 rounds and asserts it.
+22. **`awarded` is keyed by `answerId`** (`Record<answerId, AwardEntry[]>`)
+    and lists **every present player, zeros included**, in `room.players`
+    order. Scoring is applied at that answer's REVEAL, so `room.scores` moves
+    continuously. T7's Reveal screen can render "you got nothing" straight
+    from `awarded` without recomputing.
+23. **Leaver rules, in one function** (`handlePlayerLeft`, called from
+    `state.ts`'s `leave` on the already-mutated room): below `MIN_PLAYERS` →
+    FINALE with scores as they stand; their entry is deleted (voiding their
+    answerId) and their guesses withdrawn everywhere; in WRITING the room can
+    resolve early now that they no longer owe an answer; in GUESSING, losing
+    the **staged author** discards that answer's guesses and moves the stage
+    on, while losing a guesser can resolve the phase early; an **in-flight
+    REVEAL is left to finish** because it is already scored and on screen.
+24. **`advance` still re-bases off `now` and moves at most one phase per
+    call** (Alibi ledger T3 ruling 2, unchanged). `enterPhase` is what
+    enforces it now. The DO's `catchUp()` loop and `MAX_ADVANCE_STEPS` are
+    untouched.
+25. **`placeholderView` is unchanged and now understates the room.** T3 made
+    WRITING/GUESSING/REVEAL/ROUND_END reachable on the server, but nothing
+    projects them, so every in-game phase still renders the minimal
+    `IntroView` and the app shows the intro splash for a whole game. No round
+    content leaks — that is the safe direction for a placeholder to be wrong
+    in — but **the app is not playable until T4**.
 
 ### Chosen identity — A · AHA (orchestrator, after T0b)
 
