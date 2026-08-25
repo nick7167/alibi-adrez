@@ -69,6 +69,21 @@ export interface StagedAnswer { id: string; text: string }
 /** An answer whose author is public: REVEAL and ROUND_END only. */
 export interface RevealedAnswer { id: string; text: string; authorId: string }
 
+/**
+ * One answer at ROUND_END, with the one extra fact the recap needs.
+ *
+ * `staged` says whether the room actually guessed on this answer. Only
+ * `MAX_STAGED` entries go on the stage, so in a big room most people write
+ * something nobody is ever asked about — the round-end recap is where those
+ * authors get seen, and the flag is what lets the screen say which is which
+ * without pretending they were all played.
+ *
+ * It is reporting, not new protocol surface invented for a screen: the engine
+ * already keeps `round.order`, the round is over, and nothing here is secret
+ * any more.
+ */
+export interface RoundEndAnswer extends RevealedAnswer { staged: boolean }
+
 /** One player's guess at who wrote the answer under scrutiny. */
 export interface GuessLine { playerId: string; guessedId: string }
 
@@ -163,8 +178,11 @@ export interface RevealView extends GameViewCommon {
 export interface RoundEndView extends GameViewCommon {
   phase: "ROUND_END";
   prompt: string;
-  /** Every entry with its author, including the ones never staged. */
-  answers: RevealedAnswer[];
+  /**
+   * Every entry with its author, including the ones never staged — staged
+   * first in the order the room guessed them, then the rest in roster order.
+   */
+  answers: RoundEndAnswer[];
 }
 
 export interface FinaleView {

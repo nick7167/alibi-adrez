@@ -24,10 +24,9 @@
   --color-accent-wrong: #ff7bae;
 
   /* Legacy Alibi token names, aliased onto the AHA palette above. T2 deleted
-     the Alibi game screens, but the landing page, the join form, the lobby
-     and the rulebook still compose these — they are rewritten in T8 (lobby)
-     and T9 (landing, rulebook), which is when these aliases can go. Do not
-     add new uses of them. */
+     the Alibi game screens and T8 rewrote the lobby; the landing page, the
+     join form and the rulebook still compose these, so they go with T9. Do
+     not add new uses of them. */
   --color-paper: var(--color-surface);
   --color-cobalt: var(--color-field);
   --color-sunshine: var(--color-action);
@@ -36,10 +35,9 @@
   --color-grape: var(--color-field);
   --color-night: var(--color-ink);
 
-  /* Case-file surface: anything that behaves like paperwork (the landing
-	   logo card, the settings panel) sits on manila, never on paper. Legacy
-	   Alibi primitive — still referenced by the landing page, the lobby's
-	   settings panel and the rulebook, so it survives T2. */
+  /* Case-file surface. Legacy Alibi primitive — T8's lobby rewrite dropped
+	   its settings panel, but the landing page and the rulebook still compose
+	   it, so it survives until T9 rewrites those. */
   --color-manila: var(--color-surface);
 
   --radius-card: 1.75rem;
@@ -102,14 +100,14 @@ body {
    over Tailwind utilities instead of depending on source order.
 
    .sticker and .field-label are generic and carry forward into AHA. The
-   rest below (.stamp, .stamp-frame, .ruled, .leader) are Alibi's "evidence"
-   vocabulary — Courier Prime in coral stamps, manila case-file surfaces.
-   T2 checked whether they could go with the Alibi game screens: they could
-   not. Every one is still referenced by a screen T2 does not rewrite —
-   .stamp (landing, lobby host tag, rulebook), .stamp-frame (lobby room
-   code), .ruled (landing, join form, rulebook), .leader (lobby settings).
-   They go when those screens do: T8 (lobby) and T9 (landing, rulebook).
-   Do not build new UI on them.
+   rest below (.stamp, .ruled) are Alibi's "evidence" vocabulary — Courier
+   Prime in coral stamps, manila case-file surfaces.
+
+   T8's lobby rewrite freed two of them: .stamp-frame (the lobby room code)
+   and .leader (the dotted rule in the lobby settings) had no other user and
+   are deleted. What is left is still referenced by a screen T8 does not
+   rewrite — .stamp (landing, rulebook), .ruled (landing, join form,
+   rulebook) — and goes with T9. Do not build new UI on them.
    --------------------------------------------------------------------------- */
 
 /* Pressable things: a hard offset shadow that depresses on touch. */
@@ -152,13 +150,6 @@ body {
   text-transform: uppercase;
 }
 
-/* The double-ruled frame the room code is stamped inside. */
-.stamp-frame {
-  border: 4px double var(--color-coral);
-  border-radius: 6px;
-  rotate: -2deg;
-}
-
 /* Ruled paper. Sits under content on paper and manila surfaces. */
 .ruled {
   background-image: repeating-linear-gradient(
@@ -166,14 +157,6 @@ body {
     rgba(20, 20, 51, 0.045) 0 1px,
     transparent 1px 28px
   );
-}
-
-/* Dotted leader between a settings label and its stepper. */
-.leader {
-  flex: 1;
-  height: 1px;
-  border-bottom: 1px dotted
-    color-mix(in oklab, var(--color-ink) 40%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

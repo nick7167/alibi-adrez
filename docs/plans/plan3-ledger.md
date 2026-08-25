@@ -20,7 +20,7 @@ Update this file at the end of every task, in the same commit as the work.
 | T5 rooms dispatch + socket tests | done | `c13c0b3` | connected-player ids threaded from the DO into the engine for early resolve only (`ConnectedIds`, optional trailing arg); `resolveIfEveryoneReady` called from `webSocketClose`; 8 socket tests in `apps/rooms/test/round.test.ts` (full round on alarms alone, message round-trip, locked phone, eviction, idle self-destruct, voided REVEAL) + 7 engine tests in `packages/shared/test/round.test.ts`; four mutations run |
 | T6 web plumbing + Writing | done | `1cc2ee4` | `submittedIds` reverted to `submittedCount`; shared `LeaveButton.svelte` + `ConfirmDialog.svelte`; `Writing.svelte` (prompt, 140-char upsert entry, remaining count, deadline countdown, "n of m written"); router routes WRITING to it and every placeholder now carries a leave control |
 | T7 Guessing + Reveal | done | `—` | `Guessing.svelte` (artboard composition, `candidates` untouched, `myGuess` latched per `answer.id`, ticker-driven client-side grid lock, author variant with no grid) + `Reveal.svelte` (author reveal, per-player `awarded` rows, right/wrong as large marks); router wires both and `submitGuess`; 21 new copy keys in both catalogues |
-| T8 RoundEnd + Finale + lobby | not started | — | |
+| T8 RoundEnd + Finale + lobby | done | `—` | `RoundEnd.svelte` (every answer of the round with its author, staged and un-staged, marked not re-sorted; running scoreboard as a horizontal strip; countdown names its destination) + `Finale.svelte` (podium keyed to rank so a tie reads as a tie, full standings, no countdown, `confirm={false}` leave) + the lobby rewritten onto the AHA field with this game's dials and the prompt-pack switches; one protocol addition, `RoundEndAnswer.staged`; `.stamp-frame` and `.leader` deleted from `app.css` |
 | T9 rulebook, brand copy, e2e, domain | not started | — | |
 
 ## Rulings
@@ -493,6 +493,116 @@ are both disqualifying, however revealing they are.
     measured. **T9's full-round e2e should drive a leave during GUESSING and
     during REVEAL.**
 
+### T8 — the RoundEnd and Finale screens, and the lobby's settings
+
+64. **One protocol field was added: `RoundEndAnswer.staged`.** The brief asks
+    ROUND_END to mark which answers were staged, and `RoundEndView.answers`
+    carried no way to tell: the ordering (staged first, then the rest) is a
+    convention the client cannot read, and a reconnecting player has no history
+    to reconstruct it from. So `protocol.ts` gained `RoundEndAnswer extends
+    RevealedAnswer { staged: boolean }` and `RoundEndView.answers` is now
+    `RoundEndAnswer[]`. This is **reporting, not invention** — the engine
+    already keeps `round.order`, and it is the opposite of T2 ruling 10's
+    `awards`, which had no engine behind it. `RevealedAnswer` itself is
+    unchanged, so `openAnswer`'s type still structurally lacks nothing and
+    REVEAL is untouched. The round is over when this ships, so the flag is not
+    a secret. `view.ts`'s `roundEndView` is the only writer; it sets `true` for
+    everything it walks out of `order` and `false` for the rest.
+65. **The anonymity matrix was re-run and re-mutated** (ruling 34 requires it
+    of any task changing these views). `test/snapshot.test.ts` is now 118 tests
+    — twelve new ones asserting that the flagged-staged ids equal `round.order`
+    exactly, that the un-staged remainder is `WRITER_COUNT - order.length`, and
+    that the staged ones come first. Mutation: flipping `staged: true` to
+    `false` in `roundEndView` failed 12 tests; reverted and green.
+66. **RoundEnd scrolls on two different axes on purpose.** The answer list
+    grows with the room (up to 16) and the scoreboard grows with it, and two
+    vertically-growing lists on a 420px viewport both lose. So the answers
+    scroll vertically inside their own box and the scoreboard is a
+    **horizontally** scrolling strip of chips with a fixed height — the leader
+    is always the first chip, the reader's own chip is the yellow one, and the
+    strip costs the same 35px whether the room is 3 or 16.
+67. **The ROUND_END countdown names what it is counting down to.** After the
+    last round the clock runs into the finale, not another prompt, so the pill
+    reads "Results"/"Resultat" instead of "Next round"/"Næste runde"
+    (`room.round >= room.roundCount`). A pill promising a round that never
+    arrives is the kind of thing a player reads as a bug.
+68. **The finale podium is styled by rank, not by slot position.** The server
+    sorts by score and breaks ties by `playerId` — that tiebreak is an
+    *ordering*, not a placing, and painting the second row silver would print a
+    result the game never produced. Plinth colour, plinth height and the `#n`
+    tag all come from a dense rank computed off the score, so two players on 12
+    points get two gold plinths of the same height and the headline says "It's
+    a tie!". Measured live: a 12/12/8/7/2 room rendered ranks 1, 1, 3, 4, 5.
+69. **The finale carries a second exit, and it is deliberate.** `LeaveButton`
+    with `confirm={false}` stays in the top-left slot every screen shares, and
+    a full-width "Back to start" button sits at the bottom calling the same
+    `onLeave`. A terminal screen whose only way onward is a 44px chip in the
+    corner is a dead end in practice. Neither asks for confirmation — the game
+    is over and nothing is lost (ruling 44).
+70. **`FinaleView` still has no `awards` and none was invented** (T2 ruling
+    10). The screen shows the podium and the full standings, both of which are
+    `scoreboard` rendered.
+71. **The lobby moved onto the AHA field, which is what freed the CSS.** The
+    room code is Fredoka in the action yellow inside a translucent frame (the
+    code alphabet already excludes I/L/O/0/1, so mono's disambiguation earned
+    nothing), the host tag is a yellow chip, and the settings sit in a
+    translucent panel. Deleted from `app.css` as a result: **`.stamp-frame`**
+    (only the lobby room code used it) and **`.leader`** (only the lobby
+    settings rows). **Still held, and T9's to free: `.stamp`** (landing,
+    rulebook), **`.ruled`** (landing, `JoinForm.svelte`, rulebook) and
+    **`--color-manila`** (landing, rulebook) — plus the whole legacy alias
+    block, which `JoinForm` and the landing page still compose.
+72. **The pack floor is enforced in the UI, not just refused by the server.**
+    `nextSettings` ignores a patch that would empty `packs`, which from the
+    host's side is a tap that silently does nothing. So the last enabled pack's
+    switch is `disabled` and a line appears saying at least one has to stay on.
+    Verified live: turning everything off but `absurd` disables that switch, a
+    forced click changes nothing, and the server still holds `["absurd"]` after
+    the debounce.
+73. **Spicy is labelled plainly: "Confessions" / "Tilståelser",** with a line
+    naming the material — "Personal admissions: white lies, cringe, petty
+    revenge. Not for every group." The pack id stays `spicy`; only the label a
+    host reads changed. "Spicy" is the cute name, and a host switching it on in
+    mixed company should not have to guess what is behind it. (Read against the
+    actual content: the pack is embarrassment and petty confession, not adult
+    material, and the label says so rather than over-warning.)
+74. **Non-hosts still see no settings at all,** including whether the
+    confessions pack is on. That is unchanged from Alibi's lobby and it is the
+    one consent-shaped gap left in this screen. **T9 should consider a
+    read-only summary for guests**; T8 did not add one because it is new
+    surface on the screen with the tightest short-viewport budget.
+75. **Short-viewport measurements, real browser, 5 contexts (3 EN / 2 DA)
+    driven through two full rounds into ROUND_END and on into FINALE.** Every
+    page: `scrollHeight === scrollWidth-clean === innerHeight` at both sizes,
+    i.e. no page scroll in either axis.
+    - ROUND_END 390×844 (EN): leave `y 16→60`, countdown `y 47→68`, prompt
+      `y 117→157`, answer list `y 208→751`, scoreboard strip `y 777→812`.
+    - ROUND_END 390×420 (EN/DA identical): prompt clamps to one line
+      `y 89→105`, answer list `y 151→350`, scoreboard `y 377→408`.
+    - FINALE 390×844: headline `y 62→94`, podium `y 111→286`, standings
+      `y 320→588`, primary action `y 756→812`.
+    - FINALE 390×420: headline `y 38→68`, podium `y 80→193`, standings
+      `y 227→344`, action `y 352→408` (its 56px height is untouched by the
+      compaction).
+    - Lobby 390×420: every stepper and pack switch measured **≥44px** tall
+      (44/44/44/44/44/44, packs 52/52/52/67).
+76. **Verified live, not reasoned about:** ROUND_END listing all five answers
+    with authors in a 5-player room where only four were staged (4 × "Guessed",
+    1 × "Not guessed", every row carrying an author name); the scoreboard chip
+    count matching the roster; the in-game leave control opening
+    `leave-confirm` and the finale's navigating straight home with no dialog;
+    all three steppers clamping at both bounds with their buttons disabled;
+    the pack floor; both ROUND_END countdown labels.
+77. **Reasoned, not measured — the weak spots.** (a) A room at the 16-player
+    ceiling was never rendered; the answer list and the scoreboard strip both
+    scroll, so nothing should clip, but the 8-second ROUND_END is certainly too
+    short to *read* sixteen answers, which is a game-design problem the
+    orchestrator's outstanding paper playtest owns, not a layout one. (b) The
+    empty-round path (`roundEnd.empty`, reachable when fewer than two players
+    wrote) is unit-covered by T3 ruling 20 but was never seen on screen. (c) A
+    leaver during ROUND_END or FINALE was not driven — T7 ruling 63's gap is
+    still open and still T9's.
+
 ### Chosen identity — A · AHA (orchestrator, after T0b)
 
 Name **AHA** — the noise the room makes at the reveal, spelled and said
@@ -651,14 +761,20 @@ languages at 390×844 and 390×420. 292 tests green (shared 217, rooms 25, web
 50 — the eight new web tests are `head-canvas.test.ts`'s `it.each` picking up
 `Guessing.svelte` and `Reveal.svelte`; that file is unedited).
 
-**Next is T8 — RoundEnd + Finale + lobby settings.** It composes `LeaveButton`
-(rulings 44–45), restyles `Countdown` from outside (rulings 50, 60), reuses
-`game.answerProgress` rather than minting a second counter string (ruling 62),
-keeps the short-viewport priority, and is where the Alibi CSS primitives
-(`.stamp`, `.stamp-frame`, `.leader`, `--color-manila`) finally leave the
-lobby (ruling 8). Then T9 (rulebook, brand copy, e2e, repoint the domain) —
-whose e2e should cover the leave-during-GUESSING/REVEAL fallback T7 could not
-measure (ruling 63).
+**T8 is done**: ROUND_END, FINALE and the lobby's settings are real screens
+(rulings 64–77). One protocol field was added and justified —
+`RoundEndAnswer.staged` — and the anonymity matrix was re-run and re-mutated
+around it. `.stamp-frame` and `.leader` are deleted; `.stamp`, `.ruled` and
+`--color-manila` are still held by the landing page, `JoinForm.svelte` and the
+rulebook, so the legacy alias block in `app.css` goes with **T9**.
+
+**Next is T9 — rulebook, brand copy, full-round e2e, repoint the domain.** It
+inherits: the landing page and rulebook are still Alibi-styled end to end
+(T2 ruling 13) and are the last holders of the legacy CSS; the e2e should
+drive a leave during GUESSING and during REVEAL (T7 ruling 63) and, now,
+during ROUND_END; `home.tagline` still sells "busted alibis"; the six prompt
+cuts ruled after T1 are still unapplied; and a guest-visible read-only
+settings summary is worth considering (ruling 74).
 
 **Still outstanding and not a code task:** the paper playtest at 3, 6 and 10
 players. At 8+ players only 4 of 8 answers are staged, so half the room writes

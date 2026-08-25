@@ -10,6 +10,7 @@ import type {
   RevealView,
   RevealedAnswer,
   RoomView,
+  RoundEndAnswer,
   RoundEndView,
   ScoreEntry,
   StagedAnswer,
@@ -289,18 +290,21 @@ function revealView(
  * so only present players appear.
  */
 function roundEndView(room: InternalRoom, readerId: string, round: RoundState): RoundEndView {
-  const answers: RevealedAnswer[] = [];
+  const answers: RoundEndAnswer[] = [];
   const seen = new Set<string>();
   for (const answerId of round.order) {
     const open = openAnswer(round, answerId);
     if (open === undefined) continue;
-    answers.push(open);
+    // Everything in `order` went on the stage and was guessed on.
+    answers.push({ ...open, staged: true });
     seen.add(answerId);
   }
   for (const p of room.players) {
     const entry = round.entries[p.id];
     if (entry === undefined || seen.has(entry.answerId)) continue;
-    answers.push({ id: entry.answerId, text: entry.text, authorId: p.id });
+    // Written, never put to the room. `MAX_STAGED` is 4, so in a big room this
+    // is most of the roster — and it is the reason this screen exists.
+    answers.push({ id: entry.answerId, text: entry.text, authorId: p.id, staged: false });
   }
   return {
     phase: "ROUND_END",

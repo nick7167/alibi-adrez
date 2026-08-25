@@ -374,6 +374,19 @@ describe.each(["author", "guesser", "non-writer"])("reader: %s", (role) => {
       expectAbsent(snap, { keys: ["entries"] });
     });
 
+    it("ROUND_END marks exactly the answers the room guessed on", () => {
+      const reader = readerFor(role, k);
+      const snap = snapshotFor(F.roundEnd, reader);
+      const view = (snap as { room: RoundEndView }).room;
+      const order = liveRound(F.roundEnd).order;
+      // Five wrote, MAX_STAGED is 4, so precisely one answer was never put to
+      // the room — the case this whole screen exists for.
+      expect(view.answers.filter((a) => a.staged).map((a) => a.id)).toEqual(order);
+      expect(view.answers.filter((a) => !a.staged)).toHaveLength(WRITER_COUNT - order.length);
+      // Staged first, in the order the room guessed them.
+      expect(view.answers.slice(0, order.length).every((a) => a.staged)).toBe(true);
+    });
+
     it("FINALE carries no round content at all", () => {
       const reader = readerFor(role, k);
       expectNoLeak(snapshotFor(F.finale, reader), reader, { authors: "none" });

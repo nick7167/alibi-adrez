@@ -6,13 +6,13 @@
 	import type { Identity } from '$lib/stores/session.svelte';
 	import { currentLocale } from '$lib/i18n';
 	import type { Phase, RoomView, ServerMessage, Settings } from '@aha/shared';
-	import Countdown from '$lib/components/Countdown.svelte';
-	import LeaveButton from '$lib/components/LeaveButton.svelte';
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';
 	import Writing from './Writing.svelte';
 	import Guessing from './Guessing.svelte';
 	import Reveal from './Reveal.svelte';
+	import RoundEnd from './RoundEnd.svelte';
+	import Finale from './Finale.svelte';
 
 	let { data } = $props();
 
@@ -205,47 +205,6 @@
 	</style>
 </svelte:head>
 
-<!--
-	Temporary phase screens. Every phase still waiting on its task renders the
-	same stub — its name and the phase countdown — until the task named in its
-	TODO builds the real one (T8 RoundEnd/Finale). They
-	exist so the tree compiles and deploys; none of them is a design.
-
-	Every one of them carries a leave control, so no screen is a dead end
-	(the ledger's "Navigation and leave confirmation" ruling). `confirmLeave`
-	is false only for the finale, where the game is already over and nothing
-	is lost — guarding that would train players to dismiss the warning unread.
--->
-{#snippet placeholder(
-	label: string,
-	todo: string,
-	room: { round: number; roundCount: number; deadline: number | null } | null,
-	confirmLeave: boolean
-)}
-	<section
-		data-testid="phase-placeholder"
-		data-phase={label}
-		class="relative grid fill-vp place-items-center bg-field px-4 text-center text-white"
-	>
-		<LeaveButton onLeave={leaveRoom} confirm={confirmLeave} />
-		<div class="flex flex-col items-center gap-5 pb-safe">
-			<span class="rounded-full bg-surface-2 px-4 py-1 text-xs font-bold tracking-[0.18em] uppercase">
-				{todo}
-			</span>
-			<h1 class="font-display text-5xl font-bold tracking-tight">{label}</h1>
-			{#if room}
-				<p class="text-sm font-semibold text-white/70">
-					{m['game.round']({ round: room.round, roundCount: room.roundCount })}
-				</p>
-				<Countdown
-					deadline={room.deadline}
-					{offset}
-					class="font-display text-6xl font-bold tabular-nums"
-				/>
-			{/if}
-		</div>
-	</section>
-{/snippet}
 
 <main class="relative flex fill-vp flex-col overflow-hidden bg-paper text-ink">
 	{#if screen === 'join'}
@@ -305,9 +264,11 @@
 	{:else if view?.room.phase === 'REVEAL'}
 		<Reveal room={view.room} you={view.you} {offset} onLeave={leaveRoom} />
 	{:else if view?.room.phase === 'ROUND_END'}
-		{@render placeholder(m['game.phase.roundEnd'](), 'TODO(T8)', view.room, true)}
+		<RoundEnd room={view.room} you={view.you} {offset} onLeave={leaveRoom} />
 	{:else if view?.room.phase === 'FINALE'}
-		{@render placeholder(m['game.phase.finale'](), 'TODO(T8)', null, false)}
+		<!-- The one screen where leaving costs nothing, so `LeaveButton` inside
+		     it passes `confirm={false}` (ledger ruling 44). -->
+		<Finale room={view.room} you={view.you} onLeave={leaveRoom} />
 	{/if}
 
 	{#if offlineLong && screen !== 'INTRO'}
