@@ -967,3 +967,37 @@ asked whether that duplication should stand. It should. A terminal screen whose
 only exit is a 44px corner chip is a dead end for anyone who does not think to
 look there, and neither control asks for confirmation, so there is no cost to
 having both.
+
+### Ruling 84 resolved — settings flush on Start
+
+The lobby debounced `updateSettings` by 300ms and its teardown dropped any
+pending patch, so tapping a stepper and immediately pressing **Start** began a
+game with the old value, silently. T9 hit this for real: its first e2e run played
+a four-round game it had configured to one.
+
+Fixed by flushing the pending patch synchronously **when Start is pressed** —
+`flushPatch()` then `onStart()`. Not on teardown: T8 removed a stray
+`updateSettings` that fired after the room had left LOBBY, and a blind teardown
+flush would bring it straight back. Start is the one moment where the host is
+provably still in the lobby and the patch is still legal. The debounce still
+coalesces rapid taps.
+
+**Outstanding: the regression test is NOT in the repo.** A spec was written
+(`lobby-settings-flush.spec.ts`, kept in the session scratchpad as `.wip`) but it
+hangs locally and was never observed passing, so it was not committed — a hanging
+spec in the suite is worse than no spec. The fix itself is verified only by
+typecheck, the 312 unit tests, a clean build and reading the diff. **Anyone
+picking this up should finish that spec and prove it fails without the fix.**
+
+Also note: the local Playwright environment got wedged during this work (repeated
+dev-server kills left ports and the wrangler dev registry in a bad state). The
+full e2e suite passed cleanly earlier at `894c009`; it could not be re-run after
+this change. Re-run it on a clean machine state before trusting the e2e result.
+
+### Countdown moved off Courier Prime
+
+`Countdown.svelte` hardcoded `font-mono`, the last visible piece of Alibi's
+type. It now uses `--font-display` (Fredoka), the `:global` overrides the five
+screens carried for it are gone, and `--font-mono` plus the
+`@fontsource/courier-prime` dependency are deleted — nothing rendered it any
+more, and an unused webfont is weight on every page load.

@@ -256,9 +256,9 @@
 
 <style>
 	/* Same :global override as every other phase pill (ledger ruling 50) —
-	   Countdown owns `font-mono text-2xl` and stays untouched. */
+	   Countdown is already Fredoka (font-display, ruling 87's resolution);
+	   this only shrinks the size and drops the default letter-spacing. */
 	.rv-countdown :global([data-testid='countdown']) {
-		font-family: var(--font-display);
 		font-size: 22px;
 		font-weight: 700;
 		line-height: 1;

@@ -164,8 +164,32 @@
 		queue({ packs: [...next] });
 	}
 
+	/** Send whatever is still debounced, right now, synchronously. Used by
+	    `startGame` below so a patch made moments ago is never in flight when
+	    the room leaves LOBBY. Not used on teardown — see the comment there. */
+	function flushPatch() {
+		if (patchTimer !== null) {
+			clearTimeout(patchTimer);
+			patchTimer = null;
+		}
+		if (Object.keys(pendingPatch).length > 0) {
+			onUpdate(pendingPatch);
+			pendingPatch = {};
+		}
+	}
+
+	/** The host is still in LOBBY when this runs, so a queued patch is still
+	    legal — flush it before the `startGame` message so the server applies
+	    the setting the host actually chose before it starts the round. */
+	function startGame() {
+		flushPatch();
+		onStart();
+	}
+
 	/* On teardown: cancel the debounced patch (dropping it deliberately —
-	   a stray updateSettings must not fire after the phase leaves LOBBY)
+	   a stray updateSettings must not fire after the phase leaves LOBBY,
+	   see ledger ruling 84: flushing here is what T8 removed and is not
+	   coming back — `startGame` above is the one place a flush is safe)
 	   and clear the "copied" chip timer. */
 	$effect(() => {
 		return () => {
@@ -477,7 +501,7 @@
 				type="button"
 				data-testid="start-game"
 				disabled={!canStart}
-				onclick={onStart}
+				onclick={startGame}
 				class="sticker flex min-h-14 w-full items-center justify-center rounded-full bg-action px-8 font-display text-[19px] font-bold text-ink disabled:opacity-40"
 			>
 				{m['lobby.start']()}

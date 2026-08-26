@@ -5,8 +5,6 @@
 @import "@fontsource/figtree/500.css";
 @import "@fontsource/figtree/600.css";
 @import "@fontsource/figtree/800.css";
-@import "@fontsource/courier-prime/400.css";
-@import "@fontsource/courier-prime/700.css";
 @import "tailwindcss";
 
 @theme {
@@ -34,12 +32,11 @@
   /* Two faces, one rule (docs/plans/plan3-ledger.md, "Chosen identity — A ·
 	   AHA"): --font-display = content → answers and player names, in
 	   Fredoka. --font-sans = chrome → labels, counts, hints and button
-	   copy, in Figtree. --font-mono is Courier Prime and has
-	   exactly one user left: Countdown.svelte, which hardcodes `font-mono`
-	   and is on the plan's untouched list. Nothing else should reach for it. */
+	   copy, in Figtree. Courier Prime (--font-mono) is gone: Countdown.svelte
+	   was its last user and now renders in Fredoka too (ruling 87's
+	   resolution) — no screen in the product reaches for a mono face. */
   --font-display: "Fredoka", "Avenir Next Rounded", "Trebuchet MS", system-ui, sans-serif;
   --font-sans: "Figtree", "Helvetica Neue", system-ui, sans-serif;
-  --font-mono: "Courier Prime", "Courier New", monospace;
 }
 
 body {

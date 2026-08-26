@@ -47,7 +47,7 @@
 
 {#if deadline !== null}
 	<span
-		class="font-mono text-2xl font-bold tracking-[0.08em] tabular-nums {className}"
+		class="font-display text-2xl font-bold tracking-[0.08em] tabular-nums {className}"
 		role="timer"
 		data-testid="countdown"
 	>

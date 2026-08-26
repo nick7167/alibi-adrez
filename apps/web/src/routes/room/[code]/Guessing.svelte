@@ -292,11 +292,11 @@
 </div>
 
 <style>
-	/* Countdown.svelte hardcodes `font-mono text-2xl` and is on the plan's
-	   untouched list, so the pill restyles it from outside with a :global
-	   override rather than the component growing a prop (ledger ruling 50). */
+	/* Countdown.svelte is already Fredoka (font-display, ruling 87's
+	   resolution), so the pill restyles only the size and letter-spacing
+	   from outside with a :global override rather than the component
+	   growing a prop (ledger ruling 50). */
 	.gu-countdown :global([data-testid='countdown']) {
-		font-family: var(--font-display);
 		font-size: 22px;
 		font-weight: 700;
 		line-height: 1;

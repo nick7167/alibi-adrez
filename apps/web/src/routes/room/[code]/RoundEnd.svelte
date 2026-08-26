@@ -207,10 +207,10 @@
 </div>
 
 <style>
-	/* Countdown.svelte owns `font-mono text-2xl` and is on the plan's untouched
-	   list, so the pill restyles it from outside (ledger rulings 50 and 60). */
+	/* Countdown.svelte is already Fredoka (font-display, ruling 87's
+	   resolution); the pill only restyles the size and letter-spacing from
+	   outside (ledger rulings 50 and 60). */
 	.re-countdown :global([data-testid='countdown']) {
-		font-family: var(--font-display);
 		font-size: 20px;
 		font-weight: 700;
 		line-height: 1.05;

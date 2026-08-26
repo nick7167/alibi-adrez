@@ -226,11 +226,11 @@
 </div>
 
 <style>
-	/* Countdown.svelte owns its own font/size classes and is on the plan's
-	   "untouched" list, so the pill restyles it from outside rather than
-	   growing a prop. Fredoka + a big number, as the artboard has it. */
+	/* Countdown.svelte owns its own font/size classes, so the pill restyles it
+	   from outside rather than growing a prop. It is already Fredoka
+	   (font-display); this override only shrinks it to the size the pill
+	   wants and drops the default letter-spacing, as the artboard has it. */
 	.countdown-pill :global([data-testid='countdown']) {
-		font-family: var(--font-display);
 		font-size: 22px;
 		font-weight: 700;
 		line-height: 1;
