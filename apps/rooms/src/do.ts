@@ -104,10 +104,10 @@ export class RoomDurableObject implements DurableObject {
         return;
       }
       // A locked phone is not a leave — but it can be the last thing the room
-      // was waiting for. Everyone else has written (or guessed) and the phase
-      // would otherwise sit out its whole timer for an answer that cannot
-      // arrive. No client message follows a disconnect, so the close itself
-      // is the only chance to re-run the early-resolve check.
+      // was waiting for. Everyone else has handed in (or guessed) and the
+      // phase would otherwise sit out its whole timer for a hand-in that
+      // cannot arrive. No client message follows a disconnect, so the close
+      // itself is the only chance to re-run the early-resolve check.
       const room = await this.catchUp();
       if (room === undefined) return;
       const result = resolveIfEveryoneReady(room, eventDeps(), this.connectedPlayerIds(ws));
@@ -269,7 +269,8 @@ export class RoomDurableObject implements DurableObject {
       case "startGame":
       case "setLang":
       case "submitEntry":
-      case "submitGuess": {
+      case "submitGuess":
+      case "handIn": {
         // catchUp() first: the phase this message is judged against must be
         // the phase the clock says we are in, not the one we went to sleep in.
         const room = await this.catchUp();

@@ -12,8 +12,8 @@ import { expireIdle, expirePhase, stubFor, until } from "./helpers";
  *  1. the alarm **re-arming** across the inner `GUESSING -> REVEAL -> GUESSING`
  *     loop — if it ever fails to, the room hangs forever and no unit test can
  *     see it, because a pure `advance()` needs no timer to be running;
- *  2. the two game messages actually travelling over a socket and coming back
- *     in a broadcast;
+ *  2. the three game messages actually travelling over a socket and coming
+ *     back in a broadcast;
  *  3. the connected-player set, which the engine cannot compute and the DO
  *     must supply ("a locked phone is not a leave");
  *  4. state surviving an eviction, since the DO caches the room in memory.
@@ -128,90 +128,111 @@ async function stored(code: string): Promise<Frame> {
   });
 }
 
-describe("the round loop in the Durable Object", () => {
-  it("plays a whole round on expiring alarms alone, re-arming through every stage", async () => {
+describe("the game loop in the Durable Object", () => {
+  it("plays a whole game on expiring alarms alone, re-arming through every phase", async () => {
     const code = "RDA";
     const clients = await seat(code, ["A", "B", "C", "D"]);
     const [host, b, c, d] = clients as [Client, Client, Client, Client];
-    send(host, { v: 1, t: "updateSettings", patch: { rounds: 1 } });
-    await until(() => view(host)?.settings?.rounds === 1, "the round count to drop to 1");
+    send(host, { v: 1, t: "updateSettings", patch: { questions: 2, rounds: 3, standingsEvery: 0 } });
+    await until(() => view(host)?.settings?.rounds === 3, "the settings to land");
 
     send(host, { v: 1, t: "startGame" });
     await untilPhase(host, "INTRO");
 
-    // The *only* client input in this test: three of the four players write.
-    // Entries cannot be conjured server-side, and a fourth entry would resolve
-    // WRITING early (everybody connected has written) — which is the other
-    // test. From here on every transition is an alarm and nothing else.
     expect(await expirePhase(code), "INTRO must have re-armed the alarm").toBe(true);
-    await untilPhase(host, "WRITING");
+    await untilPhase(host, "ANSWERING");
+
+    // The *only* client input in this test: three of the four players answer
+    // both questions. Entries cannot be conjured server-side, and nobody hands
+    // in — so from here every transition is an alarm and nothing else.
     for (const writer of [host, b, c]) {
-      send(writer, { v: 1, t: "submitEntry", text: `answer from ${writer.name}` });
+      for (let q = 0; q < 2; q++) {
+        send(writer, { v: 1, t: "submitEntry", questionIndex: q, text: `${writer.name} on q${q}` });
+      }
     }
     await until(
-      () => [host, b, c].every((w) => view(w)?.myEntry !== undefined),
-      "all three entries to land",
+      () => [host, b, c].every((w) => Object.keys(view(w)?.myAnswers ?? {}).length === 2),
+      "all six answers to land",
     );
-    expect(phase(host), "one player still owes an answer").toBe("WRITING");
+    expect(phase(host), "nobody handed in, so the clock still owns this phase").toBe("ANSWERING");
 
-    expect(await expirePhase(code), "WRITING must have re-armed the alarm").toBe(true);
+    expect(await expirePhase(code), "ANSWERING must have re-armed the alarm").toBe(true);
     await untilPhase(host, "GUESSING");
-    expect(view(host)!.answerTotal).toBe(3);
+    expect(view(host)!.roundCount).toBe(3);
 
-    // The inner loop, driven entirely by the alarm: GUESSING -> REVEAL ->
-    // GUESSING for each staged answer. Nobody guesses; nobody taps anything.
-    const revealed: string[] = [];
-    for (let i = 1; i <= 3; i++) {
-      expect(phase(host), `stage ${i} should be GUESSING`).toBe("GUESSING");
-      expect(view(host)!.answerIndex).toBe(i);
+    // The loop, driven entirely by the alarm. Nobody guesses; nobody taps.
+    const asked: string[] = [];
+    const questions: string[] = [];
+    for (let round = 1; round <= 3; round++) {
+      expect(phase(host), `round ${round} should be GUESSING`).toBe("GUESSING");
+      expect(view(host)!.round).toBe(round);
       expect(view(host)!.deadline, "a live phase must carry a deadline").not.toBeNull();
+      asked.push(view(host)!.answer.id as string);
+      questions.push(view(host)!.prompt as string);
 
-      expect(await expirePhase(code), `GUESSING ${i} must have re-armed the alarm`).toBe(true);
+      expect(await expirePhase(code), `GUESSING ${round} must have re-armed`).toBe(true);
       await untilPhase(host, "REVEAL");
       expect(view(host)!.authorId).toBeTypeOf("string");
-      revealed.push(view(host)!.answer.id as string);
 
-      expect(await expirePhase(code), `REVEAL ${i} must have re-armed the alarm`).toBe(true);
+      expect(await expirePhase(code), `REVEAL ${round} must have re-armed`).toBe(true);
       await until(
-        () => phase(host) === (i === 3 ? "ROUND_END" : "GUESSING"),
-        `stage ${i} to hand over to the next phase`,
+        () => phase(host) === (round === 3 ? "FINALE" : "GUESSING"),
+        `round ${round} to hand over`,
       );
     }
-    expect(new Set(revealed).size, "each stage reveals a different answer").toBe(3);
+    expect(new Set(asked).size, "each round asks about a different answer").toBe(3);
+    // The rule the whole mixed pool exists for.
+    for (let i = 1; i < questions.length; i++) {
+      expect(questions[i], "the same question must not run twice in a row")
+        .not.toBe(questions[i - 1]);
+    }
 
-    expect(phase(host)).toBe("ROUND_END");
-    expect((view(host)!.answers as Frame[]).map((a) => a.authorId).sort())
-      .toEqual([host.id, b.id, c.id].sort());
-
-    expect(await expirePhase(code), "ROUND_END must have re-armed the alarm").toBe(true);
-    await untilPhase(host, "FINALE");
+    expect(phase(host)).toBe("FINALE");
     expect(view(host)!.deadline).toBeUndefined(); // FINALE view is untimed
     for (const client of [host, b, c, d]) client.ws.close();
   });
 
-  it("round-trips submitEntry and submitGuess over a real socket", async () => {
+  it("round-trips submitEntry, handIn and submitGuess over a real socket", async () => {
     const code = "RDB";
     const [host, b, c] = await seat(code, ["A", "B", "C"]) as [Client, Client, Client];
+    send(host, { v: 1, t: "updateSettings", patch: { questions: 2, standingsEvery: 0 } });
+    await until(() => view(host)?.settings?.questions === 2, "the question count to land");
     send(host, { v: 1, t: "startGame" });
     await untilPhase(host, "INTRO");
     await expirePhase(code);
-    await untilPhase(host, "WRITING");
+    await untilPhase(host, "ANSWERING");
+    expect((view(host)!.questions as string[])).toHaveLength(2);
 
-    send(host, { v: 1, t: "submitEntry", text: "a socket-borne answer" });
-    await until(() => view(host)?.myEntry === "a socket-borne answer", "submitEntry to come back");
-    // Upsert, not append: the second submission replaces the first.
-    send(host, { v: 1, t: "submitEntry", text: "edited before the deadline" });
+    send(host, { v: 1, t: "submitEntry", questionIndex: 0, text: "a socket-borne answer" });
     await until(
-      () => view(host)?.myEntry === "edited before the deadline", "the edit to come back");
+      () => view(host)?.myAnswers?.["0"] === "a socket-borne answer", "submitEntry to come back");
+    // Upsert, not append: the second submission replaces the first.
+    send(host, { v: 1, t: "submitEntry", questionIndex: 0, text: "edited before the deadline" });
+    await until(
+      () => view(host)?.myAnswers?.["0"] === "edited before the deadline", "the edit to come back");
 
-    for (const writer of [b, c]) send(writer, { v: 1, t: "submitEntry", text: `by ${writer.name}` });
-    await untilPhase(host, "GUESSING"); // everyone connected has written
+    // Everyone answers both questions and hands in; the last hand-in resolves
+    // the phase with no alarm involved.
+    for (const w of [host, b, c]) {
+      for (let q = 0; q < 2; q++) {
+        send(w, { v: 1, t: "submitEntry", questionIndex: q, text: `${w.name} q${q}` });
+      }
+    }
+    await until(
+      () => [host, b, c].every((w) => Object.keys(view(w)?.myAnswers ?? {}).length === 2),
+      "every answer to land",
+    );
+    send(host, { v: 1, t: "handIn" });
+    await until(() => view(host)?.handedIn === true, "the hand-in to come back");
+    await until(() => (view(b)?.doneCount ?? 0) === 1, "the room to see one player done");
+    for (const w of [b, c]) send(w, { v: 1, t: "handIn" });
+    await untilPhase(host, "GUESSING");
 
     const guesser = [host, b, c].find((client) => view(client)!.youWrote === undefined)!;
     const answerId = view(guesser)!.answer.id as string;
     const target = (view(guesser)!.candidates as string[])[0]!;
 
-    send(guesser, { v: 1, t: "submitGuess", answerId: "not-the-staged-answer", playerId: target });
+    send(guesser, { v: 1, t: "submitGuess", answerId: "not-the-live-answer", playerId: target });
     await until(
       () => guesser.inbox.some((m) => m.t === "error" && m.code === "STALE_ANSWER"),
       "a stale answerId to be rejected",
@@ -225,91 +246,130 @@ describe("the round loop in the Durable Object", () => {
     for (const client of [host, b, c]) client.ws.close();
   });
 
+  it("shows the standings beat on the cadence the host set", async () => {
+    const code = "RDI";
+    const [a, b, c] = await seat(code, ["A", "B", "C"]) as [Client, Client, Client];
+    send(a, { v: 1, t: "updateSettings", patch: { questions: 2, rounds: 4, standingsEvery: 2 } });
+    await until(() => view(a)?.settings?.standingsEvery === 2, "the cadence to land");
+    send(a, { v: 1, t: "startGame" });
+    await untilPhase(a, "INTRO");
+    await expirePhase(code);
+    await untilPhase(a, "ANSWERING");
+    for (const w of [a, b, c]) {
+      for (let q = 0; q < 2; q++) send(w, { v: 1, t: "submitEntry", questionIndex: q, text: `${w.name}${q}` });
+    }
+    await until(
+      () => [a, b, c].every((w) => Object.keys(view(w)?.myAnswers ?? {}).length === 2),
+      "the answers to land",
+    );
+    for (const w of [a, b, c]) send(w, { v: 1, t: "handIn" });
+    await untilPhase(a, "GUESSING");
+
+    // Rounds 1 and 2, then the beat.
+    for (let round = 1; round <= 2; round++) {
+      expect(await expirePhase(code)).toBe(true);
+      await untilPhase(a, "REVEAL");
+      expect(await expirePhase(code)).toBe(true);
+      await until(() => phase(a) !== "REVEAL", "the reveal to hand over");
+    }
+    expect(phase(a), "a standings beat is due after round 2").toBe("STANDINGS");
+    const lines = view(a)!.lines as Frame[];
+    expect(lines).toHaveLength(3);
+    for (const line of lines) {
+      expect(line.rank).toBeTypeOf("number");
+      expect(line.delta).toBeTypeOf("number");
+    }
+    // It carries scores and nothing about any answer.
+    expect(JSON.stringify(view(a))).not.toContain("authorId");
+
+    expect(await expirePhase(code), "STANDINGS must have re-armed").toBe(true);
+    await untilPhase(a, "GUESSING");
+    for (const client of [a, b, c]) client.ws.close();
+  });
+
   describe("a locked phone is not a leave", () => {
-    it("resolves early once the connected players act, and still scores the absent one", async () => {
-      const code = "RDC";
-      const [a, b, c, d] = await seat(code, ["A", "B", "C", "D"]) as
-        [Client, Client, Client, Client];
-      send(a, { v: 1, t: "startGame" });
-      await untilPhase(a, "INTRO");
-      await expirePhase(code);
-      await untilPhase(a, "WRITING");
+    it("resolves early once the connected players hand in, and still stages the absent one",
+      async () => {
+        const code = "RDC";
+        const [a, b, c, d] = await seat(code, ["A", "B", "C", "D"]) as
+          [Client, Client, Client, Client];
+        send(a, { v: 1, t: "updateSettings", patch: { questions: 1, rounds: 4, standingsEvery: 0 } });
+        await until(() => view(a)?.settings?.questions === 1, "the settings to land");
+        send(a, { v: 1, t: "startGame" });
+        await untilPhase(a, "INTRO");
+        await expirePhase(code);
+        await untilPhase(a, "ANSWERING");
 
-      // D writes and then their phone locks. They are not gone from the room.
-      send(d, { v: 1, t: "submitEntry", text: "written before the screen went dark" });
-      await until(() => view(d)?.myEntry !== undefined, "D's entry to land");
-      d.ws.close();
-      await until(
-        () => (view(a)?.players as Frame[]).length === 4, "D to still be in the room");
+        // D answers and hands in, then their phone locks. They are not gone.
+        send(d, { v: 1, t: "submitEntry", questionIndex: 0, text: "written before the screen went dark" });
+        await until(() => view(d)?.myAnswers?.["0"] !== undefined, "D's answer to land");
+        send(d, { v: 1, t: "handIn" });
+        await until(() => view(d)?.handedIn === true, "D's hand-in to land");
+        d.ws.close();
+        await until(() => (view(a)?.players as Frame[]).length === 4, "D to still be in the room");
 
-      // The remaining three write. No alarm is fired anywhere in this test:
-      // if the room were still waiting on D it would sit here until the
-      // 60-second writing timer, and this would time out.
-      for (const writer of [a, b, c]) send(writer, { v: 1, t: "submitEntry", text: `by ${writer.name}` });
-      await untilPhase(a, "GUESSING");
-
-      // D is disconnected, not absent: their answer is on the stage and they
-      // are on everybody's candidate list.
-      expect(view(a)!.answerTotal).toBe(4);
-      expect(view(a)!.candidates as string[]).toContain(d.id);
-
-      // Everyone guesses somebody who is not D, four stages in a row, so D is
-      // fooled by every guesser on their own answer: +1 each, and D never
-      // guesses, so their whole score comes from being fooled-with.
-      const target: Record<string, string> = { [a.id]: b.id, [b.id]: a.id, [c.id]: a.id };
-      for (let stage = 1; stage <= 4; stage++) {
-        for (const client of [a, b, c]) {
-          const v = view(client)!;
-          if (v.phase !== "GUESSING" || v.youWrote !== undefined) continue;
-          send(client, { v: 1, t: "submitGuess", answerId: v.answer.id, playerId: target[client.id] });
-          await until(
-            () => view(client)!.myGuess !== undefined || view(client)!.phase !== "GUESSING",
-            `${client.name}'s guess on stage ${stage} to land`,
-          );
+        // The remaining three answer and hand in. No alarm is fired anywhere in
+        // this test: if the room were still waiting on D it would sit here for
+        // the whole answering clock and this would time out.
+        for (const w of [a, b, c]) {
+          send(w, { v: 1, t: "submitEntry", questionIndex: 0, text: `by ${w.name}` });
         }
-        await untilPhase(a, "REVEAL");
-        expect(await expirePhase(code), `REVEAL ${stage} must re-arm`).toBe(true);
         await until(
-          () => phase(a) === (stage === 4 ? "ROUND_END" : "GUESSING"),
-          `stage ${stage} to hand over`,
+          () => [a, b, c].every((w) => view(w)?.myAnswers?.["0"] !== undefined),
+          "the three answers to land",
         );
-      }
+        for (const w of [a, b, c]) send(w, { v: 1, t: "handIn" });
+        await untilPhase(a, "GUESSING");
 
-      const board = view(a)!.scoreboard as { playerId: string; score: number }[];
-      expect(board.find((s) => s.playerId === d.id)!.score)
-        .toBe(3); // three guessers, all fooled, +1 each
-      for (const client of [a, b, c]) client.ws.close();
-    });
+        // D is disconnected, not absent: they are on everybody's candidate list
+        // and their answer is in the pool that the four rounds draw from.
+        expect(view(a)!.candidates as string[]).toContain(d.id);
+        expect(view(a)!.roundCount).toBe(4);
+        for (const client of [a, b, c]) client.ws.close();
+      });
 
     it("resolves the phase when the last player we were waiting on drops", async () => {
       const code = "RDD";
       const [a, b, c] = await seat(code, ["A", "B", "C"]) as [Client, Client, Client];
+      send(a, { v: 1, t: "updateSettings", patch: { questions: 1, standingsEvery: 0 } });
+      await until(() => view(a)?.settings?.questions === 1, "the settings to land");
       send(a, { v: 1, t: "startGame" });
       await untilPhase(a, "INTRO");
       await expirePhase(code);
-      await untilPhase(a, "WRITING");
+      await untilPhase(a, "ANSWERING");
 
-      for (const writer of [a, b]) send(writer, { v: 1, t: "submitEntry", text: `by ${writer.name}` });
-      await until(() => view(b)?.myEntry !== undefined, "B's entry to land");
-      expect(phase(a)).toBe("WRITING");
+      for (const w of [a, b, c]) send(w, { v: 1, t: "submitEntry", questionIndex: 0, text: `by ${w.name}` });
+      await until(
+        () => [a, b, c].every((w) => view(w)?.myAnswers?.["0"] !== undefined), "the answers to land");
+      for (const w of [a, b]) send(w, { v: 1, t: "handIn" });
+      await until(() => (view(a)?.doneCount ?? 0) === 2, "two hand-ins to register");
+      expect(phase(a)).toBe("ANSWERING");
 
       // C's phone locks *last*. No message follows a disconnect, so the close
       // handler is the only chance to notice nobody is left to wait for.
       c.ws.close();
       await untilPhase(a, "GUESSING");
-      expect(view(a)!.answerTotal).toBe(2);
       for (const client of [a, b]) client.ws.close();
     });
   });
 
-  it("survives an eviction mid-round with its stage order and deadline intact", async () => {
+  it("survives an eviction mid-round with its live round and deadline intact", async () => {
     const code = "RDE";
     const [a, b, c] = await seat(code, ["A", "B", "C"]) as [Client, Client, Client];
+    send(a, { v: 1, t: "updateSettings", patch: { questions: 2, standingsEvery: 0 } });
+    await until(() => view(a)?.settings?.questions === 2, "the settings to land");
     send(a, { v: 1, t: "startGame" });
     await untilPhase(a, "INTRO");
     await expirePhase(code);
-    await untilPhase(a, "WRITING");
-    for (const writer of [a, b, c]) send(writer, { v: 1, t: "submitEntry", text: `by ${writer.name}` });
+    await untilPhase(a, "ANSWERING");
+    for (const w of [a, b, c]) {
+      for (let q = 0; q < 2; q++) send(w, { v: 1, t: "submitEntry", questionIndex: q, text: `${w.name}${q}` });
+    }
+    await until(
+      () => [a, b, c].every((w) => Object.keys(view(w)?.myAnswers ?? {}).length === 2),
+      "the answers to land",
+    );
+    for (const w of [a, b, c]) send(w, { v: 1, t: "handIn" });
     await untilPhase(a, "GUESSING");
 
     const before = await stored(code);
@@ -321,9 +381,12 @@ describe("the round loop in the Durable Object", () => {
 
     const after = await stored(code);
     expect(after.phase).toBe("GUESSING");
-    expect(after.rounds[0].order).toEqual(before.rounds[0].order); // the staged order
-    expect(after.rounds[0].stage).toBe(before.rounds[0].stage);
-    expect(after.deadline).toBe(before.deadline); // the deadline is not re-based by a restart
+    expect(after.rounds.length).toBe(before.rounds.length);
+    expect(after.rounds[after.rounds.length - 1].answerId)
+      .toBe(before.rounds[before.rounds.length - 1].answerId);
+    expect(after.rounds[after.rounds.length - 1].questionIndex)
+      .toBe(before.rounds[before.rounds.length - 1].questionIndex);
+    expect(after.deadline).toBe(before.deadline); // not re-based by a restart
 
     // And the restarted instance answers on the same sockets with the same room.
     const guesser = [a, b, c].find((client) => view(client)!.youWrote === undefined)!;
@@ -374,25 +437,33 @@ describe("the round loop in the Durable Object", () => {
     });
   });
 
-  it("recovers when the staged author leaves during their own REVEAL", async () => {
-    // T4 could construct this state but not drive it: the reveal is already
-    // scored and on screen, so T3 lets it finish, which voids the answer the
-    // phase is about. The projection falls back to the contentless INTRO view
-    // (never ROUND_END, which would publish the un-guessed answers).
+  it("recovers when the answer's author leaves during their own REVEAL", async () => {
+    // The reveal is already scored and on screen, so the engine lets it finish,
+    // which voids the answer the phase is about. The projection falls back to
+    // the contentless splash rather than to anything richer.
     const code = "RDH";
     const [a, b, c, d] = await seat(code, ["A", "B", "C", "D"]) as
       [Client, Client, Client, Client];
+    send(a, { v: 1, t: "updateSettings", patch: { questions: 2, rounds: 6, standingsEvery: 0 } });
+    await until(() => view(a)?.settings?.rounds === 6, "the settings to land");
     send(a, { v: 1, t: "startGame" });
     await untilPhase(a, "INTRO");
     await expirePhase(code);
-    await untilPhase(a, "WRITING");
-    for (const writer of [a, b, c, d]) send(writer, { v: 1, t: "submitEntry", text: `by ${writer.name}` });
+    await untilPhase(a, "ANSWERING");
+    for (const w of [a, b, c, d]) {
+      for (let q = 0; q < 2; q++) send(w, { v: 1, t: "submitEntry", questionIndex: q, text: `${w.name}${q}` });
+    }
+    await until(
+      () => [a, b, c, d].every((w) => Object.keys(view(w)?.myAnswers ?? {}).length === 2),
+      "the answers to land",
+    );
+    for (const w of [a, b, c, d]) send(w, { v: 1, t: "handIn" });
     await untilPhase(a, "GUESSING");
 
     // Reach a REVEAL whose author is not the host, so the leaver is an
     // ordinary player and the room stays at MIN_PLAYERS.
     let author = "";
-    for (let stage = 0; stage < 4; stage++) {
+    for (let round = 0; round < 6; round++) {
       expect(await expirePhase(code)).toBe(true);
       await untilPhase(a, "REVEAL");
       author = view(a)!.authorId as string;
@@ -415,17 +486,9 @@ describe("the round loop in the Durable Object", () => {
     // loop moves on to the remaining answers.
     expect(await expirePhase(code), "the voided REVEAL must still re-arm").toBe(true);
     await until(
-      () => phase(a) === "GUESSING" || phase(a) === "ROUND_END",
+      () => phase(a) === "GUESSING" || phase(a) === "FINALE",
       "the loop to continue past the voided answer",
     );
-    if (phase(a) === "GUESSING") {
-      // Three entries left, and the leaver's is not one of them.
-      expect(view(a)!.answerTotal).toBe(3);
-    }
-    let guard = 0;
-    while (phase(a) !== "ROUND_END" && guard++ < 10) await stepAlarm(code, a);
-    expect(phase(a)).toBe("ROUND_END");
-    expect((view(a)!.answers as Frame[]).some((ans) => ans.authorId === author)).toBe(false);
     for (const client of [a, b, c]) client.ws.close();
   });
 });
