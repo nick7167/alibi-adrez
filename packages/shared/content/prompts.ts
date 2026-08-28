@@ -28,6 +28,21 @@ export interface Prompt {
  * Both languages are authored natively rather than translated: where the
  * English leans on something that doesn't land in Danish, the Danish says
  * something else that does.
+ *
+ * **Danish convention, and it is not optional for new prompts:**
+ *
+ *  - **Grammatisk komma (startkomma), consistently** — a comma before every
+ *    subordinate clause: "Det sidste, du søgte efter", "En regel, der burde
+ *    afskaffes". This file was inconsistent about it, which is the single
+ *    clearest tell that a Danish text was not written by a Dane; all 80 were
+ *    normalised in one pass and a new prompt must match.
+ *  - **Compounds are one word** — "realityprogram", never "reality-program".
+ *  - **Say it the way a Dane says it**, not the way the English is built:
+ *    "lader som om de kan lide", not "foregiver at nyde"; "krumme tæer", not
+ *    a literal rendering of "cringe". A calque that parses is still wrong —
+ *    "skurkeoprindelse" was one, and it read as machine output.
+ *  - Where an English idiom has no Danish pendant, write Danish that lands
+ *    the same joke rather than a faithful translation that dies.
  */
 export const PROMPTS: readonly Prompt[] = [
   // ---------------------------------------------------------------- everyday
@@ -35,13 +50,13 @@ export const PROMPTS: readonly Prompt[] = [
     id: "last-search",
     pack: "everyday",
     en: "The last thing you searched for online.",
-    da: "Det sidste du søgte efter på Google.",
+    da: "Det sidste, du søgte efter på Google.",
   },
   {
     id: "pocket-contents",
     pack: "everyday",
     en: "One thing in your pocket or bag right now.",
-    da: "En ting du har i lommen eller tasken lige nu.",
+    da: "En ting, du har i lommen eller tasken lige nu.",
   },
   {
     id: "last-photo",
@@ -59,13 +74,13 @@ export const PROMPTS: readonly Prompt[] = [
     id: "oldest-open-tab",
     pack: "everyday",
     en: "The oldest tab still open on your phone.",
-    da: "Den ældste fane du stadig har åben på telefonen.",
+    da: "Den ældste fane, du stadig har åben på telefonen.",
   },
   {
     id: "notes-app-last-line",
     pack: "everyday",
     en: "The last thing you typed into your notes app.",
-    da: "Det sidste du skrev i din noteapp.",
+    da: "Det sidste, du skrev i din noteapp.",
   },
   {
     id: "phone-greeting",
@@ -77,7 +92,7 @@ export const PROMPTS: readonly Prompt[] = [
     id: "last-message-sent",
     pack: "everyday",
     en: "The last message you sent, word for word.",
-    da: "Den sidste besked du sendte, ord for ord.",
+    da: "Den sidste besked, du sendte, ord for ord.",
   },
   {
     id: "saddest-thing-in-fridge",
@@ -89,7 +104,7 @@ export const PROMPTS: readonly Prompt[] = [
     id: "chore-put-off",
     pack: "everyday",
     en: "The chore you've put off the longest.",
-    da: "Det husarbejde du har udskudt allerlængst.",
+    da: "Det husarbejde, du har udskudt allerlængst.",
   },
   {
     id: "lazy-dinner",
@@ -101,7 +116,7 @@ export const PROMPTS: readonly Prompt[] = [
     id: "song-on-repeat",
     pack: "everyday",
     en: "A song you've played far too much lately.",
-    da: "En sang du har hørt alt for mange gange på det seneste.",
+    da: "En sang, du har hørt alt for meget på det seneste.",
   },
   {
     id: "phone-wallpaper",
@@ -113,31 +128,31 @@ export const PROMPTS: readonly Prompt[] = [
     id: "last-purchase",
     pack: "everyday",
     en: "The last thing you spent money on.",
-    da: "Det sidste du brugte penge på.",
+    da: "Det sidste, du brugte penge på.",
   },
   {
     id: "useless-skill",
     pack: "everyday",
     en: "A completely useless thing you're good at.",
-    da: "En fuldstændig ubrugelig ting du er god til.",
+    da: "En fuldstændig ubrugelig ting, du er god til.",
   },
   {
     id: "daily-ritual",
     pack: "everyday",
     en: "A small thing you do every single day.",
-    da: "En lille ting du gør hver eneste dag.",
+    da: "En lille ting, du gør hver eneste dag.",
   },
   {
     id: "not-your-name",
     pack: "everyday",
     en: "Something you get called that isn't your name.",
-    da: "Noget du bliver kaldt, som ikke er dit navn.",
+    da: "Noget, du bliver kaldt, som ikke er dit navn.",
   },
   {
     id: "last-thing-watched",
     pack: "everyday",
     en: "The last thing you watched on a screen.",
-    da: "Det sidste du så på en skærm.",
+    da: "Det sidste, du så på en skærm.",
   },
   {
     id: "usual-cafe-order",
@@ -155,19 +170,19 @@ export const PROMPTS: readonly Prompt[] = [
     id: "highest-screen-time",
     pack: "everyday",
     en: "The app with your highest screen time.",
-    da: "Den app du har den højeste skærmtid på.",
+    da: "Den app, du har mest skærmtid på.",
   },
   {
     id: "home-alone-mutter",
     pack: "everyday",
     en: "Something you say out loud when nobody is home.",
-    da: "Noget du siger højt, når der ikke er nogen hjemme.",
+    da: "Noget, du siger højt, når der ikke er nogen hjemme.",
   },
   {
     id: "word-you-overuse",
     pack: "everyday",
     en: "A word you say far too often.",
-    da: "Et ord du siger alt for tit.",
+    da: "Et ord, du siger alt for tit.",
   },
   {
     id: "broken-at-home",
@@ -179,7 +194,7 @@ export const PROMPTS: readonly Prompt[] = [
     id: "most-worn-clothing",
     pack: "everyday",
     en: "The item of clothing you wear far too often.",
-    da: "Det stykke tøj du har på alt for ofte.",
+    da: "Det stykke tøj, du har på alt for tit.",
   },
 
   // ---------------------------------------------------------------- opinions
@@ -193,13 +208,13 @@ export const PROMPTS: readonly Prompt[] = [
     id: "film-everyone-loves",
     pack: "opinions",
     en: "A film everyone loves that you think is bad.",
-    da: "En film alle elsker, som du synes er dårlig.",
+    da: "En film, alle elsker, men som du synes er dårlig.",
   },
   {
     id: "worst-common-advice",
     pack: "opinions",
     en: "The worst advice people hand out as if it were wisdom.",
-    da: "Det værste råd folk giver, som om det var visdom.",
+    da: "Det værste råd, folk deler ud, som om det var ren visdom.",
   },
   {
     id: "pointless-invention",
@@ -211,31 +226,31 @@ export const PROMPTS: readonly Prompt[] = [
     id: "overrated-destination",
     pack: "opinions",
     en: "A travel destination that isn't worth the trip.",
-    da: "Et rejsemål der ikke er turen værd.",
+    da: "Et rejsemål, der ikke er turen værd.",
   },
   {
     id: "only-right-crisps",
     pack: "opinions",
     en: "The only correct crisp flavour. Everything else is wrong.",
-    da: "Den eneste rigtige chipssmag – resten er forkerte.",
+    da: "Den eneste rigtige chipssmag – resten er forkert.",
   },
   {
     id: "genre-should-stop",
     pack: "opinions",
     en: "A genre of music that could stop now.",
-    da: "En musikgenre der godt måtte holde op nu.",
+    da: "En musikgenre, der godt måtte stoppe nu.",
   },
   {
     id: "christmas-tradition-to-abolish",
     pack: "opinions",
     en: "The Christmas tradition that should be abolished.",
-    da: "Den juletradition der burde afskaffes.",
+    da: "Den juletradition, der burde afskaffes.",
   },
   {
     id: "adults-pretend-to-enjoy",
     pack: "opinions",
     en: "Something adults pretend to enjoy.",
-    da: "Noget voksne foregiver at nyde.",
+    da: "Noget, voksne bare lader som om de kan lide.",
   },
   {
     id: "worst-weekday",
@@ -253,13 +268,13 @@ export const PROMPTS: readonly Prompt[] = [
     id: "tiny-thing-ruins-day",
     pack: "opinions",
     en: "A tiny thing that can ruin your whole day.",
-    da: "En lillebitte ting der kan ødelægge hele din dag.",
+    da: "En lillebitte ting, der kan ødelægge hele din dag.",
   },
   {
     id: "hill-to-die-on",
     pack: "opinions",
     en: "An opinion you will never back down from.",
-    da: "En holdning du aldrig giver dig på.",
+    da: "En holdning, du aldrig giver dig på.",
   },
   {
     id: "worst-part-of-flying",
@@ -271,25 +286,25 @@ export const PROMPTS: readonly Prompt[] = [
     id: "one-new-law",
     pack: "opinions",
     en: "One rule you'd make law tomorrow.",
-    da: "Én regel du ville gøre til lov i morgen.",
+    da: "Én regel, du ville gøre til lov i morgen.",
   },
   {
     id: "never-worth-the-money",
     pack: "opinions",
     en: "Something that is never worth the money.",
-    da: "Noget der aldrig er pengene værd.",
+    da: "Noget, der aldrig er pengene værd.",
   },
   {
     id: "right-thing-with-fries",
     pack: "opinions",
     en: "The only acceptable thing to dip chips in.",
-    da: "Det eneste rigtige tilbehør til pommes frites.",
+    da: "Det eneste rigtige at dyppe pommes frites i.",
   },
   {
     id: "phrase-banned-from-email",
     pack: "opinions",
     en: "A phrase that should be banned from emails.",
-    da: "En vending der burde forbydes i mails.",
+    da: "En vending, der burde forbydes i mails.",
   },
   {
     id: "worst-kind-of-gift",
@@ -301,7 +316,7 @@ export const PROMPTS: readonly Prompt[] = [
     id: "trend-you-hope-dies",
     pack: "opinions",
     en: "A trend you hope dies this year.",
-    da: "En trend du håber dør i år.",
+    da: "En trend, du håber dør ud i år.",
   },
 
   // ------------------------------------------------------------------ absurd
@@ -309,19 +324,19 @@ export const PROMPTS: readonly Prompt[] = [
     id: "terrible-ride",
     pack: "absurd",
     en: "Name a theme park ride nobody would dare try.",
-    da: "Find på en forlystelse ingen tør prøve.",
+    da: "Find på en forlystelse, ingen tør prøve.",
   },
   {
     id: "villain-origin",
     pack: "absurd",
     en: "Your villain origin story in five words.",
-    da: "Din skurkeoprindelse på fem ord.",
+    da: "Historien om, hvordan du blev skurken – på fem ord.",
   },
   {
     id: "worst-superpower",
     pack: "absurd",
     en: "A superpower that would ruin your life.",
-    da: "En superkraft der ville ødelægge dit liv.",
+    da: "En superkraft, der ville ødelægge dit liv.",
   },
   {
     id: "invent-a-holiday",
@@ -345,13 +360,13 @@ export const PROMPTS: readonly Prompt[] = [
     id: "reality-show-you-would-win",
     pack: "absurd",
     en: "A reality show you would actually win.",
-    da: "Et reality-program du rent faktisk ville vinde.",
+    da: "Et realityprogram, du rent faktisk ville vinde.",
   },
   {
     id: "unwanted-ice-cream-flavour",
     pack: "absurd",
     en: "Invent an ice cream flavour nobody asked for.",
-    da: "Opfind en isvariant ingen har bedt om.",
+    da: "Opfind en issmag, ingen har bedt om.",
   },
   {
     id: "worst-cockpit-announcement",
@@ -375,7 +390,7 @@ export const PROMPTS: readonly Prompt[] = [
     id: "new-olympic-event",
     pack: "absurd",
     en: "A new Olympic event that should not exist.",
-    da: "En ny olympisk disciplin der ikke burde findes.",
+    da: "En ny olympisk disciplin, der ikke burde findes.",
   },
   {
     id: "terrible-advice-for-a-child",
@@ -399,7 +414,7 @@ export const PROMPTS: readonly Prompt[] = [
     id: "museum-nobody-visits",
     pack: "absurd",
     en: "A museum nobody would ever visit.",
-    da: "Et museum ingen nogensinde ville besøge.",
+    da: "Et museum, ingen nogensinde ville besøge.",
   },
   {
     id: "worst-raffle-prize",
@@ -417,13 +432,13 @@ export const PROMPTS: readonly Prompt[] = [
     id: "illegal-sandwich",
     pack: "absurd",
     en: "A sandwich that should be illegal.",
-    da: "En sandwich der burde være forbudt.",
+    da: "En sandwich, der burde være forbudt.",
   },
   {
     id: "your-bar-name",
     pack: "absurd",
     en: "The name of the bar you'd open.",
-    da: "Navnet på den bar du ville åbne.",
+    da: "Navnet på den bar, du ville åbne.",
   },
 
   // ------------------------------------------------------------------- spicy
@@ -431,91 +446,91 @@ export const PROMPTS: readonly Prompt[] = [
     id: "pettiest-grudge",
     pack: "spicy",
     en: "The pettiest reason you've stopped talking to someone.",
-    da: "Den mest smålige grund til at du droppede en ven.",
+    da: "Den mest smålige grund til, at du droppede en ven.",
   },
   {
     id: "last-white-lie",
     pack: "spicy",
     en: "The last white lie you told.",
-    da: "Den seneste hvide løgn du fortalte.",
+    da: "Den seneste hvide løgn, du fortalte.",
   },
   {
     id: "secretly-googled",
     pack: "spicy",
     en: "Something you've googled secretly mid-conversation.",
-    da: "Noget du i smug har googlet midt i en samtale.",
+    da: "Noget, du i smug har googlet midt i en samtale.",
   },
   {
     id: "gift-you-pretended-to-like",
     pack: "spicy",
     en: "A gift you pretended to love.",
-    da: "En gave du lod som om du var glad for.",
+    da: "En gave, du lod som om du var vild med.",
   },
   {
     id: "cringe-memory",
     pack: "spicy",
     en: "A memory that still makes you cringe.",
-    da: "Et minde der stadig får dig til at krumme tæer.",
+    da: "Et minde, der stadig får dig til at krumme tæer.",
   },
   {
     id: "cancelling-excuse",
     pack: "spicy",
     en: "Your go-to excuse for cancelling plans.",
-    da: "Din standardundskyldning når du vil aflyse.",
+    da: "Din standardundskyldning, når du vil aflyse.",
   },
   {
     id: "secret-favourite-song",
     pack: "spicy",
     en: "A song you love but would never admit to.",
-    da: "En sang du elsker, men aldrig ville indrømme.",
+    da: "En sang, du elsker, men aldrig ville indrømme.",
   },
   {
     id: "worst-first-impression",
     pack: "spicy",
     en: "The worst first impression you've ever made.",
-    da: "Det værste førstehåndsindtryk du har givet.",
+    da: "Det værste førstehåndsindtryk, du har givet.",
   },
   {
     id: "deep-scroll",
     pack: "spicy",
     en: "How far back you've scrolled on someone's profile.",
-    da: "Hvor langt tilbage du er kommet på en andens profil.",
+    da: "Hvor langt tilbage du har scrollet på en andens profil.",
   },
   {
     id: "work-confession",
     pack: "spicy",
     en: "Something from work you'd never tell your boss.",
-    da: "Noget fra arbejdet du aldrig ville fortælle din chef.",
+    da: "Noget fra arbejdet, du aldrig ville fortælle din chef.",
   },
   {
     id: "pettiest-revenge",
     pack: "spicy",
     en: "The pettiest revenge you've ever taken.",
-    da: "Den mest smålige hævn du har taget.",
+    da: "Den mest smålige hævn, du har taget.",
   },
   {
     id: "took-home-not-yours",
     pack: "spicy",
     en: "The last thing you took home that wasn't yours.",
-    da: "Det sidste du tog med hjem, som ikke var dit.",
+    da: "Det sidste, du tog med hjem, som ikke var dit.",
   },
   {
     id: "told-a-stranger",
     pack: "spicy",
     en: "Something you've told a stranger that you shouldn't have.",
-    da: "Noget du har fortalt en fremmed, som du ikke burde.",
+    da: "Noget, du har fortalt en fremmed, som du ikke burde.",
   },
   {
     id: "rule-you-break",
     pack: "spicy",
     en: "A rule you break constantly with a clear conscience.",
-    da: "En regel du bryder hele tiden med god samvittighed.",
+    da: "En regel, du bryder hele tiden med god samvittighed.",
   },
   {
     id: "quietly-jealous",
     pack: "spicy",
     en: "Something you're quietly jealous of.",
-    da: "Noget du i det stille er misundelig på.",
+    da: "Noget, du i det stille er misundelig på.",
   },
 ] as const;
 
