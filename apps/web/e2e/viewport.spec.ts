@@ -115,17 +115,56 @@ test('the lobby and the answering screen hold up at 390x420', async ({
 			await expectUsable(host, `dec-${key}`, `lobby ${size.height}`);
 		}
 		await expectUsable(host, 'toggle-timings', `lobby ${size.height}`);
+		// Every dial explains itself, and the disclosure keeps a real touch
+		// target — the label and the (i) are one control for exactly that reason.
+		for (const key of ['questions', 'rounds']) {
+			await expectUsable(host, `help-${key}`, `lobby ${size.height}`);
+		}
 		// Start is the lobby's primary action and is pinned, not scrolled to.
 		await expectPinned(host, 'start-game', `lobby ${size.height}`);
 	}
 
 	// The timing disclosure open is the worst case for this screen.
 	await host.setViewportSize(SHORT);
+	// Opening a dial's explanation must not push the primary action off screen
+	// or start the page scrolling — it lands inside the panel's scroll region.
+	await host.getByTestId('help-questions').click();
+	await expect(host.getByTestId('help-text-questions')).toBeVisible();
+	await expectNoPageScroll(host, 'lobby 420 with help open');
+	await expectPinned(host, 'start-game', 'lobby 420 with help open');
+	// One at a time: opening another closes the first.
+	await host.getByTestId('help-rounds').click();
+	await expect(host.getByTestId('help-text-rounds')).toBeVisible();
+	await expect(host.getByTestId('help-text-questions')).toHaveCount(0);
+	await host.getByTestId('help-rounds').click();
+	await expect(host.getByTestId('help-text-rounds')).toHaveCount(0);
+
 	await host.getByTestId('toggle-timings').click();
 	await expect(host.getByTestId('timing-fields')).toBeVisible();
 	await expectNoPageScroll(host, 'lobby 420 with timings open');
 	for (const key of ['answerSec', 'guessSec', 'revealSec', 'standingsEvery']) {
 		await expectUsable(host, `inc-${key}`, 'lobby 420 timings');
+		await expectUsable(host, `help-${key}`, 'lobby 420 timings');
+	}
+	// Every timing dial's explanation opens, reads, and — the part that was
+	// broken until it was measured — ends up actually ON SCREEN. A dial near
+	// the bottom of a scrolling panel otherwise expands below the fold, and the
+	// host sees nothing happen at all.
+	for (const key of ['answerSec', 'guessSec', 'revealSec', 'standingsEvery']) {
+		await host.getByTestId(`help-${key}`).click();
+		const text = host.getByTestId(`help-text-${key}`);
+		await expect(text).toBeVisible();
+		expect((await text.textContent())!.trim().length).toBeGreaterThan(30);
+		await expectNoPageScroll(host, `lobby 420 with ${key} help open`);
+
+		await host.waitForTimeout(450); // the scroll-into-view is smooth
+		const box = (await text.boundingBox())!;
+		const inner = await host.evaluate(() => window.innerHeight);
+		// At least part of the explanation must be in the viewport.
+		expect(box.y, `${key} help opened below the fold`).toBeLessThan(inner);
+		expect(box.y + box.height, `${key} help opened above the fold`).toBeGreaterThan(0);
+
+		await host.getByTestId(`help-${key}`).click();
 	}
 	await host.getByTestId('toggle-timings').click();
 

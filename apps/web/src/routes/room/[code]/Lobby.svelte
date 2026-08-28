@@ -30,6 +30,7 @@
 	 * `.leader` (the settings rows). The rest went with T9's landing page and
 	 * rulebook rewrite.
 	 */
+	import { tick } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import {
 		DEFAULT_SETTINGS,
@@ -114,15 +115,15 @@
 	   (behind a disclosure). Six dials plus four pack switches do not fit flat
 	   at 390×420, and the short-viewport rule is not negotiable. */
 	const BASIC_FIELDS = [
-		{ key: 'questions', unit: '', labelKey: 'lobby.settings.questions' },
-		{ key: 'rounds', unit: '', labelKey: 'lobby.settings.rounds' }
+		{ key: 'questions', unit: '', labelKey: 'lobby.settings.questions', helpKey: 'lobby.help.questions' },
+		{ key: 'rounds', unit: '', labelKey: 'lobby.settings.rounds', helpKey: 'lobby.help.rounds' }
 	] as const;
 
 	const TIMING_FIELDS = [
-		{ key: 'answerSec', unit: 's', labelKey: 'lobby.settings.answering' },
-		{ key: 'guessSec', unit: 's', labelKey: 'lobby.settings.guessing' },
-		{ key: 'revealSec', unit: 's', labelKey: 'lobby.settings.reveal' },
-		{ key: 'standingsEvery', unit: '', labelKey: 'lobby.settings.standings' }
+		{ key: 'answerSec', unit: 's', labelKey: 'lobby.settings.answering', helpKey: 'lobby.help.answerSec' },
+		{ key: 'guessSec', unit: 's', labelKey: 'lobby.settings.guessing', helpKey: 'lobby.help.guessSec' },
+		{ key: 'revealSec', unit: 's', labelKey: 'lobby.settings.reveal', helpKey: 'lobby.help.revealSec' },
+		{ key: 'standingsEvery', unit: '', labelKey: 'lobby.settings.standings', helpKey: 'lobby.help.standingsEvery' }
 	] as const;
 
 	type FieldKey = (typeof BASIC_FIELDS)[number]['key'] | (typeof TIMING_FIELDS)[number]['key'];
@@ -131,6 +132,36 @@
 	type LabelKey =
 		| (typeof BASIC_FIELDS)[number]['labelKey']
 		| (typeof TIMING_FIELDS)[number]['labelKey'];
+	type HelpKey =
+		| (typeof BASIC_FIELDS)[number]['helpKey']
+		| (typeof TIMING_FIELDS)[number]['helpKey'];
+
+	/* Which dial is explaining itself, if any. One at a time: the panel sits in
+	   a scroll region on a 420px-tall screen, and six open paragraphs would
+	   bury the steppers under prose the host has already read. */
+	let openHelp = $state<FieldKey | null>(null);
+
+	/**
+	 * Open a dial's explanation and make sure it is actually on screen.
+	 *
+	 * The settings panel scrolls inside its own box, so a dial near the bottom
+	 * expands text below the fold — the host taps the (i) and, as far as they
+	 * can tell, nothing happens. Measured at 390x420: opening the standings
+	 * help left it entirely out of view. `block: 'nearest'` scrolls the
+	 * minimum needed rather than yanking the panel around.
+	 */
+	async function toggleHelp(key: FieldKey) {
+		const opening = openHelp !== key;
+		openHelp = opening ? key : null;
+		if (!opening) return;
+		await tick();
+		const reduced =
+			typeof matchMedia === 'function' &&
+			matchMedia('(prefers-reduced-motion: reduce)').matches;
+		document
+			.getElementById(`help-text-${key}`)
+			?.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+	}
 
 	let showTimings = $state(false);
 
@@ -455,12 +486,34 @@
 					<!-- A stepper row. One snippet for both groups, so the touch
 					     targets, the hold-to-repeat wiring and the disabled bounds
 					     cannot drift apart between them. -->
-					{#snippet dial(key: FieldKey, unit: string, labelKey: LabelKey)}
+					{#snippet dial(key: FieldKey, unit: string, labelKey: LabelKey, helpKey: HelpKey)}
 						{@const b = SETTINGS_BOUNDS[key]}
+						{@const explaining = openHelp === key}
 						<div class="flex min-h-[48px] items-center gap-2">
-							<span class="min-w-0 flex-1 text-[14px] font-semibold" id={`setting-${key}`}>
-								{m[labelKey]()}
-							</span>
+							<!-- The whole label is the disclosure, not just the 16px
+							     glyph: a tappable icon that small fails the 44px touch
+							     target, and padding it out to 44px would cost the row
+							     width the steppers need at 390px. So the label and the
+							     icon are one control, and the row keeps its height. -->
+							<button
+								type="button"
+								data-testid={`help-${key}`}
+								aria-expanded={explaining}
+								aria-controls={`help-text-${key}`}
+								onclick={() => toggleHelp(key)}
+								class="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 text-left"
+							>
+								<span class="min-w-0 truncate text-[14px] font-semibold" id={`setting-${key}`}>
+									{m[labelKey]()}
+								</span>
+								<span
+									class="grid size-[18px] shrink-0 place-items-center rounded-full border-[1.5px] text-[11px] font-extrabold transition-colors {explaining
+										? 'border-action bg-action text-ink'
+										: 'border-white/40 text-white/60'}"
+									aria-hidden="true">i</span
+								>
+								<span class="sr-only">{m['lobby.help.open']()}</span>
+							</button>
 							<span
 								class="flex shrink-0 items-center gap-1.5"
 								role="group"
@@ -533,12 +586,21 @@
 								</button>
 							</span>
 						</div>
+						{#if explaining}
+							<p
+								id={`help-text-${key}`}
+								data-testid={`help-text-${key}`}
+								class="-mt-0.5 mb-1 rounded-xl bg-ink/25 px-3 py-2 text-[12px] leading-snug font-medium text-white/85"
+							>
+								{m[helpKey]()}
+							</p>
+						{/if}
 					{/snippet}
 
 					<!-- What the game IS: always visible. -->
 					<div class="flex flex-col gap-1">
 						{#each BASIC_FIELDS as f (f.key)}
-							{@render dial(f.key, f.unit, f.labelKey)}
+							{@render dial(f.key, f.unit, f.labelKey, f.helpKey)}
 						{/each}
 					</div>
 
@@ -563,7 +625,12 @@
 						type="button"
 						data-testid="toggle-timings"
 						aria-expanded={showTimings}
-						onclick={() => (showTimings = !showTimings)}
+						onclick={() => {
+							showTimings = !showTimings;
+							// Don't leave a hidden dial's explanation open behind the
+							// disclosure — reopening it would show prose nobody asked for.
+							if (!showTimings) openHelp = null;
+						}}
 						class="flex min-h-11 items-center justify-between gap-2 rounded-2xl bg-white/10 px-3 text-left"
 					>
 						<span class="text-[11px] font-extrabold tracking-[0.16em] text-action uppercase">
@@ -593,7 +660,7 @@
 					{#if showTimings}
 						<div data-testid="timing-fields" class="flex flex-col gap-1">
 							{#each TIMING_FIELDS as f (f.key)}
-								{@render dial(f.key, f.unit, f.labelKey)}
+								{@render dial(f.key, f.unit, f.labelKey, f.helpKey)}
 							{/each}
 						</div>
 					{/if}
