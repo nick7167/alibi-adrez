@@ -33,8 +33,11 @@ export interface RoomSocket {
 	send(msg: ClientMessage): void;
 	close(): void;
 	leave(): void;
-	/** WRITING: answer the prompt. An upsert — send it again to edit. */
-	submitEntry(text: string): void;
+	/** ANSWERING: answer one question. An upsert — send it again to edit; the
+	    server mints that answer's id once, so an edit never re-slots it. */
+	submitEntry(questionIndex: number, text: string): void;
+	/** ANSWERING: "I'm done." Idempotent, and legal with questions left blank. */
+	handIn(): void;
 	/** GUESSING: accuse `playerId` of writing `answerId`. The answerId is sent
 	    explicitly so a tap that lands after the stage moved on is rejected
 	    rather than applied to whatever is on screen now. */
@@ -178,8 +181,11 @@ export function openRoomSocket(code: string, opts: RoomSocketOptions): RoomSocke
 			}
 			shutdown();
 		},
-		submitEntry(text: string): void {
-			send({ v: PROTOCOL_VERSION, t: "submitEntry", text });
+		submitEntry(questionIndex: number, text: string): void {
+			send({ v: PROTOCOL_VERSION, t: "submitEntry", questionIndex, text });
+		},
+		handIn(): void {
+			send({ v: PROTOCOL_VERSION, t: "handIn" });
 		},
 		submitGuess(answerId: string, playerId: string): void {
 			send({ v: PROTOCOL_VERSION, t: "submitGuess", answerId, playerId });

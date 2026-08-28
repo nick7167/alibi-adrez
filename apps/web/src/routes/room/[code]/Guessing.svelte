@@ -11,7 +11,7 @@
 	 * Four protocol facts this screen exists to honour, all of them load-bearing:
 	 *
 	 *  1. **`candidates` is rendered exactly as it arrives.** The server already
-	 *     computes "everyone except me" — including players who wrote nothing.
+	 *     computes "everyone except me" — including players who answered nothing.
 	 *     Filtering it here to writers, or dropping the author, is precisely the
 	 *     leak the whole view shape is designed to prevent, so this screen never
 	 *     touches the array (docs/plans/plan3-ledger.md, T4 ruling 27).
@@ -22,12 +22,12 @@
 	 *     a full snapshot every time *anybody* guesses; re-seeding local state
 	 *     from each one fights the reader's own selection. Same hazard as
 	 *     `myEntry` on the Writing screen (ledger ruling 46) — with the extra
-	 *     twist that the latch has to reset when the stage moves to a new
+	 *     twist that the latch has to reset when a new round brings a new
 	 *     `answer.id`, which can happen without an intervening REVEAL when the
-	 *     staged author leaves (T3 ruling 23).
+	 *     answer's author leaves and the round is abandoned.
 	 *  4. **The grid locks client-side the moment the phase is over,** rather than
 	 *     waiting for the server's `STALE_ANSWER`. A tap landing 200ms after the
-	 *     stage advanced is a real race on a phone: the server rejects it
+	 *     round advanced is a real race on a phone: the server rejects it
 	 *     correctly, but the player would see their chip light up and then
 	 *     silently do nothing. The lock is driven by a local ticker against the
 	 *     deadline, so it engages the instant the clock runs out — before the
@@ -59,8 +59,13 @@
 	/* Rendered as given — never recomputed from `order`, which counts voided
 	   slots too. A leaver turns "2 of 4" into "2 of 3" mid-round and that is
 	   the honest reading (ledger, "The staged counter after a void"). */
+	/* A round is one question and one answer to it, so the round counter IS
+	   the answer counter — there is no separate within-round position any
+	   more. `roundCount` is the server's effective count: it shrinks honestly
+	   when a leaver takes answers out of the pool, so it never promises a
+	   round that cannot happen. Rendered as given, never recomputed. */
 	const dots = $derived(
-		Array.from({ length: Math.max(room.answerTotal, room.answerIndex, 1) }, (_, i) => i + 1)
+		Array.from({ length: Math.max(room.roundCount, room.round, 1) }, (_, i) => i + 1)
 	);
 	/** Everyone but the author guesses, so the denominator is players − 1. */
 	const guesserTotal = $derived(Math.max(0, room.players.length - 1));
@@ -126,16 +131,16 @@
 			<div class="flex items-center gap-1.5" aria-hidden="true">
 				{#each dots as n (n)}
 					<span
-						class="block rounded-full {n === room.answerIndex
+						class="block rounded-full {n === room.round
 							? 'size-3.5 bg-action ring-4 ring-action/25'
-							: n < room.answerIndex
+							: n < room.round
 								? 'size-2.5 bg-action/60'
 								: 'size-2.5 bg-white/30'}"
 					></span>
 				{/each}
 			</div>
 			<span data-testid="answer-progress" class="truncate text-[13px] font-semibold text-white/85">
-				{m['game.answerProgress']({ index: room.answerIndex, total: room.answerTotal })}
+				{m['game.round']({ round: room.round, roundCount: room.roundCount })}
 			</span>
 		</div>
 

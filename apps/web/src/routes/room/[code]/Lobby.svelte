@@ -36,6 +36,10 @@
 		MAX_PLAYERS,
 		MIN_PLAYERS,
 		PACK_IDS,
+		PROMPTS,
+		SETTINGS_BOUNDS,
+		INTRO_MS,
+		STANDINGS_MS,
 		type LobbyView,
 		type PackId,
 		type Settings
@@ -102,14 +106,33 @@
 
 	/* ---- host settings ------------------------------------------------ */
 
-	/* Ranges mirror the clamps in shared/src/state.ts's `nextSettings` — the
-	   server is authoritative, these just keep a stepper from sending a value
-	   it would clamp anyway, and from offering a tap that does nothing. */
-	const NUM_FIELDS = [
-		{ key: 'rounds', min: 1, max: 10, step: 1, unit: '', labelKey: 'lobby.settings.rounds' },
-		{ key: 'writeSec', min: 20, max: 120, step: 5, unit: 's', labelKey: 'lobby.settings.writing' },
-		{ key: 'guessSec', min: 10, max: 60, step: 5, unit: 's', labelKey: 'lobby.settings.guessing' }
+	/* Bounds come from SETTINGS_BOUNDS in the protocol — the same table
+	   `nextSettings` clamps against, so a stepper can never offer a tap the
+	   server would clamp away and the numbers live in exactly one place.
+
+	   Two groups: what the game IS (visible), and how long each beat lasts
+	   (behind a disclosure). Six dials plus four pack switches do not fit flat
+	   at 390×420, and the short-viewport rule is not negotiable. */
+	const BASIC_FIELDS = [
+		{ key: 'questions', unit: '', labelKey: 'lobby.settings.questions' },
+		{ key: 'rounds', unit: '', labelKey: 'lobby.settings.rounds' }
 	] as const;
+
+	const TIMING_FIELDS = [
+		{ key: 'answerSec', unit: 's', labelKey: 'lobby.settings.answering' },
+		{ key: 'guessSec', unit: 's', labelKey: 'lobby.settings.guessing' },
+		{ key: 'revealSec', unit: 's', labelKey: 'lobby.settings.reveal' },
+		{ key: 'standingsEvery', unit: '', labelKey: 'lobby.settings.standings' }
+	] as const;
+
+	type FieldKey = (typeof BASIC_FIELDS)[number]['key'] | (typeof TIMING_FIELDS)[number]['key'];
+	/** Keeps `m[labelKey]` typed: the catalogue has no string index signature,
+	    so the snippet takes the literal union the field lists actually carry. */
+	type LabelKey =
+		| (typeof BASIC_FIELDS)[number]['labelKey']
+		| (typeof TIMING_FIELDS)[number]['labelKey'];
+
+	let showTimings = $state(false);
 
 	/** Order is the reading order of the panel; `spicy` sits last and off. */
 	const PACKS = [
@@ -127,7 +150,7 @@
 
 	$effect(() => {
 		const s = room.settings;
-		for (const f of NUM_FIELDS) {
+		for (const f of [...BASIC_FIELDS, ...TIMING_FIELDS]) {
 			if (!(f.key in pendingPatch)) draft[f.key] = s[f.key];
 		}
 		if (!('packs' in pendingPatch)) draft.packs = [...s.packs];
@@ -145,13 +168,68 @@
 		}, 300);
 	}
 
-	function bump(f: (typeof NUM_FIELDS)[number], dir: 1 | -1) {
-		const next = Math.min(f.max, Math.max(f.min, draft[f.key] + dir * f.step));
-		draft[f.key] = next;
-		queue({ [f.key]: next });
+	function bump(key: FieldKey, dir: 1 | -1) {
+		const b = SETTINGS_BOUNDS[key];
+		const next = Math.min(b.max, Math.max(b.min, draft[key] + dir * b.step));
+		if (next === draft[key]) return;
+		draft[key] = next;
+		queue({ [key]: next });
 	}
 
-	const enabled = $derived(new Set<PackId>(draft.packs));
+	/* ---- hold to repeat ------------------------------------------------ */
+
+	/* Rounds runs to 40 and answer time to 600s at a 15s step, so reaching the
+	   far end is ~30 taps. A press-and-hold that accelerates makes the long
+	   ranges usable without shrinking the 44px touch targets or splitting the
+	   dials into coarse and fine controls. Pointer events, so it works for
+	   touch and mouse alike; every exit path clears the timer. */
+	let holdTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function stopHold() {
+		if (holdTimer !== null) clearTimeout(holdTimer);
+		holdTimer = null;
+	}
+
+	function startHold(key: FieldKey, dir: 1 | -1) {
+		stopHold();
+		let delay = 340;
+		const tick = () => {
+			bump(key, dir);
+			delay = Math.max(40, delay * 0.82);
+			holdTimer = setTimeout(tick, delay);
+		};
+		holdTimer = setTimeout(tick, delay);
+	}
+
+	/* ---- what the host is actually choosing ---------------------------- */
+
+	/** Distinct prompts the chosen packs hold. Every question in a game is
+	    distinct, so this is the real ceiling on the questions dial — a host on
+	    one small pack cannot have twenty. */
+	const packCapacity = $derived(PROMPTS.filter((p) => enabledPacks.has(p.pack)).length);
+	const questionsCapped = $derived(draft.questions > packCapacity);
+	/** The answer pool: everyone's answers to every question. Rounds cannot
+	    exceed it — the game cannot ask about an answer nobody wrote. */
+	const poolSize = $derived(Math.min(draft.questions, packCapacity) * room.players.length);
+	const roundsCapped = $derived(draft.rounds > poolSize);
+
+	/** Roughly how long this game will run, so a host choosing an hour is
+	    choosing it rather than discovering it. Uses the same numbers the
+	    engine does. */
+	const estimateMinutes = $derived.by(() => {
+		const rounds = Math.min(draft.rounds, poolSize);
+		const beats =
+			draft.standingsEvery > 0 ? Math.max(0, Math.ceil(rounds / draft.standingsEvery) - 1) : 0;
+		const ms =
+			INTRO_MS +
+			draft.answerSec * 1000 +
+			rounds * (draft.guessSec + draft.revealSec) * 1000 +
+			beats * STANDINGS_MS;
+		return Math.max(1, Math.round(ms / 60000));
+	});
+
+	const enabledPacks = $derived(new Set<PackId>(draft.packs));
+	const enabled = $derived(enabledPacks);
 	/** The server ignores a patch that would empty `packs`, so the UI must not
 	    offer the tap at all — see the header comment. */
 	const lastPackOn = $derived(enabled.size <= 1);
@@ -198,6 +276,7 @@
 			pendingPatch = {};
 			if (copiedTimer !== null) clearTimeout(copiedTimer);
 			copiedTimer = null;
+			stopHold();
 		};
 	});
 
@@ -292,6 +371,10 @@
 					<h3 class="text-[11px] font-extrabold tracking-[0.16em] text-action uppercase">
 						{m['lobby.settings.packs']()}
 					</h3>
+					<p data-testid="guest-shape" class="text-[12px] font-semibold text-white/70">
+						{m['lobby.settings.questions']()}: {room.settings.questions} ·
+						{m['lobby.settings.rounds']()}: {room.settings.rounds}
+					</p>
 					<div class="flex flex-wrap gap-1.5">
 						{#each PACKS as pack (pack.id)}
 							{@const on = room.settings.packs.includes(pack.id)}
@@ -369,68 +452,145 @@
 						{m['lobby.settings.title']()}
 					</h3>
 
-					<div class="flex flex-col gap-1">
-						{#each NUM_FIELDS as f (f.key)}
-							<div class="flex min-h-[48px] items-center gap-2">
-								<span class="min-w-0 flex-1 text-[14px] font-semibold" id={`setting-${f.key}`}>
-									{m[f.labelKey]()}
-								</span>
-								<span
-									class="flex shrink-0 items-center gap-1.5"
-									role="group"
-									aria-labelledby={`setting-${f.key}`}
+					<!-- A stepper row. One snippet for both groups, so the touch
+					     targets, the hold-to-repeat wiring and the disabled bounds
+					     cannot drift apart between them. -->
+					{#snippet dial(key: FieldKey, unit: string, labelKey: LabelKey)}
+						{@const b = SETTINGS_BOUNDS[key]}
+						<div class="flex min-h-[48px] items-center gap-2">
+							<span class="min-w-0 flex-1 text-[14px] font-semibold" id={`setting-${key}`}>
+								{m[labelKey]()}
+							</span>
+							<span
+								class="flex shrink-0 items-center gap-1.5"
+								role="group"
+								aria-labelledby={`setting-${key}`}
+							>
+								<button
+									type="button"
+									data-testid={`dec-${key}`}
+									aria-label={`− ${m[labelKey]()}`}
+									disabled={draft[key] <= b.min}
+									onclick={() => bump(key, -1)}
+									onpointerdown={() => startHold(key, -1)}
+									onpointerup={stopHold}
+									onpointerleave={stopHold}
+									onpointercancel={stopHold}
+									class="grid size-11 place-items-center rounded-full bg-surface-2 text-white disabled:opacity-25"
 								>
-									<button
-										type="button"
-										data-testid={`dec-${f.key}`}
-										aria-label={`− ${m[f.labelKey]()}`}
-										disabled={draft[f.key] <= f.min}
-										onclick={() => bump(f, -1)}
-										class="grid size-11 place-items-center rounded-full bg-surface-2 text-white disabled:opacity-25"
+									<svg
+										width="18"
+										height="18"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="3.5"
+										stroke-linecap="round"
+										aria-hidden="true"
 									>
-										<svg
-											width="18"
-											height="18"
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="3.5"
-											stroke-linecap="round"
-											aria-hidden="true"
-										>
-											<path d="M6 12h12" />
-										</svg>
-									</button>
-									<span
-										class="w-[46px] text-center font-display text-[19px] font-bold text-action tabular-nums"
-									>
-										<span data-testid={`value-${f.key}`}>{draft[f.key]}</span>{f.unit}
-									</span>
-									<button
-										type="button"
-										data-testid={`inc-${f.key}`}
-										aria-label={`+ ${m[f.labelKey]()}`}
-										disabled={draft[f.key] >= f.max}
-										onclick={() => bump(f, 1)}
-										class="grid size-11 place-items-center rounded-full bg-surface-2 text-white disabled:opacity-25"
-									>
-										<svg
-											width="18"
-											height="18"
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="3.5"
-											stroke-linecap="round"
-											aria-hidden="true"
-										>
-											<path d="M12 6v12M6 12h12" />
-										</svg>
-									</button>
+										<path d="M6 12h12" />
+									</svg>
+								</button>
+								<span
+									class="w-[52px] text-center font-display text-[19px] font-bold text-action tabular-nums"
+								>
+									{#if key === 'standingsEvery' && draft[key] === 0}
+										<span data-testid={`value-${key}`}>{m['lobby.settings.standingsOff']()}</span>
+									{:else}
+										<span data-testid={`value-${key}`}>{draft[key]}</span>{unit}
+									{/if}
 								</span>
-							</div>
+								<button
+									type="button"
+									data-testid={`inc-${key}`}
+									aria-label={`+ ${m[labelKey]()}`}
+									disabled={draft[key] >= b.max}
+									onclick={() => bump(key, 1)}
+									onpointerdown={() => startHold(key, 1)}
+									onpointerup={stopHold}
+									onpointerleave={stopHold}
+									onpointercancel={stopHold}
+									class="grid size-11 place-items-center rounded-full bg-surface-2 text-white disabled:opacity-25"
+								>
+									<svg
+										width="18"
+										height="18"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="3.5"
+										stroke-linecap="round"
+										aria-hidden="true"
+									>
+										<path d="M12 6v12M6 12h12" />
+									</svg>
+								</button>
+							</span>
+						</div>
+					{/snippet}
+
+					<!-- What the game IS: always visible. -->
+					<div class="flex flex-col gap-1">
+						{#each BASIC_FIELDS as f (f.key)}
+							{@render dial(f.key, f.unit, f.labelKey)}
 						{/each}
 					</div>
+
+					<!-- The two caps the host cannot see from the numbers alone.
+					     Both are enforced by the engine; saying so beats letting a
+					     host set 20 questions and quietly get 15. -->
+					{#if questionsCapped}
+						<p data-testid="questions-cap" class="text-[11.5px] leading-snug font-medium text-white/70">
+							{m['lobby.settings.questionsCapped']({ max: packCapacity })}
+						</p>
+					{/if}
+					{#if roundsCapped}
+						<p data-testid="rounds-cap" class="text-[11.5px] leading-snug font-medium text-white/70">
+							{m['lobby.settings.roundsCapped']({ players: room.players.length, max: poolSize })}
+						</p>
+					{/if}
+
+					<!-- How long each beat lasts: behind a disclosure, because six
+					     dials plus four pack switches do not fit at 390×420 and the
+					     answering/guessing counts are what a host actually tunes. -->
+					<button
+						type="button"
+						data-testid="toggle-timings"
+						aria-expanded={showTimings}
+						onclick={() => (showTimings = !showTimings)}
+						class="flex min-h-11 items-center justify-between gap-2 rounded-2xl bg-white/10 px-3 text-left"
+					>
+						<span class="text-[11px] font-extrabold tracking-[0.16em] text-action uppercase">
+							{m['lobby.settings.timings']()}
+						</span>
+						<span class="flex items-center gap-2">
+							<span data-testid="length-estimate" class="text-[12px] font-semibold text-white/70">
+								{m['lobby.settings.estimate']({ minutes: estimateMinutes })}
+							</span>
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="3"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+								class="text-white/70 transition-transform {showTimings ? 'rotate-180' : ''}"
+							>
+								<path d="m6 9 6 6 6-6" />
+							</svg>
+						</span>
+					</button>
+
+					{#if showTimings}
+						<div data-testid="timing-fields" class="flex flex-col gap-1">
+							{#each TIMING_FIELDS as f (f.key)}
+								{@render dial(f.key, f.unit, f.labelKey)}
+							{/each}
+						</div>
+					{/if}
 
 					<div class="flex flex-col gap-1.5">
 						<h4 id="packs-label" class="text-[11px] font-extrabold tracking-[0.16em] text-action uppercase">

@@ -16,11 +16,11 @@
 	 *    included, in roster order (T3 ruling 22). It is rendered, never
 	 *    recomputed (T4 ruling 32) — `guesses` likewise lists only the players
 	 *    who actually cast one.
-	 *  - `answerIndex` / `answerTotal` are live, non-voided values and are shown
-	 *    as given.
-	 *  - A REVEAL whose staged author leaves mid-phase collapses to the
-	 *    contentless INTRO view (T4 ruling 29, confirmed over a socket in T5
-	 *    ruling 40). That is the router's business — this component is simply
+	 *  - The round counter is the answer counter: a round is one question and
+	 *    one answer to it. `roundCount` is the server's effective count and
+	 *    shrinks honestly when a leaver empties part of the pool.
+	 *  - A REVEAL whose author leaves mid-phase collapses to the contentless
+	 *    INTRO view. That is the router's business — this component is simply
 	 *    unmounted, and must not treat it as an error.
 	 *
 	 * One presentation decision: the reader's own award line is hoisted to the
@@ -50,8 +50,13 @@
 	const author = $derived(byId.get(room.authorId));
 	const youWrote = $derived(room.authorId === you);
 
+	/* A round is one question and one answer to it, so the round counter IS
+	   the answer counter — there is no separate within-round position any
+	   more. `roundCount` is the server's effective count: it shrinks honestly
+	   when a leaver takes answers out of the pool, so it never promises a
+	   round that cannot happen. Rendered as given, never recomputed. */
 	const dots = $derived(
-		Array.from({ length: Math.max(room.answerTotal, room.answerIndex, 1) }, (_, i) => i + 1)
+		Array.from({ length: Math.max(room.roundCount, room.round, 1) }, (_, i) => i + 1)
 	);
 
 	/** One row per `awarded` line, joined to `guesses`. Nothing is recomputed:
@@ -88,16 +93,16 @@
 			<div class="flex items-center gap-1.5" aria-hidden="true">
 				{#each dots as n (n)}
 					<span
-						class="block rounded-full {n === room.answerIndex
+						class="block rounded-full {n === room.round
 							? 'size-3.5 bg-action ring-4 ring-action/25'
-							: n < room.answerIndex
+							: n < room.round
 								? 'size-2.5 bg-action/60'
 								: 'size-2.5 bg-white/30'}"
 					></span>
 				{/each}
 			</div>
 			<span data-testid="answer-progress" class="truncate text-[13px] font-semibold text-white/85">
-				{m['game.answerProgress']({ index: room.answerIndex, total: room.answerTotal })}
+				{m['game.round']({ round: room.round, roundCount: room.roundCount })}
 			</span>
 		</div>
 

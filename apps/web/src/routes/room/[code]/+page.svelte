@@ -8,10 +8,10 @@
 	import type { Phase, RoomView, ServerMessage, Settings } from '@aha/shared';
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';
-	import Writing from './Writing.svelte';
+	import Answering from './Answering.svelte';
 	import Guessing from './Guessing.svelte';
 	import Reveal from './Reveal.svelte';
-	import RoundEnd from './RoundEnd.svelte';
+	import Standings from './Standings.svelte';
 	import Finale from './Finale.svelte';
 
 	let { data } = $props();
@@ -146,13 +146,21 @@
 		sockRef?.send({ v: 1, t: 'updateSettings', patch });
 	}
 
-	/** WRITING: hand in an answer. An upsert — send it again to edit. */
-	function submitEntry(text: string) {
-		sockRef?.submitEntry(text);
+	/** ANSWERING: answer one question. An upsert — send it again to edit, and
+	    the server keeps the same answerId so an edit never re-slots it. */
+	function submitEntry(questionIndex: number, text: string) {
+		sockRef?.submitEntry(questionIndex, text);
 	}
 
-	/** GUESSING: accuse one player of writing the staged answer. The
-	    `answerId` travels with the tap so a guess that lands after the stage
+	/** ANSWERING: "I have written what I am going to write." Legal with
+	    questions left blank, and idempotent — the screen may send it again
+	    after an edit without any special casing. */
+	function handIn() {
+		sockRef?.handIn();
+	}
+
+	/** GUESSING: accuse one player of writing the answer on screen. The
+	    `answerId` travels with the tap so a guess that lands after the round
 	    advanced is rejected as STALE_ANSWER rather than applied to the next
 	    answer — the screen locks its grid client-side for the same race. */
 	function submitGuess(answerId: string, playerId: string) {
@@ -257,14 +265,20 @@
 				</span>
 			</div>
 		</section>
-	{:else if view?.room.phase === 'WRITING'}
-		<Writing room={view.room} {offset} onSubmit={submitEntry} onLeave={leaveRoom} />
+	{:else if view?.room.phase === 'ANSWERING'}
+		<Answering
+			room={view.room}
+			{offset}
+			onSubmit={submitEntry}
+			onHandIn={handIn}
+			onLeave={leaveRoom}
+		/>
 	{:else if view?.room.phase === 'GUESSING'}
 		<Guessing room={view.room} {offset} onGuess={submitGuess} onLeave={leaveRoom} />
 	{:else if view?.room.phase === 'REVEAL'}
 		<Reveal room={view.room} you={view.you} {offset} onLeave={leaveRoom} />
-	{:else if view?.room.phase === 'ROUND_END'}
-		<RoundEnd room={view.room} you={view.you} {offset} onLeave={leaveRoom} />
+	{:else if view?.room.phase === 'STANDINGS'}
+		<Standings room={view.room} you={view.you} {offset} onLeave={leaveRoom} />
 	{:else if view?.room.phase === 'FINALE'}
 		<!-- The one screen where leaving costs nothing, so `LeaveButton` inside
 		     it passes `confirm={false}` (ledger ruling 44). -->

@@ -112,10 +112,13 @@ describe("lobby state machine", () => {
     expect(r.room.scores).toEqual({ p1: 0, p2: 0, p3: 0 });
     expect(r.room.stagedCount).toEqual({ p1: 0, p2: 0, p3: 0 });
   });
-  it("parses but rejects the game messages until T3 implements them", async () => {
+  it("rejects every in-game message while the room is still in the lobby", async () => {
     const deps = makeDeps();
     const room = await lobbyWithPlayers(3);
-    expect(await applyEvent(room, "p1", { v: 1, t: "submitEntry", text: "x" }, deps))
+    expect(await applyEvent(
+      room, "p1", { v: 1, t: "submitEntry", questionIndex: 0, text: "x" }, deps))
+      .toMatchObject({ ok: false, code: "WRONG_PHASE" });
+    expect(await applyEvent(room, "p1", { v: 1, t: "handIn" }, deps))
       .toMatchObject({ ok: false, code: "WRONG_PHASE" });
     expect(await applyEvent(room, "p1", { v: 1, t: "submitGuess", answerId: "a1", playerId: "p2" }, deps))
       .toMatchObject({ ok: false, code: "WRONG_PHASE" });
