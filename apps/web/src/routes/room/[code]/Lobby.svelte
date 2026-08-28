@@ -494,10 +494,16 @@
 								<span
 									class="w-[52px] text-center font-display text-[19px] font-bold text-action tabular-nums"
 								>
+									<!-- `data-value` carries the raw number because the label
+									     does not always contain one: the standings dial reads
+									     "Off" at zero. -->
 									{#if key === 'standingsEvery' && draft[key] === 0}
-										<span data-testid={`value-${key}`}>{m['lobby.settings.standingsOff']()}</span>
+										<span data-testid={`value-${key}`} data-value={draft[key]}
+											>{m['lobby.settings.standingsOff']()}</span
+										>
 									{:else}
-										<span data-testid={`value-${key}`}>{draft[key]}</span>{unit}
+										<span data-testid={`value-${key}`} data-value={draft[key]}>{draft[key]}</span
+										>{unit}
 									{/if}
 								</span>
 								<button

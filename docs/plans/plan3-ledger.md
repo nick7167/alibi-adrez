@@ -1001,3 +1001,45 @@ type. It now uses `--font-display` (Fredoka), the `:global` overrides the five
 screens carried for it are gone, and `--font-mono` plus the
 `@fontsource/courier-prime` dependency are deleted — nothing rendered it any
 more, and an unused webfont is weight on every page load.
+
+
+---
+
+## Superseded: the round loop (2026-08-28)
+
+Plan 3's loop — `settings.rounds` iterations of "one prompt, everyone writes
+one answer, the room guesses up to `MAX_STAGED` of them" — has been replaced.
+The new design is in
+`docs/superpowers/specs/2026-08-28-answering-phase-design.md`.
+
+**What changed.** Everybody answers a whole set of questions up front on one
+clock (`ANSWERING`, renamed from `WRITING`) and hands in when they choose; the
+game then plays guessing rounds where **a round is one question and one answer
+to it**, never the same question twice in a row, drawn from the least-staged
+players. `ROUND_END` is deleted and `STANDINGS` is new. Three host dials became
+six.
+
+**Which rulings in this file are now dead.** 14 (durations), 15 (INTRO once per
+round), 17, 20, 21 (`MAX_STAGED` staging), 22 (`awarded` keyed by answerId), 28,
+31 (ROUND_END ordering), 43 (`submittedCount`), 46-50 (the Writing screen),
+64-67, 71, 76-77 (the ROUND_END screen), 86's prompt-cut bookkeeping is still
+accurate but the "per-pack counts" now also cap the questions dial.
+
+**Which rulings still bind, unchanged, and were re-proved.** 16 (`authorOf` is
+the only reverse lookup), 26-27 (`view.ts` is the only reader of the private
+store; the builders' types structurally lack the secret), 29 (a contentless
+splash is the safe fallback, never a richer view), 30 and the `submittedIds`
+ruling (progress is a count, never a list — now `doneCount` and `guessedCount`),
+32, 34 (**mutation, not assertion count** — five leaks were introduced and
+reverted against the new matrix), 36-40 (`ConnectedIds` is an argument, never
+state; a locked phone is not a leave), 44-45 (the shared `LeaveButton` on every
+screen), 52-56, 58-60 (the Guessing and Reveal screens), 68-70 (the finale),
+72-74 (the pack floor, plain labelling, and packs visible to guests — the guest
+panel now also names the game shape), 79 (the rulebook cites its numbers), 81,
+87.
+
+**Ruling 84 is resolved and stays resolved:** the lobby still flushes its
+pending settings patch on Start, and the e2e still waits for the *server's*
+echo rather than the on-screen draft. The dials additionally expose
+`data-value`, because the standings dial renders "Off" at zero and a test that
+parses the label reads `NaN`.

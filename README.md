@@ -1,6 +1,18 @@
 # AHA
 
-An online party game: everyone answers the same question anonymously, then the room guesses who wrote what.
+An online party game: everyone answers the same set of questions anonymously,
+then the room guesses who wrote what.
+
+**The loop.** A host sets how many questions everyone answers and how many
+guessing rounds the game plays. Everybody answers the whole set up front on one
+clock, at their own pace, and hands in when they are done. Then the game runs
+guessing rounds — **one round is one question and one answer to it** — never
+the same question twice in a row, spread fairly across players so nobody is
+picked three rounds running while another player never appears. A standings
+beat lands every few rounds. Not every answer gets used; that is deliberate.
+
+The full design is in
+`docs/superpowers/specs/2026-08-28-answering-phase-design.md`.
 
 pnpm monorepo: `apps/rooms` (Cloudflare Worker REST + WebSocket lobby backed by a Durable Object), `apps/web` (SvelteKit 2 + Svelte 5 client), and `packages/shared` (protocol, room codes, state machine).
 
@@ -19,9 +31,15 @@ Requires Node 22+ and pnpm 10 (pinned via `packageManager`).
 
 Playwright e2e lives in `apps/web/e2e` and is **not** part of CI — run it
 locally with `pnpm --filter web exec playwright test` (the config starts both
-dev servers itself). `lobby.spec.ts` covers create/join/start; `round.spec.ts`
-plays a complete five-player game to the finale and asserts the anonymity
-property over the wire.
+dev servers itself). `lobby.spec.ts` covers create/join/settings/start;
+`round.spec.ts` plays a complete five-player game to the finale, asserts the
+anonymity property **over the wire** and checks that the same question never
+runs twice in a row; `viewport.spec.ts` measures the short-viewport rule below
+on real screens at 390×420.
+
+**Port note:** the config uses 5173 with `reuseExistingServer` locally, so a
+dev server from *another* project on that port will silently be used instead.
+`pkill -f vite` before running if you have been working elsewhere.
 
 ## Frontend conventions
 
@@ -33,8 +51,8 @@ primary action and every eyebrow label), `--color-accent-right` and
 `--color-accent-wrong`. The last is 3.5:1 on the field — **large marks only,
 never body text**. Two faces, one rule: `--font-display` (Fredoka) carries
 content — answers, player names, headings — and `--font-sans` (Figtree) carries
-chrome — labels, counts, hints, buttons. `--font-mono` (Courier Prime) has one
-remaining user, `Countdown.svelte`.
+chrome — labels, counts, hints, buttons. There is no mono face: `--font-mono`
+and Courier Prime were deleted once `Countdown.svelte` moved to Fredoka.
 
 Two class primitives survive: `.sticker` (the pressable offset shadow) and
 `.field-label` (small-caps caption on a light surface). Alibi's "Party File"
@@ -47,7 +65,10 @@ over the tokens rather than growing `app.css`.
 the height iOS leaves when the software keyboard is up. When space is short the
 context yields — smaller type, clamped lines, hidden decoration — and the input
 and the primary action do not. A screen that only works at 844px tall does not
-work on a phone.
+work on a phone. `e2e/viewport.spec.ts` measures this rather than trusting it:
+no page scroll in either axis, every touch target ≥44px, and the primary action
+visible **without** scrolling (controls inside a scroll region only have to be
+reachable).
 
 **Every in-room screen carries the shared `LeaveButton`** in the same top-left
 slot, and it owns its own confirmation, so a screen cannot ship an unguarded

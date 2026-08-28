@@ -58,11 +58,19 @@ test('create → two guests join → all see 3 players → host starts (INTRO sp
 	await expect(guest2.getByTestId('waiting-host')).toBeVisible();
 
 	// 8. Host tweaks a setting (debounced patch round-trips through the server).
-	await expect(host.getByTestId('value-rounds')).toHaveText('4'); // DEFAULT_SETTINGS.rounds
-	await host.getByTestId('inc-rounds').click();
-	await expect(host.getByTestId('value-rounds')).toHaveText('5');
+	await expect(host.getByTestId('value-questions')).toHaveText('5'); // DEFAULT_SETTINGS.questions
+	await host.getByTestId('inc-questions').click();
+	await expect(host.getByTestId('value-questions')).toHaveText('6');
 	await host.waitForTimeout(700); // debounce (300ms) + server broadcast round-trip
-	await expect(host.getByTestId('value-rounds')).toHaveText('5'); // not reverted
+	await expect(host.getByTestId('value-questions')).toHaveText('6'); // not reverted
+
+	// 8b. The timing dials live behind a disclosure — six dials plus four pack
+	// switches do not fit flat at 390x420.
+	await expect(host.getByTestId('timing-fields')).toHaveCount(0);
+	await host.getByTestId('toggle-timings').click();
+	await expect(host.getByTestId('timing-fields')).toBeVisible();
+	await expect(host.getByTestId('value-answerSec')).toHaveText('180'); // DEFAULT answerSec
+	await expect(host.getByTestId('length-estimate')).toBeVisible();
 
 	// 9. Start is now enabled with three players → host starts the game →
 	// INTRO splash on every client.
