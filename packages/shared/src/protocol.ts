@@ -8,6 +8,23 @@ export type { Lang, PackId };
 export const DEFAULT_LANG: Lang = "en";
 
 export const PROTOCOL_VERSION = 1;
+/**
+ * The shape of a **persisted** room, which is a different thing from the wire
+ * protocol: a Durable Object holds `InternalRoom` in storage across deploys,
+ * so a build that changes that shape cannot read what the previous build
+ * wrote.
+ *
+ * Bump this whenever `InternalRoom` changes incompatibly. A room stamped with
+ * anything else is discarded on load rather than half-read — measured, the
+ * alternative is not a crash but something worse: a pre-2 room can never
+ * advance (its phase is not in the new `Phase` union), so the object re-arms
+ * its alarm on a deadline that has already passed and hot-loops forever.
+ *
+ * 2 = the answer-all-then-guess loop: `questions`, `entries` keyed by author
+ * then question, `handedIn`, `prevRanks`, and settings with `answerSec` /
+ * `revealSec` / `standingsEvery`.
+ */
+export const ROOM_SCHEMA = 2;
 export const MAX_PLAYERS = 16;
 /** Below this a room cannot start, and a running game ends. */
 export const MIN_PLAYERS = 3;

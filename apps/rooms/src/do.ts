@@ -1,4 +1,5 @@
 import {
+  ROOM_SCHEMA,
   advance,
   applyEvent,
   createRoom,
@@ -47,7 +48,9 @@ export class RoomDurableObject implements DurableObject {
     const url = new URL(request.url);
     if (url.pathname === "/ping") return Response.json({ pong: this.ctx.id.name ?? "unknown" });
     if (url.pathname === "/meta") {
-      const state = await this.ctx.storage.get<InternalRoom>(STATE_KEY);
+      // Through loadRoom, so a room this build cannot read reports as absent
+      // rather than sending a player into a room that will never work.
+      const state = await this.loadRoom();
       return Response.json({
         exists: state !== undefined,
         open: state?.phase === "LOBBY",
@@ -61,7 +64,9 @@ export class RoomDurableObject implements DurableObject {
       // both succeed and merge two lobbies into one identity.
       const created = await this.ctx.blockConcurrencyWhile(async () => {
         const existing = await this.ctx.storage.get<InternalRoom>(STATE_KEY);
-        if (existing !== undefined) return false;
+        // A room from an older build is not an occupant: it can never be
+        // played, so its code is free to be handed out again.
+        if (existing !== undefined && existing.schema === ROOM_SCHEMA) return false;
         await this.ctx.storage.put(STATE_KEY, createRoom(code));
         return true;
       });
@@ -319,8 +324,32 @@ export class RoomDurableObject implements DurableObject {
     ws.close(1000, code);
   }
 
+  /**
+   * The room as persisted, or `undefined` — which now includes a room this
+   * build cannot read.
+   *
+   * Storage outlives deploys, so a room written by an older build is still
+   * sitting there when new code loads it. Half-reading one is not a crash,
+   * which would at least be loud; it is a **hot loop**. A pre-`ROOM_SCHEMA`
+   * room's phase is not in the current `Phase` union, so `advance` can never
+   * move it on, its already-passed deadline is re-armed on every alarm, and
+   * the alarm fires again immediately, forever. (Snapshots throw as well: the
+   * private store it expects does not exist on an old room.)
+   *
+   * So a stale room is discarded outright — storage wiped, alarm cleared — and
+   * the code behaves as if the room never existed, which is exactly what an
+   * unplayable room is. Whoever connects next creates a fresh one.
+   */
   private async loadRoom(): Promise<InternalRoom | undefined> {
-    if (this.room === undefined) this.room = await this.ctx.storage.get<InternalRoom>(STATE_KEY);
+    if (this.room === undefined) {
+      const stored = await this.ctx.storage.get<InternalRoom>(STATE_KEY);
+      if (stored !== undefined && stored.schema !== ROOM_SCHEMA) {
+        await this.ctx.storage.deleteAll();
+        await this.ctx.storage.deleteAlarm();
+        return undefined;
+      }
+      this.room = stored;
+    }
     return this.room;
   }
 

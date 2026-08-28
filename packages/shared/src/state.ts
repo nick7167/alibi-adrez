@@ -12,6 +12,7 @@ import {
   DEFAULT_SETTINGS,
   MAX_PLAYERS,
   MIN_PLAYERS,
+  ROOM_SCHEMA,
   SETTINGS_BOUNDS,
 } from "./protocol";
 import { PACK_IDS } from "../content/prompts";
@@ -23,6 +24,11 @@ import { viewForPlayer } from "./view";
 export interface SessionSecret { playerId: string; tokenHash: string }
 
 export interface InternalRoom {
+  /**
+   * Which persisted shape this room was written in. Checked on load; a room
+   * from an older build is discarded rather than half-read (see `ROOM_SCHEMA`).
+   */
+  schema: number;
   code: string;
   hostId: string;
   phase: Phase;
@@ -78,6 +84,7 @@ export type ApplyResult =
 
 export function createRoom(code: string): InternalRoom {
   return {
+    schema: ROOM_SCHEMA,
     code,
     hostId: "",
     phase: "LOBBY",

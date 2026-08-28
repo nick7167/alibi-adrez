@@ -437,6 +437,46 @@ describe("the game loop in the Durable Object", () => {
     });
   });
 
+  it("discards a room persisted by an older build instead of hot-looping on it", async () => {
+    // Storage outlives deploys. This is a room EXACTLY as the previous build
+    // wrote it: no `schema`, no `questions`, no author-keyed `entries`, a
+    // phase ("WRITING") that no longer exists, and `writeSec` instead of
+    // `answerSec`. Loaded as-is it cannot advance, so its already-passed
+    // deadline is re-armed on every alarm and the object spins forever.
+    const code = "RDK";
+    const stub = stubFor(code);
+    await runInDurableObject(stub, async (_i, state) => {
+      await state.storage.put("state", {
+        code, hostId: "old-1", phase: "WRITING",
+        players: [{ id: "old-1", name: "Ghost", emoji: "🦊", lang: "en" }],
+        settings: { rounds: 4, writeSec: 60, guessSec: 25, packs: ["everyday"] },
+        sessions: {}, scores: { "old-1": 0 }, stagedCount: { "old-1": 0 },
+        rounds: [{ index: 1, promptId: "last-search", entries: {}, order: [],
+                   stage: 0, guesses: {}, awarded: {} }],
+        deadline: Date.now() - 60_000,
+      });
+      await state.storage.setAlarm(Date.now() - 1);
+    });
+
+    // The room reports as absent rather than sending anyone into it.
+    const meta = (await (await stub.fetch("https://do/meta")).json()) as { exists: boolean };
+    expect(meta.exists).toBe(false);
+
+    // And the code is reusable: a fresh room can be created on it.
+    const init = await stub.fetch("https://do/init", {
+      method: "POST", body: JSON.stringify({ code }),
+    });
+    expect(init.ok).toBe(true);
+
+    // The new room is playable, and nothing of the old one survived.
+    const [a, b, c] = await seat(code, ["A", "B", "C"]) as [Client, Client, Client];
+    expect((view(a)!.players as Frame[])).toHaveLength(3);
+    expect(JSON.stringify(view(a))).not.toContain("Ghost");
+    send(a, { v: 1, t: "startGame" });
+    await untilPhase(a, "INTRO");
+    for (const client of [a, b, c]) client.ws.close();
+  });
+
   it("goes back to the lobby with the same players, and can play again", async () => {
     const code = "RDJ";
     const [a, b, c] = await seat(code, ["A", "B", "C"]) as [Client, Client, Client];
