@@ -7,16 +7,28 @@ import type {
   ServerMessage,
   Settings,
 } from "./protocol";
-import { DEFAULT_LANG, DEFAULT_SETTINGS, MAX_PLAYERS, MIN_PLAYERS } from "./protocol";
+import {
+  DEFAULT_LANG,
+  DEFAULT_SETTINGS,
+  MAX_PLAYERS,
+  MIN_PLAYERS,
+  ROOM_SCHEMA,
+  SETTINGS_BOUNDS,
+} from "./protocol";
 import { PACK_IDS } from "../content/prompts";
-import type { ConnectedIds, RoundState } from "./round";
-import { applyRoundMessage, beginGame, handlePlayerLeft } from "./round";
+import type { ConnectedIds, Entry, GuessRound } from "./round";
+import { applyRoundMessage, beginGame, handlePlayerLeft, returnToLobby } from "./round";
 import { hashToken } from "./token";
 import { viewForPlayer } from "./view";
 
 export interface SessionSecret { playerId: string; tokenHash: string }
 
 export interface InternalRoom {
+  /**
+   * Which persisted shape this room was written in. Checked on load; a room
+   * from an older build is discarded rather than half-read (see `ROOM_SCHEMA`).
+   */
+  schema: number;
   code: string;
   hostId: string;
   phase: Phase;
@@ -26,13 +38,33 @@ export interface InternalRoom {
   /** playerId -> running score. */
   scores: Record<string, number>;
   /**
-   * playerId -> how many times their entry has been staged this game. Staging
-   * is tiered least-staged, so this is a counter rather than Alibi's binary
-   * "has been a suspect" flag: the pool is whoever has the minimum count.
+   * playerId -> how many times one of their answers has been put to the room.
+   * Selection is tiered least-staged, so this is a counter: the pool narrows
+   * to whoever has the minimum count. Being picked means sitting the round
+   * out, so an even spread is a fairness property, not a cosmetic one.
    */
   stagedCount: Record<string, number>;
-  /** Every round played so far; the last entry is the live one. */
-  rounds: RoundState[];
+  /**
+   * The game's questions, as promptIds. Drawn once at `startGame`, distinct,
+   * and indexed by question number everywhere else.
+   */
+  questions: string[];
+  /**
+   * **The private store, and the only place authorship is written down.**
+   * playerId -> questionIndex -> their answer. A player who answered nothing
+   * has no key; a question they skipped has no key under them.
+   *
+   * Only `view.ts` may read this (it is the projection boundary) and only
+   * `round.ts` may write it. `grep -rn "\.entries" packages apps` should hit
+   * nothing else.
+   */
+  entries: Record<string, Record<number, Entry>>;
+  /** playerId -> they pressed "I'm done". Projected only ever as a count. */
+  handedIn: Record<string, true>;
+  /** playerId -> their rank at the previous standings beat, for movement. */
+  prevRanks: Record<string, number>;
+  /** Every guessing round played so far; the last entry is the live one. */
+  rounds: GuessRound[];
   /** Epoch ms when the current phase ends, or null when untimed. */
   deadline: number | null;
 }
@@ -52,6 +84,7 @@ export type ApplyResult =
 
 export function createRoom(code: string): InternalRoom {
   return {
+    schema: ROOM_SCHEMA,
     code,
     hostId: "",
     phase: "LOBBY",
@@ -60,6 +93,10 @@ export function createRoom(code: string): InternalRoom {
     sessions: {},
     scores: {},
     stagedCount: {},
+    questions: [],
+    entries: {},
+    handedIn: {},
+    prevRanks: {},
     rounds: [],
     deadline: null,
   };
@@ -92,11 +129,24 @@ function nextPacks(current: PackId[], value: unknown): PackId[] {
   return known.size > 0 ? [...known] : current;
 }
 
+/**
+ * Every numeric dial clamps to `SETTINGS_BOUNDS`, which the lobby's steppers
+ * read too — so a tap can never send a value the server would clamp away, and
+ * the bounds exist in exactly one place.
+ *
+ * `questions` is bounded here but capped *again* at `startGame`, against the
+ * number of distinct prompts the enabled packs hold: a host can legally ask
+ * for twenty questions and then switch down to a single fifteen-prompt pack,
+ * and the game must draw fifteen rather than repeat one.
+ */
 function nextSettings(current: Settings, patch: Partial<Settings>): Settings {
   const s = structuredClone(current);
-  if (hasOwn(patch, "rounds")) s.rounds = clampField(s.rounds, patch.rounds, 1, 10);
-  if (hasOwn(patch, "writeSec")) s.writeSec = clampField(s.writeSec, patch.writeSec, 20, 120);
-  if (hasOwn(patch, "guessSec")) s.guessSec = clampField(s.guessSec, patch.guessSec, 10, 60);
+  for (const key of ["questions", "rounds", "answerSec", "guessSec", "revealSec",
+                     "standingsEvery"] as const) {
+    if (!hasOwn(patch, key)) continue;
+    const b = SETTINGS_BOUNDS[key];
+    s[key] = clampField(s[key], patch[key], b.min, b.max);
+  }
   if (hasOwn(patch, "packs")) s.packs = nextPacks(s.packs, patch.packs);
   return s;
 }
@@ -157,6 +207,19 @@ export async function applyEvent(
       beginGame(next, deps);
       return { ok: true, room: next };
     }
+    case "returnToLobby": {
+      // Only from a finished game, but by ANY seated player rather than the
+      // host: it is the finale's only way onward, so a host-only rule would
+      // strand everyone else on a terminal screen the moment the host set
+      // their phone down.
+      if (room.phase !== "FINALE") return { ok: false, code: "WRONG_PHASE", room };
+      if (!room.players.some((p) => p.id === senderId)) {
+        return { ok: false, code: "UNKNOWN_PLAYER", room };
+      }
+      const next = structuredClone(room);
+      returnToLobby(next, deps);
+      return { ok: true, room: next };
+    }
     case "leave": {
       const idx = room.players.findIndex((p) => p.id === senderId);
       if (idx === -1) return { ok: false, code: "UNKNOWN_PLAYER", room };
@@ -189,6 +252,7 @@ export async function applyEvent(
       return { ok: true, room };
     case "submitEntry":
     case "submitGuess":
+    case "handIn":
       return applyRoundMessage(room, senderId, msg, deps, connected);
   }
 }

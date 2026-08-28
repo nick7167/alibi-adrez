@@ -11,10 +11,14 @@
 	 *
 	 * Two details that are decisions, not defaults:
 	 *
-	 *  - **The leave control does not confirm** (`confirm={false}`). The ledger
-	 *    is explicit: guarding a screen where nothing is lost trains players to
-	 *    dismiss the dialog unread, which is what makes the real warning on the
-	 *    in-game screens useless.
+	 *  - **There is exactly one way onward, and it is "Back to lobby".** This
+	 *    screen carries no leave control at all, which is a deliberate
+	 *    departure from the rule that every in-room screen has one: a party
+	 *    game should not end by scattering everyone to the landing page. The
+	 *    room goes back to the lobby with the same players and the same
+	 *    settings, and leaving is something you do from there. The button is
+	 *    therefore open to every player, not just the host — a host-only reset
+	 *    would strand everyone else on a screen with no exit.
 	 *  - **Rank is computed from the score, not from the row index,** so a tie
 	 *    shows as a tie. The server sorts by score and breaks ties by playerId
 	 *    for stability; that tiebreak is an ordering, not a placing, and
@@ -29,17 +33,16 @@
 	 */
 	import type { FinaleView } from '@aha/shared';
 	import { m } from '$lib/paraglide/messages';
-	import LeaveButton from '$lib/components/LeaveButton.svelte';
 
 	let {
 		room,
 		you,
-		onLeave
+		onBackToLobby
 	}: {
 		room: FinaleView;
 		/** This reader's playerId, so their own line is called out. */
 		you: string;
-		onLeave: () => void;
+		onBackToLobby: () => void;
 	} = $props();
 
 	const byId = $derived(new Map(room.players.map((p) => [p.id, p])));
@@ -94,8 +97,6 @@
 <div
 	class="relative mx-auto flex fill-vp w-full max-w-md flex-col overflow-hidden bg-field px-5 pt-safe pb-safe text-white"
 >
-	<LeaveButton {onLeave} confirm={false} />
-
 	<div class="pointer-events-none absolute inset-x-0 top-0 z-0 h-40" aria-hidden="true">
 		{#each CONFETTI as c (c.left)}
 			<span
@@ -201,18 +202,21 @@
 		</ul>
 	</div>
 
-	<!-- A terminal screen needs an obvious way onward. It does the same thing
-	     as the leave chip top-left (which stays where it is on every screen so
-	     the position is learnable) — nothing is lost here, so neither asks. -->
+	<!-- The one way onward, and deliberately the ONLY one: back to the lobby
+	     with the same players and the same settings. Nothing is lost, so it does
+	     not confirm; leaving for good is a thing you do from the lobby. -->
 	<div class="relative z-10 shrink-0 pt-2">
 		<button
 			type="button"
-			data-testid="finale-home"
-			onclick={onLeave}
+			data-testid="finale-lobby"
+			onclick={onBackToLobby}
 			class="sticker flex min-h-14 w-full items-center justify-center rounded-full bg-action px-8 font-display text-[19px] font-bold text-ink"
 		>
-			{m['finale.home']()}
+			{m['finale.backToLobby']()}
 		</button>
+		<p class="fi-again-hint mt-2 text-center text-[12.5px] font-medium text-white/65">
+			{m['finale.playAgainHint']()}
+		</p>
 	</div>
 </div>
 
