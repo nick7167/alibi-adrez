@@ -12,15 +12,20 @@ import type { ApplyResult, EventDeps, InternalRoom } from "./state";
  *
  * `round.ts` imports only *types* from `state.ts`; `state.ts` imports this
  * module's functions. That keeps the dependency one-way at runtime.
+ *
+ * **The loop.** A game is one long ANSWERING phase in which everybody answers
+ * every question, followed by a series of guessing rounds. **A round is one
+ * question and one answer to it** — not a batch. See
+ * `docs/superpowers/specs/2026-08-28-answering-phase-design.md`.
  */
 
 // ------------------------------------------------------------------ the state
 
-/** One player's answer to this round's prompt. Stored keyed by its author. */
-export interface RoundEntry {
+/** One player's answer to one question. Stored keyed by author, then question. */
+export interface Entry {
   /**
    * The id this answer wears on the public stage. Minted with `deps.newId()`
-   * and therefore unrelated to the author's `playerId` — see `RoundState`.
+   * and therefore unrelated to the author's `playerId` — see `GuessRound`.
    */
   answerId: string;
   text: string;
@@ -33,47 +38,42 @@ export interface AwardEntry {
 }
 
 /**
- * One round.
+ * One guessing round: a single question, and a single answer to it.
  *
- * The anonymity of the whole game rests on the shape of two fields:
+ * The anonymity of the whole game rests on the split between this and
+ * `room.entries`:
  *
- *  - `entries` is **private and keyed by author**. It is the only place
+ *  - `room.entries` is **private and keyed by author**. It is the only place
  *    authorship is written down.
- *  - `order` is the **public stage**: a list of opaque `answerId`s, minted
- *    with `deps.newId()` and shuffled with `deps.random()`.
+ *  - a round names only an opaque `answerId`, minted with `deps.newId()`.
  *
- * So an `answerId` neither encodes nor derives from a `playerId`, and the
- * stage order does not follow join order. Leaking authorship then requires
- * actively performing a reverse lookup over `entries` rather than forgetting
- * to delete a field, which is the difference between a bug you have to write
- * and a bug you have to remember not to write.
+ * So an `answerId` neither encodes nor derives from a `playerId`. Leaking
+ * authorship requires actively performing a reverse lookup over `entries`
+ * rather than forgetting to delete a field, which is the difference between a
+ * bug you have to write and a bug you have to remember not to write.
  */
-export interface RoundState {
+export interface GuessRound {
   /** 1-based. */
   index: number;
-  promptId: string;
-  /** playerId -> their answer. A player who wrote nothing has **no key** here. */
-  entries: Record<string, RoundEntry>;
-  /** The staged answerIds, shuffled. Never spliced — see `handlePlayerLeft`. */
-  order: string[];
-  /** Index into `order` of the answer under scrutiny. */
-  stage: number;
-  /** answerId -> guesserId -> the playerId they accused. */
-  guesses: Record<string, Record<string, string>>;
-  /** answerId -> what each present player earned when it was revealed. */
-  awarded: Record<string, AwardEntry[]>;
+  /** Index into `room.questions`. */
+  questionIndex: number;
+  /** The answer under scrutiny. */
+  answerId: string;
+  /** guesserId -> the playerId they accused. */
+  guesses: Record<string, string>;
+  /** What each present player earned when it was revealed. Empty until REVEAL. */
+  awarded: AwardEntry[];
 }
 
 // -------------------------------------------------------------- phase timings
 
-/** The "get ready" splash. Once per game, before round 1 exists. */
+/** The "get ready" splash. Once per game, before any question is shown. */
 export const INTRO_MS = 3_000;
-/** Long enough to read the author, the guesses and the points. */
-export const REVEAL_MS = 7_000;
-/** Every answer of the round with its author, staged or not. */
-export const ROUND_END_MS = 8_000;
-/** Never stage more than this, however big the room is. */
-export const MAX_STAGED = 4;
+/**
+ * The standings beat. Fixed rather than a seventh host dial: it is a beat you
+ * watch, not a phase you play, and every second of it is a second not playing.
+ */
+export const STANDINGS_MS = 6_000;
 /** Correct attribution. */
 export const POINTS_CORRECT_GUESS = 2;
 /** Paid to the author, per guesser they fooled. */
@@ -91,10 +91,10 @@ export const POINTS_FOOLED_GUESSER = 1;
 export const PHASE_MS: Record<Phase, (room: InternalRoom) => number | null> = {
   LOBBY: () => null,
   INTRO: () => INTRO_MS,
-  WRITING: (room) => room.settings.writeSec * 1000,
+  ANSWERING: (room) => room.settings.answerSec * 1000,
   GUESSING: (room) => room.settings.guessSec * 1000,
-  REVEAL: () => REVEAL_MS,
-  ROUND_END: () => ROUND_END_MS,
+  REVEAL: (room) => room.settings.revealSec * 1000,
+  STANDINGS: () => STANDINGS_MS,
   FINALE: () => null,
 };
 
@@ -104,8 +104,8 @@ export const PHASE_MS: Record<Phase, (room: InternalRoom) => number | null> = {
  *
  * The deadline is re-based off `deps.now()` rather than off the deadline that
  * was missed, so a Durable Object that slept through a phase resumes on a
- * fresh timer instead of fast-forwarding to the finale (Alibi ledger, T3
- * ruling 2). Mutates in place; callers own the clone.
+ * fresh timer instead of fast-forwarding to the finale. Mutates in place;
+ * callers own the clone.
  */
 export function enterPhase(room: InternalRoom, phase: Phase, deps: EventDeps): void {
   room.phase = phase;
@@ -115,12 +115,12 @@ export function enterPhase(room: InternalRoom, phase: Phase, deps: EventDeps): v
 
 // ------------------------------------------------------------------- reading
 
-/** True while a round is live, i.e. neither LOBBY nor FINALE. */
+/** True while a game is live, i.e. neither LOBBY nor FINALE. */
 export function inGame(room: InternalRoom): boolean {
   return room.phase !== "LOBBY" && room.phase !== "FINALE";
 }
 
-export function currentRound(room: InternalRoom): RoundState | undefined {
+export function currentRound(room: InternalRoom): GuessRound | undefined {
   return room.rounds.length === 0 ? undefined : room.rounds[room.rounds.length - 1];
 }
 
@@ -129,32 +129,23 @@ export function currentRound(room: InternalRoom): RoundState | undefined {
  * this; nothing else walks `entries` looking for an `answerId`.
  *
  * `undefined` means the answer is **voided** — its author left the room and
- * their entry was deleted. `order` is never spliced, so a voided slot stays in
- * place and `stage` cannot be invalidated underneath itself.
+ * their entries were deleted.
  */
-export function authorOf(round: RoundState, answerId: string): string | undefined {
-  for (const [playerId, entry] of Object.entries(round.entries)) {
-    if (entry.answerId === answerId) return playerId;
+export function authorOf(room: InternalRoom, answerId: string): string | undefined {
+  for (const [playerId, byQuestion] of Object.entries(room.entries)) {
+    for (const entry of Object.values(byQuestion)) {
+      if (entry.answerId === answerId) return playerId;
+    }
   }
   return undefined;
 }
 
-/** The answerId under scrutiny, or `undefined` past the end of the stage. */
-export function stagedAnswerId(round: RoundState): string | undefined {
-  return round.order[round.stage];
-}
-
 /**
- * Who still owes a guess on `answerId`: everyone present except its author.
- * A player who wrote nothing still guesses; a voided answer (no author) is
- * guessed by everybody, though `advance` skips those before it gets here.
+ * Who still owes a guess on the live round: everyone present except the
+ * author. A player who wrote nothing still guesses.
  */
-export function eligibleGuessers(
-  room: InternalRoom,
-  round: RoundState,
-  answerId: string,
-): string[] {
-  const author = authorOf(round, answerId);
+export function eligibleGuessers(room: InternalRoom, round: GuessRound): string[] {
+  const author = authorOf(room, round.answerId);
   return room.players.filter((p) => p.id !== author).map((p) => p.id);
 }
 
@@ -164,8 +155,8 @@ export function eligibleGuessers(
  * **Early-resolve decisions only.** A locked phone is not a leave: a player
  * whose screen went dark still counts for scoring, for staging, for `awarded`
  * and for `candidates` — all of which keep reading `room.players` — but the
- * room must not sit out a 60-second writing timer waiting for an answer that
- * cannot arrive. `undefined` means "assume everybody", i.e. the behaviour
+ * room must not sit out a three-minute answering clock waiting for a hand-in
+ * that cannot arrive. `undefined` means "assume everybody", i.e. the behaviour
  * before this existed.
  *
  * It is an argument and never a field on `InternalRoom`: the room is
@@ -181,7 +172,7 @@ export type ConnectedIds = ReadonlySet<string> | undefined;
  * An empty result is deliberately left empty rather than falling back to the
  * roster: both callers refuse to resolve on an empty list, so a room whose
  * last socket dropped waits for its phase timer instead of resolving on
- * behalf of nobody. (A fallback was tried and was unobservable — dead code.)
+ * behalf of nobody.
  */
 function awaited(owed: string[], connected: ConnectedIds): string[] {
   return connected === undefined ? owed : owed.filter((id) => connected.has(id));
@@ -189,168 +180,213 @@ function awaited(owed: string[], connected: ConnectedIds): string[] {
 
 // ------------------------------------------------------------------- choosing
 
-function pick<T>(items: readonly T[], deps: EventDeps): T {
-  const idx = Math.min(items.length - 1, Math.floor(deps.random() * items.length));
-  return items[idx]!;
-}
-
-/** Fisher-Yates, driven entirely by `deps.random()`. Returns a new array. */
-function shuffle<T>(items: readonly T[], deps: EventDeps): T[] {
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.min(i, Math.floor(deps.random() * (i + 1)));
-    const swap = out[i]!;
-    out[i] = out[j]!;
-    out[j] = swap;
-  }
-  return out;
+function pickIndex(length: number, deps: EventDeps): number {
+  return Math.min(length - 1, Math.floor(deps.random() * length));
 }
 
 /**
- * A prompt from the enabled packs, never repeating one this game has already
- * used while unused ones remain. Falls back to the whole catalogue if the
- * enabled packs somehow resolve to nothing, so a round can always be started.
+ * The game's question set: `settings.questions` distinct prompts drawn from the
+ * enabled packs.
+ *
+ * Capped by what the catalogue actually holds — a host running the smallest
+ * single pack cannot have twenty distinct questions, and repeating one would
+ * put two identical prompts in the same game. Falls back to the whole
+ * catalogue if the enabled packs somehow resolve to nothing, so a game can
+ * always start.
  */
-function pickPrompt(room: InternalRoom, deps: EventDeps): string {
+export function pickQuestions(room: InternalRoom, deps: EventDeps): string[] {
   const enabled = promptsForPacks(room.settings.packs);
   const catalogue = enabled.length > 0 ? enabled : PROMPTS;
-  const used = new Set(room.rounds.map((r) => r.promptId));
-  const unused = catalogue.filter((p) => !used.has(p.id));
-  const pool = unused.length > 0 ? unused : catalogue;
-  return pool.length === 0 ? "" : pick(pool, deps).id;
+  const pool = catalogue.map((p) => p.id);
+  const wanted = Math.min(room.settings.questions, pool.length);
+  const chosen: string[] = [];
+  for (let i = 0; i < wanted; i++) {
+    chosen.push(pool.splice(pickIndex(pool.length, deps), 1)[0]!);
+  }
+  return chosen;
+}
+
+/** One (author, question) slot that could still be put to the room. */
+interface Candidate {
+  playerId: string;
+  questionIndex: number;
+  answerId: string;
 }
 
 /**
- * Tiered least-staged selection.
+ * Every answer that still has an author and has not already been guessed on.
  *
- * The pool is whoever has been staged fewest times so far; within a tier the
- * choice is random, and when a tier is smaller than the slots left we take all
- * of it and descend to the next one. That spreads the spotlight across a whole
- * game without the "reset every flag" jolt of a binary has-been-staged bit.
- *
- * Fewer than two entries means there is nothing to guess about, so nothing is
- * staged at all and no `stagedCount` is spent — a player whose lone answer was
- * never put to the room should not lose their place in the rotation for it.
+ * Reads `room.entries`, which is why this lives in `round.ts` (the store's
+ * owner) rather than anywhere else. It yields ids and indices — never text.
  */
-function stageAnswers(room: InternalRoom, round: RoundState, deps: EventDeps): void {
-  const eligible = room.players.filter((p) => round.entries[p.id] !== undefined).map((p) => p.id);
-  if (eligible.length < 2) {
-    round.order = [];
-    return;
-  }
-  const slots = Math.min(MAX_STAGED, eligible.length);
-
-  const tiers = new Map<number, string[]>();
-  for (const id of eligible) {
-    const count = room.stagedCount[id] ?? 0;
-    const tier = tiers.get(count);
-    if (tier === undefined) tiers.set(count, [id]);
-    else tier.push(id);
-  }
-
-  const chosen: string[] = [];
-  for (const count of [...tiers.keys()].sort((a, b) => a - b)) {
-    const remaining = slots - chosen.length;
-    if (remaining <= 0) break;
-    const tier = [...tiers.get(count)!];
-    if (tier.length <= remaining) {
-      chosen.push(...tier);
-      continue;
-    }
-    for (let i = 0; i < remaining; i++) {
-      const idx = Math.min(tier.length - 1, Math.floor(deps.random() * tier.length));
-      chosen.push(tier.splice(idx, 1)[0]!);
+function remainingPool(room: InternalRoom): Candidate[] {
+  const used = new Set(room.rounds.map((r) => r.answerId));
+  const pool: Candidate[] = [];
+  // Roster order, so the pool is deterministic given the same room.
+  for (const player of room.players) {
+    const byQuestion = room.entries[player.id];
+    if (byQuestion === undefined) continue;
+    for (const [key, entry] of Object.entries(byQuestion)) {
+      if (used.has(entry.answerId)) continue;
+      pool.push({ playerId: player.id, questionIndex: Number(key), answerId: entry.answerId });
     }
   }
+  return pool;
+}
 
-  for (const id of chosen) room.stagedCount[id] = (room.stagedCount[id] ?? 0) + 1;
-  // Shuffled, so "answer #2" never correlates with "the second player to join".
-  round.order = shuffle(chosen.map((id) => round.entries[id]!.answerId), deps);
+/** How many rounds this game can still honestly promise. */
+export function effectiveRoundCount(room: InternalRoom): number {
+  return Math.min(room.settings.rounds, room.rounds.length + remainingPool(room).length);
+}
+
+/**
+ * Picks the next (question, answer) pair.
+ *
+ * Three properties, in priority order:
+ *
+ *  1. **Never the same question twice in a row.** The room should not be asked
+ *     about the same prompt back to back — that is the whole reason the pool
+ *     is mixed rather than grouped by question. The rule *relaxes* only when
+ *     every remaining answer belongs to the last question, which happens with
+ *     a one-question game and at the tail of a nearly-exhausted pool. Relaxing
+ *     beats ending the game early.
+ *  2. **Spread across players.** Within the legal candidates the pool narrows
+ *     to whoever has been staged fewest times, so `max(stagedCount) -
+ *     min(stagedCount) <= 1` holds across the game. Being the answer means
+ *     sitting the round out — the author does not guess — so a player who kept
+ *     getting picked would be a player who kept not playing.
+ *  3. **Random within that.** Which of the least-staged players, and which of
+ *     their answers, is `deps.random()`.
+ *
+ * Returns `undefined` when the pool is empty.
+ */
+export function pickPair(room: InternalRoom, deps: EventDeps): Candidate | undefined {
+  const pool = remainingPool(room);
+  if (pool.length === 0) return undefined;
+
+  const previous = currentRound(room);
+  const lastQuestion = previous?.questionIndex ?? -1;
+  const fresh = pool.filter((c) => c.questionIndex !== lastQuestion);
+  const candidates = fresh.length > 0 ? fresh : pool;
+
+  let minSeen = Infinity;
+  for (const c of candidates) minSeen = Math.min(minSeen, room.stagedCount[c.playerId] ?? 0);
+  const tier = candidates.filter((c) => (room.stagedCount[c.playerId] ?? 0) === minSeen);
+
+  return tier[pickIndex(tier.length, deps)]!;
 }
 
 // ---------------------------------------------------------------- transitions
 
-/** `startGame`'s body: everyone on zero and unstaged, then the INTRO splash. */
+/** `startGame`'s body: everyone level, the questions drawn, then the splash. */
 export function beginGame(room: InternalRoom, deps: EventDeps): void {
   room.scores = {};
   room.stagedCount = {};
+  room.prevRanks = {};
   for (const p of room.players) {
     room.scores[p.id] = 0;
     room.stagedCount[p.id] = 0;
+    // Everyone starts level, so the first standings beat measures movement
+    // from a genuine all-square position rather than from nothing.
+    room.prevRanks[p.id] = 1;
   }
+  room.questions = pickQuestions(room, deps);
+  room.entries = {};
+  room.handedIn = {};
   room.rounds = [];
   enterPhase(room, "INTRO", deps);
 }
 
-/** A fresh round: new prompt, empty stage, everybody writing. */
-function startRound(room: InternalRoom, deps: EventDeps): void {
+/**
+ * Opens the next round, or ends the game.
+ *
+ * The pair is chosen here rather than baked into a sequence up front, so a
+ * player leaving simply shrinks the pool instead of invalidating a plan the
+ * room is halfway through.
+ */
+function nextRound(room: InternalRoom, deps: EventDeps): void {
+  if (room.rounds.length >= room.settings.rounds) {
+    enterPhase(room, "FINALE", deps);
+    return;
+  }
+  const pick = pickPair(room, deps);
+  if (pick === undefined) {
+    // Nothing left anybody could be asked about.
+    enterPhase(room, "FINALE", deps);
+    return;
+  }
+  room.stagedCount[pick.playerId] = (room.stagedCount[pick.playerId] ?? 0) + 1;
   room.rounds.push({
     index: room.rounds.length + 1,
-    promptId: pickPrompt(room, deps),
-    entries: {},
-    order: [],
-    stage: 0,
+    questionIndex: pick.questionIndex,
+    answerId: pick.answerId,
     guesses: {},
-    awarded: {},
+    awarded: [],
   });
-  enterPhase(room, "WRITING", deps);
+  enterPhase(room, "GUESSING", deps);
 }
 
-/** ROUND_END is over: the next prompt, or the finale. */
-function afterRound(room: InternalRoom, deps: EventDeps): void {
-  if (room.rounds.length >= room.settings.rounds) enterPhase(room, "FINALE", deps);
-  else startRound(room, deps);
+/** Dense ranks over the current scores: equal scores share a rank. */
+export function ranksFor(room: InternalRoom): Record<string, number> {
+  const board = room.players
+    .map((p) => ({ playerId: p.id, score: room.scores[p.id] ?? 0 }))
+    .sort((a, b) =>
+      b.score - a.score || (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0));
+  const ranks: Record<string, number> = {};
+  let rank = 0;
+  let prevScore: number | null = null;
+  board.forEach((row, i) => {
+    if (prevScore === null || row.score !== prevScore) rank = i + 1;
+    prevScore = row.score;
+    ranks[row.playerId] = rank;
+  });
+  return ranks;
 }
 
 /**
- * Opens whatever `round.stage` now points at, skipping voided answers (their
- * author left, so there is nobody to reveal and nothing to score) and
- * discarding any guesses already cast on them. Past the end of the stage the
- * round is over.
+ * After a REVEAL: the standings beat if one is due, otherwise straight into
+ * the next question.
+ *
+ * The beat is due every `standingsEvery` rounds, and never after the last one
+ * — the finale is the standings, at greater length, and stopping to show them
+ * six seconds before showing them again is dead air.
  */
-function enterStage(room: InternalRoom, round: RoundState, deps: EventDeps): void {
-  while (round.stage < round.order.length) {
-    const answerId = round.order[round.stage]!;
-    if (authorOf(round, answerId) !== undefined) {
-      enterPhase(room, "GUESSING", deps);
-      return;
-    }
-    delete round.guesses[answerId];
-    round.stage++;
+function afterReveal(room: InternalRoom, deps: EventDeps): void {
+  const every = room.settings.standingsEvery;
+  const played = room.rounds.length;
+  const more = played < room.settings.rounds && remainingPool(room).length > 0;
+  if (every > 0 && more && played % every === 0) {
+    enterPhase(room, "STANDINGS", deps);
+    return;
   }
-  enterPhase(room, "ROUND_END", deps);
+  nextRound(room, deps);
 }
 
-/** Leaving WRITING: stage what there is, or skip straight past the guessing. */
-function resolveWriting(room: InternalRoom, round: RoundState, deps: EventDeps): void {
-  stageAnswers(room, round, deps);
-  round.stage = 0;
-  enterStage(room, round, deps);
+/** Leaving ANSWERING: draw the first pair, or end a game nobody wrote for. */
+function resolveAnswering(room: InternalRoom, deps: EventDeps): void {
+  nextRound(room, deps);
 }
 
 /**
- * Scores the staged answer and enters REVEAL.
+ * Scores the answer under scrutiny and enters REVEAL.
  *
  * +2 to each guesser who named the author, +1 to the author per guesser they
- * fooled — applied here rather than at the end of the round so the scoreboard
+ * fooled — applied here rather than at the end of the game so the scoreboard
  * moves continuously. `awarded` records **every present player**, zeros
  * included, so the reveal screen can say "you got nothing" without recomputing
- * anything (Alibi ledger, T3 ruling 7).
+ * anything.
  */
-function resolveGuessing(room: InternalRoom, round: RoundState, deps: EventDeps): void {
-  const answerId = stagedAnswerId(round);
-  const author = answerId === undefined ? undefined : authorOf(round, answerId);
-  if (answerId === undefined || author === undefined) {
-    // Voided or off the end: nothing to score, move on.
-    round.stage++;
-    enterStage(room, round, deps);
+function resolveGuessing(room: InternalRoom, round: GuessRound, deps: EventDeps): void {
+  const author = authorOf(room, round.answerId);
+  if (author === undefined) {
+    // Voided under us: the author left. Nothing to reveal, nothing to score.
+    afterReveal(room, deps);
     return;
   }
 
-  const cast = round.guesses[answerId] ?? {};
   const points: Record<string, number> = {};
   for (const p of room.players) points[p.id] = 0;
-  for (const [guesserId, guessedId] of Object.entries(cast)) {
+  for (const [guesserId, guessedId] of Object.entries(round.guesses)) {
     if (guessedId === author) {
       if (points[guesserId] !== undefined) points[guesserId] += POINTS_CORRECT_GUESS;
     } else if (points[author] !== undefined) {
@@ -364,30 +400,27 @@ function resolveGuessing(room: InternalRoom, round: RoundState, deps: EventDeps)
     room.scores[p.id] = (room.scores[p.id] ?? 0) + earned;
     awarded.push({ playerId: p.id, points: earned });
   }
-  round.awarded[answerId] = awarded;
+  round.awarded = awarded;
   enterPhase(room, "REVEAL", deps);
 }
 
 /**
- * True once every player we are still waiting on has cast a guess on this
- * answer — i.e. every eligible guesser with a live socket (all of them when
- * the caller supplies no connected set).
+ * True once every player we are still waiting on has handed in — i.e. every
+ * player with a live socket (all of them when the caller supplies no set).
  */
-function everyoneGuessed(
-  room: InternalRoom,
-  round: RoundState,
-  answerId: string,
-  connected?: ConnectedIds,
-): boolean {
-  const cast = round.guesses[answerId] ?? {};
-  const owed = awaited(eligibleGuessers(room, round, answerId), connected);
-  return owed.length > 0 && owed.every((id) => cast[id] !== undefined);
+function everyoneHandedIn(room: InternalRoom, connected?: ConnectedIds): boolean {
+  const owed = awaited(room.players.map((p) => p.id), connected);
+  return owed.length > 0 && owed.every((id) => room.handedIn[id] === true);
 }
 
-/** True once every player we are still waiting on has an entry this round. */
-function everyoneWrote(room: InternalRoom, round: RoundState, connected?: ConnectedIds): boolean {
-  const owed = awaited(room.players.map((p) => p.id), connected);
-  return owed.length > 0 && owed.every((id) => round.entries[id] !== undefined);
+/** True once every player we are still waiting on has guessed this round. */
+function everyoneGuessed(
+  room: InternalRoom,
+  round: GuessRound,
+  connected?: ConnectedIds,
+): boolean {
+  const owed = awaited(eligibleGuessers(room, round), connected);
+  return owed.length > 0 && owed.every((id) => round.guesses[id] !== undefined);
 }
 
 /**
@@ -405,40 +438,42 @@ export function advance(
   if (!inGame(room)) return { room, changed: false };
   const next = structuredClone(room);
 
-  if (next.phase === "INTRO") {
-    startRound(next, deps);
-    return { room: next, changed: true };
-  }
-
-  const round = currentRound(next);
-  if (round === undefined) return { room, changed: false };
-
   switch (next.phase) {
-    case "WRITING":
-      resolveWriting(next, round, deps);
-      break;
-    case "GUESSING":
+    case "INTRO":
+      enterPhase(next, "ANSWERING", deps);
+      return { room: next, changed: true };
+    case "ANSWERING":
+      resolveAnswering(next, deps);
+      return { room: next, changed: true };
+    case "STANDINGS":
+      // The beat is over; the ranks it showed become the baseline the next one
+      // measures movement against.
+      next.prevRanks = ranksFor(next);
+      nextRound(next, deps);
+      return { room: next, changed: true };
+    case "GUESSING": {
+      const round = currentRound(next);
+      if (round === undefined) return { room, changed: false };
       resolveGuessing(next, round, deps);
-      break;
+      return { room: next, changed: true };
+    }
     case "REVEAL":
-      round.stage++;
-      enterStage(next, round, deps);
-      break;
-    case "ROUND_END":
-      afterRound(next, deps);
-      break;
+      afterReveal(next, deps);
+      return { room: next, changed: true };
     default:
       return { room, changed: false };
   }
-  return { room: next, changed: true };
 }
 
 // -------------------------------------------------------------- client events
 
-type RoundMessage = Extract<ClientMessage, { t: "submitEntry" } | { t: "submitGuess" }>;
+type RoundMessage = Extract<
+  ClientMessage,
+  { t: "submitEntry" } | { t: "submitGuess" } | { t: "handIn" }
+>;
 
 /**
- * The two in-round client messages. Pure: rejects with a code or returns the
+ * The three in-game client messages. Pure: rejects with a code or returns the
  * next room.
  */
 export function applyRoundMessage(
@@ -451,35 +486,48 @@ export function applyRoundMessage(
   if (!room.players.some((p) => p.id === senderId)) {
     return { ok: false, code: "UNKNOWN_PLAYER", room };
   }
-  const live = currentRound(room);
-  if (!inGame(room) || live === undefined) return { ok: false, code: "WRONG_PHASE", room };
+  if (!inGame(room)) return { ok: false, code: "WRONG_PHASE", room };
 
   switch (msg.t) {
     case "submitEntry": {
-      if (room.phase !== "WRITING") return { ok: false, code: "WRONG_PHASE", room };
+      if (room.phase !== "ANSWERING") return { ok: false, code: "WRONG_PHASE", room };
+      // The parser bounds the index defensively; this is the real bound.
+      if (msg.questionIndex >= room.questions.length) {
+        return { ok: false, code: "BAD_MESSAGE", room };
+      }
       const next = structuredClone(room);
-      const round = currentRound(next)!;
-      // Upsert: a player may keep editing until the deadline, and the answerId
-      // is minted once so an edit does not shuffle them to a new slot.
-      const existing = round.entries[senderId];
-      round.entries[senderId] = {
+      const mine = next.entries[senderId] ?? {};
+      const existing = mine[msg.questionIndex];
+      // Upsert: a player may keep editing, and the answerId is minted once so
+      // an edit does not move them to a different slot in the pool.
+      mine[msg.questionIndex] = {
         answerId: existing?.answerId ?? deps.newId(),
         text: msg.text,
       };
-      if (everyoneWrote(next, round, connected)) resolveWriting(next, round, deps);
+      next.entries[senderId] = mine;
+      return { ok: true, room: next };
+    }
+
+    case "handIn": {
+      if (room.phase !== "ANSWERING") return { ok: false, code: "WRONG_PHASE", room };
+      const next = structuredClone(room);
+      // Idempotent, and legal with questions left blank.
+      next.handedIn[senderId] = true;
+      if (everyoneHandedIn(next, connected)) resolveAnswering(next, deps);
       return { ok: true, room: next };
     }
 
     case "submitGuess": {
       if (room.phase !== "GUESSING") return { ok: false, code: "WRONG_PHASE", room };
-      const answerId = stagedAnswerId(live);
-      // The race this whole field exists for: a tap that lands after the stage
+      const live = currentRound(room);
+      if (live === undefined) return { ok: false, code: "WRONG_PHASE", room };
+      // The race this whole field exists for: a tap that lands after the round
       // advanced must not apply to the next answer.
-      if (answerId === undefined || answerId !== msg.answerId) {
-        return { ok: false, code: "STALE_ANSWER", room };
+      if (live.answerId !== msg.answerId) return { ok: false, code: "STALE_ANSWER", room };
+      if (authorOf(room, live.answerId) === senderId) {
+        return { ok: false, code: "IS_AUTHOR", room };
       }
-      if (authorOf(live, answerId) === senderId) return { ok: false, code: "IS_AUTHOR", room };
-      if ((live.guesses[answerId] ?? {})[senderId] !== undefined) {
+      if (live.guesses[senderId] !== undefined) {
         return { ok: false, code: "ALREADY_GUESSED", room };
       }
       // Candidates are "everyone except me": accusing yourself, or a player
@@ -489,10 +537,8 @@ export function applyRoundMessage(
       }
       const next = structuredClone(room);
       const round = currentRound(next)!;
-      const cast = round.guesses[answerId] ?? {};
-      cast[senderId] = msg.playerId;
-      round.guesses[answerId] = cast;
-      if (everyoneGuessed(next, round, answerId, connected)) resolveGuessing(next, round, deps);
+      round.guesses[senderId] = msg.playerId;
+      if (everyoneGuessed(next, round, connected)) resolveGuessing(next, round, deps);
       return { ok: true, room: next };
     }
   }
@@ -502,14 +548,13 @@ export function applyRoundMessage(
  * Called on the **already-mutated** room, after the player has been spliced out
  * of `players` and their `scores`/`stagedCount`/`sessions` entries deleted.
  *
- * One deletion does most of the work: the leaver's entry goes, which **voids**
- * their `answerId`. `order` is never spliced, so `stage` stays valid and the
- * voided slot is simply skipped. Beyond that:
+ * One deletion does most of the work: the leaver's whole `entries` map goes,
+ * which **voids** every answerId they own. Beyond that:
  *
  *  1. below `MIN_PLAYERS` the game ends at FINALE with scores as they stand;
- *  2. losing the author of the answer under scrutiny during GUESSING discards
- *     its guesses and moves on — but an **in-flight REVEAL is left to finish**,
- *     because it is already scored and the screen is already showing;
+ *  2. losing the author of the answer under scrutiny during GUESSING ends that
+ *     round — there is nobody left to reveal — but an **in-flight REVEAL is
+ *     left to finish**, because it is already scored and on screen;
  *  3. a guesser leaving can complete the round: their guess is withdrawn
  *     before the "everyone has guessed" check, so the phase resolves early
  *     rather than waiting out a timer nobody is left to beat.
@@ -528,31 +573,29 @@ export function handlePlayerLeft(
   }
 
   const round = currentRound(room);
-  if (round === undefined) return;
+  const wasStagedAuthor =
+    round !== undefined && authorOf(room, round.answerId) === leaverId;
 
-  const staged = stagedAnswerId(round);
-  const wasStagedAuthor = staged !== undefined && authorOf(round, staged) === leaverId;
+  delete room.entries[leaverId];
+  delete room.handedIn[leaverId];
+  delete room.prevRanks[leaverId];
+  for (const r of room.rounds) delete r.guesses[leaverId];
 
-  delete round.entries[leaverId];
-  for (const cast of Object.values(round.guesses)) delete cast[leaverId];
-
-  if (room.phase === "WRITING") {
-    // Their unwritten answer no longer blocks the room.
-    if (everyoneWrote(room, round, connected)) resolveWriting(room, round, deps);
+  if (room.phase === "ANSWERING") {
+    // Their missing hand-in no longer blocks the room.
+    if (everyoneHandedIn(room, connected)) resolveAnswering(room, deps);
     return;
   }
 
-  if (room.phase === "GUESSING" && staged !== undefined) {
+  if (room.phase === "GUESSING" && round !== undefined) {
     if (wasStagedAuthor) {
-      delete round.guesses[staged];
-      round.stage++;
-      enterStage(room, round, deps);
+      // Nothing left to reveal. Straight on to the next question.
+      afterReveal(room, deps);
       return;
     }
-    if (everyoneGuessed(room, round, staged, connected)) resolveGuessing(room, round, deps);
+    if (everyoneGuessed(room, round, connected)) resolveGuessing(room, round, deps);
   }
-  // REVEAL / ROUND_END / INTRO: already scored or nothing pending. The next
-  // `advance` skips whatever this leaver voided further down `order`.
+  // REVEAL / STANDINGS / INTRO: already scored or nothing pending.
 }
 
 /**
@@ -560,7 +603,7 @@ export function handlePlayerLeft(
  * message**, for the one event that has no message: a socket dropping.
  *
  * A phone locking can be the last thing the room was waiting for — everybody
- * else has already written or guessed, and then the straggler disappears. No
+ * else has already handed in or guessed, and then the straggler disappears. No
  * further message arrives to re-evaluate the check, so the Durable Object
  * calls this from its close handler with the sockets that are left. Pure, and
  * a no-op unless the phase actually resolves.
@@ -571,20 +614,18 @@ export function resolveIfEveryoneReady(
   connected: ConnectedIds,
 ): { room: InternalRoom; changed: boolean } {
   if (!inGame(room)) return { room, changed: false };
-  const live = currentRound(room);
-  if (live === undefined) return { room, changed: false };
 
-  if (room.phase === "WRITING") {
-    if (!everyoneWrote(room, live, connected)) return { room, changed: false };
+  if (room.phase === "ANSWERING") {
+    if (!everyoneHandedIn(room, connected)) return { room, changed: false };
     const next = structuredClone(room);
-    resolveWriting(next, currentRound(next)!, deps);
+    resolveAnswering(next, deps);
     return { room: next, changed: true };
   }
 
   if (room.phase === "GUESSING") {
-    const answerId = stagedAnswerId(live);
-    if (answerId === undefined) return { room, changed: false };
-    if (!everyoneGuessed(room, live, answerId, connected)) return { room, changed: false };
+    const live = currentRound(room);
+    if (live === undefined) return { room, changed: false };
+    if (!everyoneGuessed(room, live, connected)) return { room, changed: false };
     const next = structuredClone(room);
     resolveGuessing(next, currentRound(next)!, deps);
     return { room: next, changed: true };

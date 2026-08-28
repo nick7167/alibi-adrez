@@ -40,33 +40,39 @@ describe("constants", () => {
   it("MAX_ENTRY_LENGTH is 140", () => {
     expect(MAX_ENTRY_LENGTH).toBe(140);
   });
-  it("defaults to 4 rounds, 60s writing, 25s guessing, spicy off", () => {
+  it("defaults to 5 questions, 10 rounds, 180s answering, 25s guessing, spicy off", () => {
     expect(DEFAULT_SETTINGS).toEqual({
-      rounds: 4, writeSec: 60, guessSec: 25, packs: ["everyday", "opinions", "absurd"],
+      questions: 5,
+      rounds: 10,
+      answerSec: 180,
+      guessSec: 25,
+      revealSec: 7,
+      standingsEvery: 3,
+      packs: ["everyday", "opinions", "absurd"],
     });
   });
 });
 
 describe("parseClientMessage submitEntry", () => {
   it("parses a valid entry and trims the text", () => {
-    expect(parseClientMessage('{"v":1,"t":"submitEntry","text":"  a cold pizza  "}'))
-      .toEqual({ v: 1, t: "submitEntry", text: "a cold pizza" });
+    expect(parseClientMessage('{"v":1,"t":"submitEntry","questionIndex":0,"text":"  a cold pizza  "}'))
+      .toEqual({ v: 1, t: "submitEntry", questionIndex: 0, text: "a cold pizza" });
   });
   it("rejects empty and whitespace-only text", () => {
-    expect(parseClientMessage('{"v":1,"t":"submitEntry","text":""}')).toBeNull();
-    expect(parseClientMessage('{"v":1,"t":"submitEntry","text":"   "}')).toBeNull();
+    expect(parseClientMessage('{"v":1,"t":"submitEntry","questionIndex":0,"text":""}')).toBeNull();
+    expect(parseClientMessage('{"v":1,"t":"submitEntry","questionIndex":0,"text":"   "}')).toBeNull();
   });
   it("rejects text over 140 characters", () => {
     const text = "a".repeat(MAX_ENTRY_LENGTH + 1);
-    expect(parseClientMessage(`{"v":1,"t":"submitEntry","text":${JSON.stringify(text)}}`)).toBeNull();
+    expect(parseClientMessage(`{"v":1,"t":"submitEntry","questionIndex":0,"text":${JSON.stringify(text)}}`)).toBeNull();
   });
   it("accepts text at exactly 140 characters", () => {
     const text = "a".repeat(MAX_ENTRY_LENGTH);
-    expect(parseClientMessage(`{"v":1,"t":"submitEntry","text":${JSON.stringify(text)}}`))
-      .toEqual({ v: 1, t: "submitEntry", text });
+    expect(parseClientMessage(`{"v":1,"t":"submitEntry","questionIndex":0,"text":${JSON.stringify(text)}}`))
+      .toEqual({ v: 1, t: "submitEntry", questionIndex: 0, text });
   });
   it("rejects non-string or missing text", () => {
-    expect(parseClientMessage('{"v":1,"t":"submitEntry","text":42}')).toBeNull();
+    expect(parseClientMessage('{"v":1,"t":"submitEntry","questionIndex":0,"text":42}')).toBeNull();
     expect(parseClientMessage('{"v":1,"t":"submitEntry"}')).toBeNull();
   });
 });

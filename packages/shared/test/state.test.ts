@@ -56,11 +56,18 @@ describe("lobby state machine", () => {
     const room = await lobbyWithPlayers(3);
     const bad = await applyEvent(room, "p2", { v: 1, t: "updateSettings", patch: { rounds: 99 } }, deps);
     expect(bad).toMatchObject({ ok: false, code: "NOT_HOST" });
-    const good = await applyEvent(
-      room, "p1", { v: 1, t: "updateSettings", patch: { rounds: 99, guessSec: 0, writeSec: 999 } }, deps);
-    expect(good.ok && good.room.settings.rounds).toBe(10);
+    const good = await applyEvent(room, "p1", {
+      v: 1,
+      t: "updateSettings",
+      patch: { questions: 99, rounds: 99, guessSec: 0, answerSec: 9999, revealSec: 0, standingsEvery: 99 },
+    }, deps);
+    // Every dial clamps to SETTINGS_BOUNDS, which the lobby's steppers read too.
+    expect(good.ok && good.room.settings.questions).toBe(20);
+    expect(good.ok && good.room.settings.rounds).toBe(40);
     expect(good.ok && good.room.settings.guessSec).toBe(10);
-    expect(good.ok && good.room.settings.writeSec).toBe(120);
+    expect(good.ok && good.room.settings.answerSec).toBe(600);
+    expect(good.ok && good.room.settings.revealSec).toBe(3);
+    expect(good.ok && good.room.settings.standingsEvery).toBe(10);
   });
   it("filters packs to known ids and refuses to leave the list empty", async () => {
     const deps = makeDeps();
@@ -84,8 +91,9 @@ describe("lobby state machine", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.room.settings.rounds).toBe(5);
-    expect(Object.keys(r.room.settings).sort())
-      .toEqual(["guessSec", "packs", "rounds", "writeSec"]);
+    expect(Object.keys(r.room.settings).sort()).toEqual([
+      "answerSec", "guessSec", "packs", "questions", "revealSec", "rounds", "standingsEvery",
+    ]);
     expect(({} as { polluted?: unknown }).polluted).toBeUndefined();
   });
   it("startGame requires host and 3+ players, moves to INTRO", async () => {
