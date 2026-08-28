@@ -253,6 +253,19 @@ export type ClientMessage =
   | { v: 1; t: "reconnect"; playerId: string; token: string }
   | { v: 1; t: "updateSettings"; patch: Partial<Settings> }
   | { v: 1; t: "startGame" }
+  /**
+   * FINALE only: put the room back in the lobby with everyone still seated and
+   * the settings kept, so the same group can play again without re-sharing the
+   * code.
+   *
+   * **Any seated player may send it, unlike `startGame`.** It is the finale's
+   * only way onward — there is no leave control on that screen — so making it
+   * host-only would strand every other player on a terminal screen whenever the
+   * host put their phone down. The cost is that anyone can move the room off
+   * the results, which is a deliberate tap on a clearly-labelled button in a
+   * game that is already over, and the lobby is a fine place to end up.
+   */
+  | { v: 1; t: "returnToLobby" }
   | { v: 1; t: "leave" }
   | { v: 1; t: "ping" }
   /**
@@ -363,6 +376,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isPlainObject(data.patch)
         ? { v: 1, t: "updateSettings", patch: data.patch as Partial<Settings> } : null;
     case "startGame":
+    case "returnToLobby":
     case "leave":
     case "ping":
     case "handIn":

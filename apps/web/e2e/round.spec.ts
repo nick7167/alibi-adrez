@@ -334,6 +334,43 @@ test('a full game: answer everything, then guess round by round to the finale', 
 	const sum = scores.reduce((n, s) => n + Number(s.replace(/\D+/g, '')), 0);
 	expect(sum, `${ROUNDS} rounds must total exactly ${totalAwarded} points`).toBe(totalAwarded);
 
+	// -------------------------------------------------------- back to lobby
+	// The finale has exactly one way onward and no leave control at all: a
+	// party game should not end by scattering everyone to the landing page.
+	for (const page of pages) {
+		await expect(page.getByTestId('finale-lobby')).toBeVisible();
+		await expect(page.getByTestId('leave-game')).toHaveCount(0);
+		await expect(page.getByTestId('finale-home')).toHaveCount(0);
+	}
+
+	// Sent by a NON-host, because it is the only exit and must not be host-only.
+	await clients[2]!.page.getByTestId('finale-lobby').click();
+	for (const page of pages) {
+		await expect(page.getByTestId('players-heading')).toBeVisible({ timeout: 30_000 });
+		await expect(page.getByTestId('player-card')).toHaveCount(5);
+	}
+	// The settings the host chose survive, so the group can just play again.
+	await expect(host.page.getByTestId('value-rounds')).toHaveAttribute(
+		'data-value',
+		String(ROUNDS)
+	);
+	// And no trace of the finished game reaches the lobby snapshot.
+	for (const reader of clients) {
+		const seen = statesIn(reader.frames, 'LOBBY')
+			.slice(-1)
+			.map((s) => JSON.stringify(s))
+			.join('');
+		for (const other of clients) {
+			for (let q = 0; q < QUESTIONS; q++) {
+				expect(seen).not.toContain(answerOf(other.name, q));
+			}
+		}
+	}
+	// The same room starts a second game.
+	await clickUntil('start-game', host.page, () =>
+		expect(host.page.getByTestId('intro-splash')).toBeVisible()
+	);
+
 	for (const c of clients) await c.close();
 });
 

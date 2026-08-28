@@ -437,6 +437,47 @@ describe("the game loop in the Durable Object", () => {
     });
   });
 
+  it("goes back to the lobby with the same players, and can play again", async () => {
+    const code = "RDJ";
+    const [a, b, c] = await seat(code, ["A", "B", "C"]) as [Client, Client, Client];
+    send(a, { v: 1, t: "updateSettings", patch: { questions: 1, rounds: 1, standingsEvery: 0 } });
+    await until(() => view(a)?.settings?.rounds === 1, "the settings to land");
+    send(a, { v: 1, t: "startGame" });
+    await untilPhase(a, "INTRO");
+    await expirePhase(code);
+    await untilPhase(a, "ANSWERING");
+    for (const w of [a, b, c]) send(w, { v: 1, t: "submitEntry", questionIndex: 0, text: `by ${w.name}` });
+    await until(
+      () => [a, b, c].every((w) => view(w)?.myAnswers?.["0"] !== undefined), "the answers to land");
+    for (const w of [a, b, c]) send(w, { v: 1, t: "handIn" });
+    await untilPhase(a, "GUESSING");
+
+    expect(await expirePhase(code)).toBe(true);
+    await untilPhase(a, "REVEAL");
+    expect(await expirePhase(code)).toBe(true);
+    await untilPhase(a, "FINALE");
+
+    // A NON-host sends it: the finale has no leave control, so this must not
+    // be host-only or every other player is stranded there.
+    send(b, { v: 1, t: "returnToLobby" });
+    for (const w of [a, b, c]) await untilPhase(w, "LOBBY");
+    expect((view(a)!.players as Frame[])).toHaveLength(3);
+    expect(view(a)!.settings.questions).toBe(1);      // settings survive
+    expect(view(a)!.hostId).toBe(a.id);               // the host is still the host
+
+    // Nothing of the finished game is left in storage.
+    const stored_ = await stored(code);
+    expect(stored_.entries).toEqual({});
+    expect(stored_.rounds).toEqual([]);
+    expect(stored_.questions).toEqual([]);
+    expect(stored_.deadline).toBeNull();
+
+    // And the same room plays a second game.
+    send(a, { v: 1, t: "startGame" });
+    await untilPhase(a, "INTRO");
+    for (const client of [a, b, c]) client.ws.close();
+  });
+
   it("recovers when the answer's author leaves during their own REVEAL", async () => {
     // The reveal is already scored and on screen, so the engine lets it finish,
     // which voids the answer the phase is about. The projection falls back to

@@ -88,7 +88,15 @@ reachable).
 
 **Every in-room screen carries the shared `LeaveButton`** in the same top-left
 slot, and it owns its own confirmation, so a screen cannot ship an unguarded
-exit. Pass `confirm={false}` only where nothing is lost (lobby, finale).
+exit. Pass `confirm={false}` only where nothing is lost (lobby).
+
+**The finale is the one exception, deliberately.** It has no leave control at
+all: its single action is "Back to lobby", which returns the room to `LOBBY`
+with the same players, the same code and the same settings, and leaving for
+good is done from there. A party game should not end by scattering everyone to
+the landing page. That action is open to **any** player rather than the host —
+it is the screen's only way onward, so a host-only reset would strand everyone
+else on a terminal screen the moment the host put their phone down.
 
 **Screen canvas color.** Every full-bleed screen paints the `html`+`body` canvas
 with its own field color, so iOS can never expose a system zone (status bar,

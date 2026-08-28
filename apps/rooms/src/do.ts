@@ -267,6 +267,7 @@ export class RoomDurableObject implements DurableObject {
       case "leave":
       case "updateSettings":
       case "startGame":
+      case "returnToLobby":
       case "setLang":
       case "submitEntry":
       case "submitGuess":

@@ -16,7 +16,7 @@ import {
 } from "./protocol";
 import { PACK_IDS } from "../content/prompts";
 import type { ConnectedIds, Entry, GuessRound } from "./round";
-import { applyRoundMessage, beginGame, handlePlayerLeft } from "./round";
+import { applyRoundMessage, beginGame, handlePlayerLeft, returnToLobby } from "./round";
 import { hashToken } from "./token";
 import { viewForPlayer } from "./view";
 
@@ -198,6 +198,19 @@ export async function applyEvent(
       // the only thing that knows what a fresh game looks like, and
       // `enterPhase` inside it is the only thing that sets phase + deadline.
       beginGame(next, deps);
+      return { ok: true, room: next };
+    }
+    case "returnToLobby": {
+      // Only from a finished game, but by ANY seated player rather than the
+      // host: it is the finale's only way onward, so a host-only rule would
+      // strand everyone else on a terminal screen the moment the host set
+      // their phone down.
+      if (room.phase !== "FINALE") return { ok: false, code: "WRONG_PHASE", room };
+      if (!room.players.some((p) => p.id === senderId)) {
+        return { ok: false, code: "UNKNOWN_PLAYER", room };
+      }
+      const next = structuredClone(room);
+      returnToLobby(next, deps);
       return { ok: true, room: next };
     }
     case "leave": {

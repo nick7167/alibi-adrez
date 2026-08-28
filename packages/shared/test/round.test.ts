@@ -21,7 +21,7 @@ import {
   ranksFor,
   resolveIfEveryoneReady,
 } from "../src/round";
-import { applyEvent, createRoom, type EventDeps, type InternalRoom } from "../src/state";
+import { applyEvent, createRoom, snapshotForPlayer, type EventDeps, type InternalRoom } from "../src/state";
 
 /* ------------------------------------------------------------------ harness */
 
@@ -93,6 +93,11 @@ async function intoGuessing(playerCount: number, settings?: Partial<Settings>) {
   live = answerAll(live, deps);
   live = handInAll(live, deps);                 // resolves early into GUESSING
   return { room: live, deps, ids };
+}
+
+/** A plain three-player lobby, for the messages that must be refused there. */
+async function lobby3() {
+  return await lobby(3);
 }
 
 /* -------------------------------------------------------------------- tests */
@@ -614,6 +619,99 @@ describe("advance is one step at a time and re-bases its clock", () => {
     const { room, deps } = await intoGuessing(4, { questions: 2, rounds: 6 });
     const result = advance(room, deps);
     expect(result.changed).toBe(false);
+  });
+});
+
+describe("back to the lobby", () => {
+  /** Play a tiny game all the way to the finale. */
+  async function toFinale() {
+    const { room, deps, ids } = await intoGuessing(3, { questions: 1, rounds: 2, standingsEvery: 0 });
+    let live = room;
+    for (let guard = 0; guard < 20 && live.phase !== "FINALE"; guard++) live = expire(live, deps);
+    expect(live.phase).toBe("FINALE");
+    return { room: live, deps, ids };
+  }
+
+  it("puts the room back in the lobby with everyone still seated", async () => {
+    const { room, deps, ids } = await toFinale();
+    const before = room.players.map((p) => p.id);
+    const r = await applyEvent(room, ids[0]!, { v: 1, t: "returnToLobby" }, deps);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.room.phase).toBe("LOBBY");
+    expect(r.room.players.map((p) => p.id)).toEqual(before);
+    expect(r.room.hostId).toBe(room.hostId);
+    expect(r.room.code).toBe(room.code);
+    // Untimed, so the DO clears its alarm rather than waiting on a dead phase.
+    expect(r.room.deadline).toBeNull();
+  });
+
+  it("keeps the settings, so the group does not re-dial six things", async () => {
+    const { room, deps, ids } = await toFinale();
+    const r = await applyEvent(room, ids[0]!, { v: 1, t: "returnToLobby" }, deps);
+    if (!r.ok) return;
+    expect(r.room.settings).toEqual(room.settings);
+  });
+
+  it("clears the finished game, private store included", async () => {
+    const { room, deps, ids } = await toFinale();
+    // The game really did leave something behind to clear.
+    expect(Object.keys(room.entries).length).toBeGreaterThan(0);
+    expect(room.rounds.length).toBeGreaterThan(0);
+
+    const r = await applyEvent(room, ids[0]!, { v: 1, t: "returnToLobby" }, deps);
+    if (!r.ok) return;
+    expect(r.room.entries).toEqual({});
+    expect(r.room.rounds).toEqual([]);
+    expect(r.room.questions).toEqual([]);
+    expect(r.room.handedIn).toEqual({});
+    expect(r.room.scores).toEqual({});
+    expect(r.room.stagedCount).toEqual({});
+    // Nothing of the last game survives into the lobby snapshot.
+    const wire = JSON.stringify(snapshotForPlayer(r.room, ids[0]!, 0));
+    for (const answers of Object.values(room.entries)) {
+      for (const entry of Object.values(answers)) {
+        expect(wire).not.toContain(entry.text);
+      }
+    }
+  });
+
+  it("is open to any seated player, not just the host", async () => {
+    const { room, deps, ids } = await toFinale();
+    // A non-host: the finale has no leave control, so a host-only rule would
+    // strand them on a terminal screen.
+    const guest = ids[1]!;
+    expect(guest).not.toBe(room.hostId);
+    const r = await applyEvent(room, guest, { v: 1, t: "returnToLobby" }, deps);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.room.phase).toBe("LOBBY");
+  });
+
+  it("is refused by someone who is not in the room", async () => {
+    const { room, deps } = await toFinale();
+    expect(await applyEvent(room, "nobody", { v: 1, t: "returnToLobby" }, deps))
+      .toMatchObject({ ok: false, code: "UNKNOWN_PLAYER" });
+  });
+
+  it("is refused in every phase except the finale", async () => {
+    const { room, deps, ids } = await intoGuessing(3, { questions: 1, rounds: 2 });
+    expect(await applyEvent(room, ids[0]!, { v: 1, t: "returnToLobby" }, deps))
+      .toMatchObject({ ok: false, code: "WRONG_PHASE" });
+    const { room: lobby, ids: lobbyIds, deps: lobbyDeps } = await lobby3();
+    expect(await applyEvent(lobby, lobbyIds[0]!, { v: 1, t: "returnToLobby" }, lobbyDeps))
+      .toMatchObject({ ok: false, code: "WRONG_PHASE" });
+  });
+
+  it("the room can play a whole second game afterwards", async () => {
+    const { room, deps, ids } = await toFinale();
+    const back = await applyEvent(room, ids[0]!, { v: 1, t: "returnToLobby" }, deps);
+    if (!back.ok) return;
+    const started = await applyEvent(back.room, ids[0]!, { v: 1, t: "startGame" }, deps);
+    expect(started.ok).toBe(true);
+    if (!started.ok) return;
+    expect(started.room.phase).toBe("INTRO");
+    expect(started.room.questions.length).toBeGreaterThan(0);
+    for (const id of ids) expect(started.room.scores[id]).toBe(0);
   });
 });
 

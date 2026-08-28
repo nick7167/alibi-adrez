@@ -135,6 +135,13 @@
 		sockRef?.send({ v: 1, t: 'startGame' });
 	}
 
+	/** FINALE: put the room back in the lobby, same players, same settings.
+	    Any player may send it — it is the finale's only way onward, so a
+	    host-only reset would strand everyone else on a terminal screen. */
+	function backToLobby() {
+		sockRef?.send({ v: 1, t: 'returnToLobby' });
+	}
+
 	/** Leave the room politely, drop the local identity, head home. */
 	function leaveRoom() {
 		sockRef?.leave();
@@ -280,9 +287,10 @@
 	{:else if view?.room.phase === 'STANDINGS'}
 		<Standings room={view.room} you={view.you} {offset} onLeave={leaveRoom} />
 	{:else if view?.room.phase === 'FINALE'}
-		<!-- The one screen where leaving costs nothing, so `LeaveButton` inside
-		     it passes `confirm={false}` (ledger ruling 44). -->
-		<Finale room={view.room} you={view.you} onLeave={leaveRoom} />
+		<!-- The only in-room screen with NO leave control: its single action
+		     puts the room back in the lobby with the same players, and leaving
+		     for good is done from there. -->
+		<Finale room={view.room} you={view.you} onBackToLobby={backToLobby} />
 	{/if}
 
 	{#if offlineLong && screen !== 'INTRO'}

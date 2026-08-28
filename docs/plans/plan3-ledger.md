@@ -1038,6 +1038,19 @@ screen), 52-56, 58-60 (the Guessing and Reveal screens), 68-70 (the finale),
 panel now also names the game shape), 79 (the rulebook cites its numbers), 81,
 87.
 
+**Ruling 69 is overturned (2026-08-28).** It kept the finale's *two* exits — a
+corner leave chip and a full-width "Back to start". Both are gone. The finale
+now has exactly one action, "Back to lobby", which returns the room to LOBBY
+with the same players, the same code and the same settings; leaving for good is
+done from the lobby. A party game should not end by scattering everyone to the
+landing page, and two exits that both meant "leave" was the wrong ending.
+
+Consequently the finale is the **one in-room screen with no `LeaveButton`**, a
+deliberate exception to that standing rule, and `returnToLobby` is open to
+**any** seated player rather than the host: it is the screen's only way onward,
+so a host-only reset would strand everyone else the moment the host set their
+phone down. `finale.home` was deleted as dead copy.
+
 **Ruling 84 is resolved and stays resolved:** the lobby still flushes its
 pending settings patch on Start, and the e2e still waits for the *server's*
 echo rather than the on-screen draft. The dials additionally expose

@@ -298,6 +298,28 @@ export function beginGame(room: InternalRoom, deps: EventDeps): void {
 }
 
 /**
+ * Puts a finished room back in the lobby with everyone still seated.
+ *
+ * Clears the whole game — including `entries`, the private store. The room is
+ * persisted, so leaving a finished game's answers in storage keeps them around
+ * for as long as the room lives, and the next game would start with the last
+ * one's text still sitting underneath it. Settings are deliberately KEPT: a
+ * group that just played a five-question game almost certainly wants another
+ * one, and re-dialling six settings is the friction this whole button exists
+ * to remove.
+ */
+export function returnToLobby(room: InternalRoom, deps: EventDeps): void {
+  room.questions = [];
+  room.entries = {};
+  room.handedIn = {};
+  room.rounds = [];
+  room.scores = {};
+  room.stagedCount = {};
+  room.prevRanks = {};
+  enterPhase(room, "LOBBY", deps);
+}
+
+/**
  * Opens the next round, or ends the game.
  *
  * The pair is chosen here rather than baked into a sequence up front, so a

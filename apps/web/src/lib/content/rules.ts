@@ -171,7 +171,8 @@ const en: RuleSection[] = [
 					'Two identical answers are not a bug and are never merged. It is usually the best moment of the game.',
 					'A locked phone is not the same as leaving: you still get put to the room, you still score, and you can still be guessed. The room just stops waiting for you.',
 					'If someone leaves, their answers go with them and the round count drops to match. Below 3 players the game ends and the scores stand.',
-					'You can change any of your answers right up until the answering time runs out — even after you have pressed "I\'m done".'
+					'You can change any of your answers right up until the answering time runs out — even after you have pressed "I\'m done".',
+					'When the game ends, "Back to lobby" puts the whole room back where it started — same players, same code, same settings — so you can go again without anyone re-joining. Anyone can press it.'
 				]
 			}
 		]
@@ -319,7 +320,8 @@ const da: RuleSection[] = [
 					'To ens svar er ikke en fejl og bliver aldrig slået sammen. Det er som regel spillets bedste øjeblik.',
 					'En låst telefon er ikke det samme som at forlade spillet: du bliver stadig taget frem, du får stadig point, og der bliver stadig gættet på dig. Rummet holder bare op med at vente på dig.',
 					'Forlader nogen spillet, ryger deres svar med, og antallet af runder falder tilsvarende. Bliver I færre end 3, slutter spillet, og pointene står ved magt.',
-					'Du kan rette dine svar helt indtil svartiden løber ud — også efter du har trykket "Jeg er færdig".'
+					'Du kan rette dine svar helt indtil svartiden løber ud — også efter du har trykket "Jeg er færdig".',
+					'Når spillet slutter, sender "Tilbage til lobbyen" hele rummet tilbage til start — samme spillere, samme kode, samme indstillinger — så I kan tage en omgang mere uden at nogen skal ind igen. Alle kan trykke på den.'
 				]
 			}
 		]
