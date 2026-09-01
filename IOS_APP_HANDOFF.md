@@ -454,6 +454,19 @@ The user already has a paid Apple Developer Program membership. Existing local
 App Store Connect/Codemagic credentials from the Vildsvar release can be reused at
 the account/integration level, but AHA needs its own bundle/App Store/signing assets.
 
+Access inventory verified on 2026-09-01 without exposing secret values:
+
+- The App Store Connect `.p8` private key exists and is readable.
+- The issuer ID and Codemagic API token exist in the private source env file.
+- The Codemagic token successfully authenticates to the Applications API. AHA has
+  not yet been added as a Codemagic application; the API supports adding it once the
+  `ios-app` branch and `codemagic.yaml` are ready.
+- GitHub CLI is authenticated with repository and workflow access.
+- Wrangler/Cloudflare is authenticated globally with Worker deployment access.
+
+Authentication does not authorize production deployment: the branch/deployment
+rules in `AGENTS.md` still apply.
+
 Private paths and review-contact values are in `IOS_APP_PRIVATE.local`, which is
 ignored by Git. Never copy those values into this tracked handoff, source code,
 Codemagic YAML, CI logs, or chat unless strictly required for the user-facing step.
