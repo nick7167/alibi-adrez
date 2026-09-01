@@ -27,3 +27,36 @@ describe("GET /api/rooms/:code", () => {
     expect(await res.json()).toEqual({ exists: true, open: true });
   });
 });
+
+describe("native and web origin policy", () => {
+  it("answers native preflight only for the configured Capacitor origin", async () => {
+    const res = await SELF.fetch("https://example.com/api/rooms", {
+      method: "OPTIONS",
+      headers: {
+        Origin: "capacitor://localhost",
+        "Access-Control-Request-Method": "POST",
+      },
+    });
+    expect(res.status).toBe(204);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("capacitor://localhost");
+    expect(res.headers.get("Vary")).toBe("Origin");
+  });
+
+  it("adds CORS to native REST responses", async () => {
+    const res = await SELF.fetch("https://example.com/api/rooms", {
+      method: "POST",
+      headers: { Origin: "capacitor://localhost" },
+    });
+    expect(res.status).toBe(201);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("capacitor://localhost");
+  });
+
+  it("rejects an untrusted browser origin", async () => {
+    const res = await SELF.fetch("https://example.com/api/rooms", {
+      method: "POST",
+      headers: { Origin: "https://evil.example" },
+    });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "ORIGIN_NOT_ALLOWED" });
+  });
+});

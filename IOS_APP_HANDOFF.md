@@ -143,6 +143,23 @@ pnpm --filter web exec playwright test
 Watch for an unrelated Vite process on port 5173; the existing Playwright config may
 reuse it. Follow the README's port warning before trusting results.
 
+Reverified later on 2026-09-01 from `ios-app` after the initial mobile transport
+work:
+
+- `pnpm typecheck`: passed with 0 Svelte errors and 0 warnings.
+- `pnpm test`: passed, 218 tests total (shared 124, web 62, rooms 32).
+- `pnpm build`: passed using the unchanged Cloudflare adapter path.
+- `pnpm build:mobile`: passed and wrote the separate Capacitor SPA to
+  `apps/web/build-mobile`.
+- Playwright: 6/6 passed twice (baseline before changes and regression after the
+  origin policy), including the full game, short viewport, cadence, and leaver
+  flows.
+
+The generated Capacitor project is under `apps/mobile/ios`. Its project settings
+already target iPhone+iPad (`TARGETED_DEVICE_FAMILY = "1,2"`) with iOS 15.0 as
+the minimum. This has not yet been compiled by hosted Xcode; local generation and
+`cap sync ios` passed.
+
 ## 6. Proven approach from Vildsvar
 
 The completed Vildsvar worktree is `/Users/nicklasandreasen/chameleon-ios`. Its
@@ -299,19 +316,29 @@ Update this document as each phase completes.
 
 - [x] Create isolated `ios-app` branch and `/Users/nicklasandreasen/aha-ios` worktree.
 - [x] Confirm clean baseline typecheck, unit tests, and web build.
-- [ ] Run baseline Playwright tests.
+- [x] Run baseline Playwright tests.
 - [ ] Complete name/IP and App Store name availability research.
 - [ ] Obtain user approval for the final public name only when needed.
 - [ ] Confirm bundle ID, SKU naming convention, primary category, and secondary
   category based on competitor/category research.
-- [ ] Create an AHA-specific app marketing context using the installed ASO skills.
+- [x] Create an AHA-specific app marketing context using the installed ASO skills.
+
+Research artifacts now exist in `app-marketing-context.md` and
+`docs/ios-name-category-research.md`. Current recommendation: do not lead the
+public title with AHA because AhaGuess is now an active party guessing game and
+Aha World is a large, protected adjacent brand. `Svarspor: Gæt dine venner` is
+the provisional recommendation, with two documented backups. Exact/fuzzy
+interactive PVSonline/TMview/WIPO searches remain before approval because the
+official services require interactive use and must not be scraped or have CAPTCHA
+bypassed. Provisional category direction is Games — Trivia, secondary
+Entertainment.
 
 ### Phase B — mobile foundation
 
-- [ ] Add conditional/static mobile SPA build without changing Cloudflare web output.
-- [ ] Centralize native/web API and WebSocket URL resolution.
-- [ ] Add Capacitor 8 and generate the iOS project.
-- [ ] Configure universal iPhone/iPad support and iOS 15 minimum.
+- [x] Add conditional/static mobile SPA build without changing Cloudflare web output.
+- [x] Centralize native/web API and WebSocket URL resolution.
+- [x] Add Capacitor 8 and generate the iOS project.
+- [x] Configure universal iPhone/iPad support and iOS 15 minimum.
 - [ ] Add native safe-area/status-bar handling to every route and keyboard state.
 - [ ] Add only justified Capacitor plugins, browser fallbacks, and permissions.
 - [ ] Add a real iOS app icon, launch screen, display name, and privacy manifest.
@@ -330,6 +357,14 @@ Update this document as each phase completes.
 - [ ] Draft privacy, support, and community-rules pages under canonical URLs such as
   `https://adrez.dev/aha/privacy`, `/support`, and `/community-rules`.
 - [ ] Do not deploy those pages or any Worker without explicit user approval.
+
+The native-origin implementation is present locally but is intentionally not
+marked complete until deployed and tested against the production Worker. The
+Rooms Worker now has an exact comma-separated origin allowlist
+(`https://aha.adrez.dev,capacitor://localhost`), rejects untrusted REST and
+WebSocket browser origins, and gives local `wrangler dev` its own localhost
+override. There is no wildcard CORS. Unit/integration and full Playwright
+regressions pass. Deployment remains explicitly gated.
 
 ### Phase D — hosted native CI and signing
 
@@ -494,8 +529,11 @@ The new session should:
 1. Read `AGENTS.md`, this file, and `IOS_APP_PRIVATE.local` in full.
 2. Verify the path/branch/status commands in section 2.
 3. Inspect current code rather than assuming it matches Vildsvar.
-4. Run the baseline Playwright suite.
-5. Begin Phase A name/IP research and the mobile architecture plan in parallel where
-   work does not depend on the final name.
-6. Continue autonomously through all reversible work. Ask the user only when final
+4. Treat baseline Playwright, static mobile build, URL resolution, Capacitor
+   generation, universal/iOS 15 settings, and local origin-policy tests as complete.
+5. Continue the remaining name/IP interactive checks when a compliant browser path
+   is available, but do not let that block name-independent implementation.
+6. Add hosted native compile/simulator CI, then continue backend security,
+   moderation, and the solo reviewer journey without deploying production.
+7. Continue autonomously through all reversible work. Ask the user only when final
    name approval or another genuinely user-only action becomes the critical path.

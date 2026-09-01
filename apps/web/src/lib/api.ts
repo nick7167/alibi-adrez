@@ -1,8 +1,9 @@
 import { isValidRoomCode, PROTOCOL_VERSION } from "@aha/shared";
 import type { ClientMessage, Lang, ServerMessage } from "@aha/shared";
+import { apiUrl, websocketUrl } from './client';
 
 export async function createRoom(): Promise<{ code: string }> {
-	const res = await fetch("/api/rooms", { method: "POST" });
+	const res = await fetch(apiUrl('/api/rooms'), { method: "POST" });
 	if (!res.ok) throw new Error(`createRoom failed with status ${res.status}`);
 	const data: unknown = await res.json();
 	if (typeof data !== "object" || data === null) {
@@ -86,13 +87,7 @@ function parseServerFrame(raw: unknown): ServerMessage | null {
  * sent during a drop is delivered on reconnect.
  */
 export function openRoomSocket(code: string, opts: RoomSocketOptions): RoomSocket {
-	const url =
-		(location.protocol === "https:" ? "wss" : "ws") +
-		"://" +
-		location.host +
-		"/api/room/" +
-		code +
-		"/ws";
+	const url = websocketUrl(`/api/room/${code}/ws`);
 
 	let ws: WebSocket | null = null;
 	let closedByCaller = false;

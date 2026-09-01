@@ -5,7 +5,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --var ALLOWED_ORIGINS:http://localhost:5173",
     "deploy": "wrangler deploy"
   },
   "dependencies": { "@aha/shared": "workspace:*" },

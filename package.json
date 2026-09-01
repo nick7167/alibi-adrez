@@ -7,6 +7,8 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "build": "pnpm -r build",
+    "build:mobile": "pnpm --filter web build:mobile",
+    "sync:ios": "pnpm --filter @aha/mobile sync",
     "dev:web": "pnpm --filter web dev",
     "deploy:rooms": "wrangler deploy --config apps/rooms/wrangler.jsonc",
     "deploy:web": "wrangler deploy --config apps/web/wrangler.jsonc"

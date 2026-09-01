@@ -1,0 +1,116 @@
+name: iOS native build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ios-app
+    paths:
+      - .github/workflows/ios-native-build.yml
+      - apps/mobile/**
+      - apps/web/**
+      - packages/shared/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-native-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-and-smoke:
+    name: Compile and launch with Xcode 26.6
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.14.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web assets and sync Capacitor
+        run: pnpm --filter @aha/mobile sync
+
+      - name: Compile the native app without signing
+        run: |
+          xcodebuild \
+            -project apps/mobile/ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath "$RUNNER_TEMP/AhaDeviceDerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Build for the iOS simulator
+        run: |
+          xcodebuild \
+            -project apps/mobile/ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath "$RUNNER_TEMP/AhaSimulatorDerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+          test -d "$RUNNER_TEMP/AhaSimulatorDerivedData/Build/Products/Debug-iphonesimulator/App.app"
+
+      - name: Launch on an iPhone simulator
+        run: |
+          DEVICE="$(xcrun simctl list devices available -j | jq -c '[.devices[][] | select(.isAvailable == true and (.name | startswith("iPhone")))] | first')"
+          UDID="$(jq -r '.udid' <<< "$DEVICE")"
+          test -n "$UDID"
+          test "$UDID" != "null"
+
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$RUNNER_TEMP/AhaSimulatorDerivedData/Build/Products/Debug-iphonesimulator/App.app"
+          xcrun simctl launch "$UDID" dev.adrez.aha
+          sleep 8
+          xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/aha-iphone-launch.png"
+          sips -g pixelWidth -g pixelHeight "$RUNNER_TEMP/aha-iphone-launch.png"
+          xcrun simctl shutdown "$UDID"
+
+      - name: Launch on an iPad simulator
+        run: |
+          DEVICE="$(xcrun simctl list devices available -j | jq -c '[.devices[][] | select(.isAvailable == true and (.name | startswith("iPad")))] | first')"
+          UDID="$(jq -r '.udid' <<< "$DEVICE")"
+          test -n "$UDID"
+          test "$UDID" != "null"
+
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$RUNNER_TEMP/AhaSimulatorDerivedData/Build/Products/Debug-iphonesimulator/App.app"
+          xcrun simctl launch "$UDID" dev.adrez.aha
+          sleep 8
+          xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/aha-ipad-launch.png"
+          sips -g pixelWidth -g pixelHeight "$RUNNER_TEMP/aha-ipad-launch.png"
+          xcrun simctl shutdown "$UDID"
+
+      - name: Upload simulator launch evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: aha-simulator-launch
+          path: |
+            ${{ runner.temp }}/aha-iphone-launch.png
+            ${{ runner.temp }}/aha-ipad-launch.png
+          if-no-files-found: error

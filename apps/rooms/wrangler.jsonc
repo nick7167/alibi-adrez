@@ -2,6 +2,9 @@
   "name": "aha-rooms",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
+  "vars": {
+    "ALLOWED_ORIGINS": "https://aha.adrez.dev,capacitor://localhost"
+  },
   "durable_objects": {
     "bindings": [{ "name": "ROOMS_DO", "class_name": "RoomDurableObject" }]
   },

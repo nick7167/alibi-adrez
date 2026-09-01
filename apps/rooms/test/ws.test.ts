@@ -121,6 +121,13 @@ describe("lobby websocket", () => {
     ws.close();
   });
 
+  it("rejects a websocket from an untrusted browser origin", async () => {
+    const res = await SELF.fetch("https://example.com/api/room/WSPX/ws", {
+      headers: { Upgrade: "websocket", Origin: "https://evil.example" },
+    });
+    expect(res.status).toBe(403);
+  });
+
   it("leave removes the player and broadcasts the updated lobby", async () => {
     const a = await connectAndJoin("WSL", "A");
     const b = await connectAndJoin("WSL", "B");
