@@ -75,11 +75,13 @@ jobs:
           test -d "$RUNNER_TEMP/AhaSimulatorDerivedData/Build/Products/Debug-iphonesimulator/App.app"
 
       - name: Launch on an iPhone simulator
+        timeout-minutes: 12
         run: |
           DEVICE="$(xcrun simctl list devices available -j | jq -c '[.devices[][] | select(.isAvailable == true and (.name | startswith("iPhone")))] | first')"
           UDID="$(jq -r '.udid' <<< "$DEVICE")"
           test -n "$UDID"
           test "$UDID" != "null"
+          jq -r '"Selected simulator: \(.name) (\(.udid))"' <<< "$DEVICE"
 
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
@@ -91,11 +93,13 @@ jobs:
           xcrun simctl shutdown "$UDID"
 
       - name: Launch on an iPad simulator
+        timeout-minutes: 12
         run: |
           DEVICE="$(xcrun simctl list devices available -j | jq -c '[.devices[][] | select(.isAvailable == true and (.name | startswith("iPad")))] | first')"
           UDID="$(jq -r '.udid' <<< "$DEVICE")"
           test -n "$UDID"
           test "$UDID" != "null"
+          jq -r '"Selected simulator: \(.name) (\(.udid))"' <<< "$DEVICE"
 
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
