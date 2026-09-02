@@ -24,6 +24,7 @@ test.describe.configure({ mode: 'serial' });
 
 const TALL = { width: 390, height: 844 };
 const SHORT = { width: 390, height: 420 };
+const IPAD_PORTRAIT = { width: 1032, height: 1376 };
 
 /** No page scroll in either axis, at the size the page is currently at. */
 async function expectNoPageScroll(page: Page, where: string) {
@@ -75,6 +76,20 @@ async function expectPinned(page: Page, testid: string, where: string) {
 	expect(box!.y + box!.height, `${where}: ${testid} is not visible without scrolling`)
 		.toBeLessThanOrEqual(inner + 0.5);
 }
+
+test('the landing page uses the iPad canvas instead of a phone-width column', async ({ page }) => {
+	await page.setViewportSize(IPAD_PORTRAIT);
+	await open(page, '/');
+	await expectNoPageScroll(page, 'landing iPad portrait');
+
+	const create = await page.getByTestId('create-room').boundingBox();
+	const heading = await page.getByRole('heading', { level: 1 }).boundingBox();
+	expect(create, 'iPad create action has no box').not.toBeNull();
+	expect(heading, 'iPad wordmark has no box').not.toBeNull();
+	expect(create!.width, 'iPad actions are still phone-width').toBeGreaterThanOrEqual(560);
+	expect(create!.height, 'iPad action did not receive tablet scale').toBeGreaterThanOrEqual(71.5);
+	expect(heading!.height, 'iPad identity did not receive tablet scale').toBeGreaterThanOrEqual(125);
+});
 
 async function seat(browser: Browser, count: number) {
 	const pages: Page[] = [];

@@ -74,6 +74,7 @@ jobs:
             build
 
           test -d "$RUNNER_TEMP/AhaSimulatorDerivedData/Build/Products/Debug-iphonesimulator/App.app"
+          test -f "$RUNNER_TEMP/AhaSimulatorDerivedData/Build/Products/Debug-iphonesimulator/App.app/PrivacyInfo.xcprivacy"
 
       - name: Launch on an iPhone simulator
         timeout-minutes: 12
@@ -99,7 +100,8 @@ jobs:
           xcrun simctl spawn "$UDID" log show \
             --last 3m \
             --style compact \
-            --level debug \
+            --info \
+            --debug \
             --predicate 'process == "App" OR process CONTAINS[c] "WebContent" OR process CONTAINS[c] "WebKit"' \
             > "$RUNNER_TEMP/aha-iphone.log" 2>&1 || true
           xcrun swift scripts/assert-screenshot-content.swift "$RUNNER_TEMP/aha-iphone-launch.png"
@@ -128,7 +130,8 @@ jobs:
           xcrun simctl spawn "$UDID" log show \
             --last 3m \
             --style compact \
-            --level debug \
+            --info \
+            --debug \
             --predicate 'process == "App" OR process CONTAINS[c] "WebContent" OR process CONTAINS[c] "WebKit"' \
             > "$RUNNER_TEMP/aha-ipad.log" 2>&1 || true
           xcrun swift scripts/assert-screenshot-content.swift "$RUNNER_TEMP/aha-ipad-launch.png"

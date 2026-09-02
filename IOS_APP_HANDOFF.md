@@ -1,6 +1,6 @@
 # AHA iOS / App Store handoff
 
-Last updated: 2026-09-01 (Europe/Copenhagen)
+Last updated: 2026-09-02 (Europe/Copenhagen)
 
 This document is the source of truth for taking AHA from its existing web game to
 an App Store release. It is intentionally self-contained so a new Codex session can
@@ -115,12 +115,12 @@ Important implementation facts:
 - The web client uses relative `/api` requests and derives WebSocket URLs from the
   page host. In production those requests pass through a SvelteKit endpoint and a
   Cloudflare service binding to `aha-rooms`.
-- That web-only transport will not work unchanged inside Capacitor. A mobile build
-  needs explicit HTTPS and WSS production origins, and the Rooms Worker needs an
-  intentional native-origin/CORS policy.
+- The separate mobile build uses explicit HTTPS and WSS origins for the Rooms
+  Worker. The web build retains its relative `/api` service-binding path.
 - `scripts/bots.mjs` is a development CLI only. App Review cannot use it.
-- There is no Capacitor configuration, native iOS project, Codemagic workflow,
-  privacy manifest, App Store record, or AHA-specific signing setup yet.
+- Capacitor configuration, a universal native iOS project, an unsigned hosted-Xcode
+  workflow, and an AHA-specific privacy manifest now exist on `ios-app`. There is
+  still no Codemagic workflow, App Store record, or AHA-specific signing setup.
 
 ## 5. Baseline verification
 
@@ -156,9 +156,12 @@ work:
   flows.
 
 The generated Capacitor project is under `apps/mobile/ios`. Its project settings
-already target iPhone+iPad (`TARGETED_DEVICE_FAMILY = "1,2"`) with iOS 15.0 as
-the minimum. This has not yet been compiled by hosted Xcode; local generation and
-`cap sync ios` passed.
+target iPhone+iPad (`TARGETED_DEVICE_FAMILY = "1,2"`) with iOS 15.0 as the
+minimum. GitHub-hosted Xcode 26.6 has compiled both generic iOS and simulator
+targets and launched the app on current iPhone and iPad simulators. A blank-screen
+regression discovered in the first screenshots was traced to Paraglide's cookie
+locale strategy on Capacitor's custom scheme; the mobile build now uses
+`localStorage`, while the web build still uses its cookie strategy.
 
 ## 6. Proven approach from Vildsvar
 
@@ -341,7 +344,8 @@ Entertainment.
 - [x] Configure universal iPhone/iPad support and iOS 15 minimum.
 - [ ] Add native safe-area/status-bar handling to every route and keyboard state.
 - [ ] Add only justified Capacitor plugins, browser fallbacks, and permissions.
-- [ ] Add a real iOS app icon, launch screen, display name, and privacy manifest.
+- [ ] Add a real iOS app icon, polished launch screen, and final display name.
+- [x] Add an AHA-specific app privacy manifest based on audited current behavior.
 - [ ] Add universal links for `aha.adrez.dev/room/<code>` so app and web users share
   the same invite URL, with web fallback when the app is not installed.
 
@@ -366,9 +370,14 @@ WebSocket browser origins, and gives local `wrangler dev` its own localhost
 override. There is no wildcard CORS. Unit/integration and full Playwright
 regressions pass. Deployment remains explicitly gated.
 
+The current code-derived privacy inventory and open infrastructure checks are in
+`docs/ios-privacy-data-map.md`. The app target now bundles
+`PrivacyInfo.xcprivacy`; the final signed archive's aggregated privacy report and
+Cloudflare account-level retention still require verification.
+
 ### Phase D — hosted native CI and signing
 
-- [ ] Add a GitHub Actions hosted-macOS job for unsigned native compile checks and
+- [x] Add a GitHub Actions hosted-macOS job for unsigned native compile checks and
   iPhone/iPad simulator smoke tests using current Xcode 26.
 - [ ] Create an AHA-specific `codemagic.yaml` based on the proven Vildsvar pattern.
 - [ ] Reuse the user's existing Apple Developer membership and App Store Connect API
@@ -378,6 +387,16 @@ regressions pass. Deployment remains explicitly gated.
 - [ ] Add AHA as a separate Codemagic app/workflow. Do not reuse Vildsvar's App Store
   record or provisioning profile.
 - [ ] Build, upload, and process the first TestFlight build.
+
+`.github/workflows/ios-native-build.yml` pins hosted Xcode 26.6, compiles an
+unsigned generic-iOS target and a simulator target, launches current iPhone and
+iPad simulators, rejects nearly blank screenshots, captures focused WebKit logs,
+and uploads the evidence. Run 33574292438 proved that the locale fix rendered the
+full landing UI on both device classes; its iPad step intentionally failed because
+the first blank-screen heuristic mistook a sparse, phone-sized tablet layout for a
+blank screen. That finding produced a separate iPad layout assertion and a real
+tablet-scale landing composition. The corrected hosted run is the next required
+evidence before closing the visual launch check.
 
 ### Phase E — device-quality validation
 
@@ -533,7 +552,7 @@ The new session should:
    generation, universal/iOS 15 settings, and local origin-policy tests as complete.
 5. Continue the remaining name/IP interactive checks when a compliant browser path
    is available, but do not let that block name-independent implementation.
-6. Add hosted native compile/simulator CI, then continue backend security,
-   moderation, and the solo reviewer journey without deploying production.
+6. Use the hosted native evidence and privacy data map while continuing backend
+   security, moderation, and the solo reviewer journey without deploying production.
 7. Continue autonomously through all reversible work. Ask the user only when final
    name approval or another genuinely user-only action becomes the critical path.

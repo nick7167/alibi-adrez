@@ -31,7 +31,10 @@ struct ScreenshotAnalysis {
   let distinctColors: Int
 
   var hasVisibleAppContent: Bool {
-    offDominantFraction >= 0.08 && distinctColors >= 6
+    // This is a blank-screen guard, not a density or layout score. A spacious
+    // tablet composition can legitimately use little of a single-color field;
+    // requiring several quantized colors keeps system chrome from passing it.
+    offDominantFraction >= 0.025 && distinctColors >= 6
   }
 }
 

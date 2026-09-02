@@ -109,7 +109,7 @@
 	</div>
 
 	<div
-		class="relative z-10 mx-auto flex h-full w-full max-w-md flex-col overflow-y-auto px-5 pt-safe pb-safe"
+		class="ho-shell relative z-10 mx-auto flex h-full w-full max-w-md flex-col overflow-y-auto px-5 pt-safe pb-safe"
 		class:ho-compact={showJoin}
 	>
 		<!-- The identity group takes the free height and centres inside it, so a
@@ -160,7 +160,7 @@
 		</p>
 		</div>
 
-		<div class="flex shrink-0 flex-col gap-3 pt-4">
+		<div class="ho-actions flex shrink-0 flex-col gap-3 pt-4">
 			<button
 				type="button"
 				data-testid="create-room"
@@ -224,7 +224,7 @@
 			{/if}
 		</div>
 
-		<div class="reveal mt-4 flex shrink-0 justify-center" style="animation-delay: 350ms">
+		<div class="reveal ho-rules mt-4 flex shrink-0 justify-center" style="animation-delay: 350ms">
 			<a
 				href="/rules"
 				data-testid="rules-link"
@@ -249,7 +249,7 @@
 		</div>
 
 		<div
-			class="reveal mt-4 flex shrink-0 items-center justify-end gap-1.5 text-[13px] font-bold tracking-[0.14em] text-white/60"
+			class="reveal ho-locale mt-4 flex shrink-0 items-center justify-end gap-1.5 text-[13px] font-bold tracking-[0.14em] text-white/60"
 			style="animation-delay: 400ms"
 		>
 			{#each locales as locale, i (locale)}
@@ -358,6 +358,86 @@
 			margin-top: 0.75rem;
 			padding-top: 0.375rem;
 			padding-bottom: 0.375rem;
+		}
+	}
+
+	/* A tablet is a shared game board, not a phone floating in a large purple
+	   canvas. Keep the same poster hierarchy but give its identity and controls
+	   a deliberate iPad scale. The phone breakpoint above remains untouched. */
+	@media (min-width: 768px) and (min-height: 800px) {
+		.ho-shell {
+			max-width: 52rem;
+			padding-right: 4rem;
+			padding-left: 4rem;
+		}
+
+		.ho-mark {
+			font-size: 144px;
+		}
+
+		.ho-tagline {
+			margin-top: 1.25rem;
+			max-width: 36rem;
+			font-size: 24px;
+			line-height: 1.3;
+		}
+
+		.ho-steps {
+			align-self: center;
+			width: 100%;
+			max-width: 38rem;
+			margin-top: 2rem;
+			gap: 0.875rem;
+			padding: 1rem 1.5rem;
+			border-radius: 1.5rem;
+		}
+
+		.ho-steps span {
+			font-size: 25px;
+		}
+
+		.ho-steps svg {
+			width: 20px;
+			height: 20px;
+		}
+
+		.ho-players {
+			margin-top: 1rem;
+			font-size: 17px;
+		}
+
+		.ho-actions {
+			align-self: center;
+			width: 100%;
+			max-width: 38rem;
+			gap: 1rem;
+			padding-top: 2rem;
+		}
+
+		.ho-actions > button,
+		.ho-actions > form input,
+		.ho-actions > form button {
+			min-height: 72px;
+			font-size: 25px;
+		}
+
+		.ho-rules {
+			margin-top: 1.5rem;
+		}
+
+		.ho-rules a {
+			min-height: 56px;
+			padding-right: 1.75rem;
+			padding-left: 1.75rem;
+			font-size: 15px;
+		}
+
+		.ho-locale {
+			align-self: center;
+			width: 100%;
+			max-width: 38rem;
+			margin-top: 1.5rem;
+			font-size: 16px;
 		}
 	}
 
