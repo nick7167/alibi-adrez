@@ -10,6 +10,7 @@ on:
       - apps/mobile/**
       - apps/web/**
       - packages/shared/**
+      - scripts/assert-screenshot-content.swift
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
@@ -83,14 +84,25 @@ jobs:
           test "$UDID" != "null"
           jq -r '"Selected simulator: \(.name) (\(.udid))"' <<< "$DEVICE"
 
+          cleanup() {
+            xcrun simctl shutdown "$UDID" || true
+          }
+          trap cleanup EXIT
+
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$RUNNER_TEMP/AhaSimulatorDerivedData/Build/Products/Debug-iphonesimulator/App.app"
           xcrun simctl launch "$UDID" dev.adrez.aha
-          sleep 8
+          sleep 12
           xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/aha-iphone-launch.png"
           sips -g pixelWidth -g pixelHeight "$RUNNER_TEMP/aha-iphone-launch.png"
-          xcrun simctl shutdown "$UDID"
+          xcrun simctl spawn "$UDID" log show \
+            --last 3m \
+            --style compact \
+            --level debug \
+            --predicate 'process == "App" OR process CONTAINS[c] "WebContent" OR process CONTAINS[c] "WebKit"' \
+            > "$RUNNER_TEMP/aha-iphone.log" 2>&1 || true
+          xcrun swift scripts/assert-screenshot-content.swift "$RUNNER_TEMP/aha-iphone-launch.png"
 
       - name: Launch on an iPad simulator
         timeout-minutes: 12
@@ -101,20 +113,34 @@ jobs:
           test "$UDID" != "null"
           jq -r '"Selected simulator: \(.name) (\(.udid))"' <<< "$DEVICE"
 
+          cleanup() {
+            xcrun simctl shutdown "$UDID" || true
+          }
+          trap cleanup EXIT
+
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$RUNNER_TEMP/AhaSimulatorDerivedData/Build/Products/Debug-iphonesimulator/App.app"
           xcrun simctl launch "$UDID" dev.adrez.aha
-          sleep 8
+          sleep 12
           xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/aha-ipad-launch.png"
           sips -g pixelWidth -g pixelHeight "$RUNNER_TEMP/aha-ipad-launch.png"
-          xcrun simctl shutdown "$UDID"
+          xcrun simctl spawn "$UDID" log show \
+            --last 3m \
+            --style compact \
+            --level debug \
+            --predicate 'process == "App" OR process CONTAINS[c] "WebContent" OR process CONTAINS[c] "WebKit"' \
+            > "$RUNNER_TEMP/aha-ipad.log" 2>&1 || true
+          xcrun swift scripts/assert-screenshot-content.swift "$RUNNER_TEMP/aha-ipad-launch.png"
 
       - name: Upload simulator launch evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: aha-simulator-launch
           path: |
             ${{ runner.temp }}/aha-iphone-launch.png
             ${{ runner.temp }}/aha-ipad-launch.png
-          if-no-files-found: error
+            ${{ runner.temp }}/aha-iphone.log
+            ${{ runner.temp }}/aha-ipad.log
+          if-no-files-found: warn

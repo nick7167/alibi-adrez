@@ -38,7 +38,12 @@ export default defineConfig(({ command, mode }) => {
 				project: './project.inlang',
 				outdir: './src/lib/paraglide',
 				emitTsDeclarations: true,
-				strategy: ['cookie', 'preferredLanguage', 'baseLocale']
+				// Cookies are appropriate for the server-rendered web app. Capacitor
+				// runs the static app on a custom URL scheme, where cookie access is
+				// not a dependable locale store during client startup.
+				strategy: mobile
+					? ['localStorage', 'preferredLanguage', 'baseLocale']
+					: ['cookie', 'preferredLanguage', 'baseLocale']
 			})
 		],
 
