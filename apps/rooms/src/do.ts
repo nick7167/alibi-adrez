@@ -298,6 +298,7 @@ export class RoomDurableObject implements DurableObject {
         ws.send(JSON.stringify({ v: 1, t: "pong" }));
         return;
       case "leave":
+      case "kick":
       case "updateSettings":
       case "startGame":
       case "returnToLobby":
@@ -323,6 +324,7 @@ export class RoomDurableObject implements DurableObject {
           return;
         }
         await this.save(result.room);
+        if (msg.t === "kick") this.disconnectPlayer(msg.targetPlayerId, "KICKED");
         this.broadcastState(result.room);
         // Starting the game, the last guess landing early, a leave that ends
         // the game — any of these moves the phase deadline.
@@ -344,6 +346,21 @@ export class RoomDurableObject implements DurableObject {
       if (attachment === null || !attachment.authed) continue;
       if (!room.players.some((p) => p.id === attachment.playerId)) continue;
       socket.send(JSON.stringify(snapshotForPlayer(room, attachment.playerId, now)));
+    }
+  }
+
+  /** Revoke every live socket for a player whose room session was removed. */
+  private disconnectPlayer(playerId: string, code: ErrorCode): void {
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = socket.deserializeAttachment() as WsAttachment | null;
+      if (
+        socket.readyState === WS_READY_STATE_OPEN
+        && attachment !== null
+        && attachment.authed
+        && attachment.playerId === playerId
+      ) {
+        this.rejectAndClose(socket, code);
+      }
     }
   }
 

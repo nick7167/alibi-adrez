@@ -45,6 +45,13 @@ describe("lobby state machine", () => {
     const r = await applyEvent(room, "", { v: 1, t: "join", name: "p2", emoji: "🐸" }, deps);
     expect(r).toMatchObject({ ok: false, code: "NAME_TAKEN" });
   });
+  it("filters objectionable player names before they enter the room", async () => {
+    const deps = makeDeps();
+    const room = await lobbyWithPlayers(2);
+    const r = await applyEvent(room, "", { v: 1, t: "join", name: "N1gg3r", emoji: "🐸" }, deps);
+    expect(r).toMatchObject({ ok: false, code: "CONTENT_BLOCKED" });
+    expect(r.room).toBe(room);
+  });
   it("rejects 17th player with ROOM_FULL", async () => {
     const deps = makeDeps();
     const room = await lobbyWithPlayers(16);
@@ -123,6 +130,20 @@ describe("lobby state machine", () => {
     expect(await applyEvent(room, "p1", { v: 1, t: "submitGuess", answerId: "a1", playerId: "p2" }, deps))
       .toMatchObject({ ok: false, code: "WRONG_PHASE" });
   });
+  it("filters objectionable answers before they enter persisted game state", async () => {
+    const deps = makeDeps();
+    const room = await lobbyWithPlayers(3);
+    room.phase = "ANSWERING";
+    room.questions = ["q1"];
+    const r = await applyEvent(
+      room,
+      "p1",
+      { v: 1, t: "submitEntry", questionIndex: 0, text: "k1ll y0urself" },
+      deps,
+    );
+    expect(r).toMatchObject({ ok: false, code: "CONTENT_BLOCKED" });
+    expect(r.room.entries).toEqual({});
+  });
   it("rejects joining after the game has started", async () => {
     const deps = makeDeps();
     const room = await lobbyWithPlayers(3);
@@ -137,6 +158,20 @@ describe("lobby state machine", () => {
     const r = await applyEvent(room, "p1", { v: 1, t: "leave" }, deps);
     expect(r.ok && r.room.hostId).toBe("p2");
     expect(r.ok && Object.keys(r.room.scores)).toEqual([]);
+  });
+  it("lets only the host remove another player and revokes that session", async () => {
+    const deps = makeDeps();
+    const room = await lobbyWithPlayers(3);
+    expect(await applyEvent(room, "p2", { v: 1, t: "kick", targetPlayerId: "p3" }, deps))
+      .toMatchObject({ ok: false, code: "NOT_HOST" });
+    const kicked = await applyEvent(room, "p1", { v: 1, t: "kick", targetPlayerId: "p3" }, deps);
+    expect(kicked.ok).toBe(true);
+    if (!kicked.ok) return;
+    expect(kicked.room.players.map((p) => p.id)).toEqual(["p1", "p2"]);
+    expect(kicked.room.sessions.p3).toBeUndefined();
+    expect(await applyEvent(
+      kicked.room, "", { v: 1, t: "reconnect", playerId: "p3", token: "tok3" }, deps,
+    )).toMatchObject({ ok: false, code: "UNKNOWN_PLAYER" });
   });
   it("snapshots never expose sessions or tokens", async () => {
     const room = await lobbyWithPlayers(2);

@@ -41,17 +41,24 @@
 	import { m } from '$lib/paraglide/messages';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import LeaveButton from '$lib/components/LeaveButton.svelte';
+	import AnswerSafetyButton from '$lib/components/AnswerSafetyButton.svelte';
 
 	let {
 		room,
 		offset,
 		onGuess,
-		onLeave
+		onLeave,
+		answerHidden,
+		onToggleHidden,
+		onReport
 	}: {
 		room: GuessingView;
 		offset: number;
 		onGuess: (answerId: string, playerId: string) => void;
 		onLeave: () => void;
+		answerHidden: boolean;
+		onToggleHidden: () => void;
+		onReport: () => void;
 	} = $props();
 
 	const byId = $derived(new Map(room.players.map((p) => [p.id, p])));
@@ -178,6 +185,13 @@
 					<!-- The author already knows; telling them "somebody wrote"
 					     would read as the app not knowing either. -->
 					{room.youWrote ? m['guessing.youWrote']() : m['guessing.somebodyWrote']()}
+				</span>
+				<span class="ml-auto">
+					<AnswerSafetyButton
+						hidden={answerHidden}
+						onToggleHidden={onToggleHidden}
+						onReport={onReport}
+					/>
 				</span>
 			</div>
 			<p

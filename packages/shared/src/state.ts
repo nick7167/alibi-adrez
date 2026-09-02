@@ -20,6 +20,7 @@ import type { ConnectedIds, Entry, GuessRound } from "./round";
 import { applyRoundMessage, beginGame, handlePlayerLeft, returnToLobby } from "./round";
 import { hashToken } from "./token";
 import { viewForPlayer } from "./view";
+import { containsObjectionableContent } from "./moderation";
 
 export interface SessionSecret { playerId: string; tokenHash: string }
 
@@ -168,6 +169,9 @@ export async function applyEvent(
   switch (msg.t) {
     case "join": {
       if (room.phase !== "LOBBY") return { ok: false, code: "GAME_STARTED", room };
+      if (containsObjectionableContent(msg.name)) {
+        return { ok: false, code: "CONTENT_BLOCKED", room };
+      }
       const lower = msg.name.toLowerCase();
       if (room.players.some((p) => p.name.toLowerCase() === lower)) {
         return { ok: false, code: "NAME_TAKEN", room };
@@ -238,6 +242,19 @@ export async function applyEvent(
       handlePlayerLeft(next, senderId, deps, connected);
       return { ok: true, room: next };
     }
+    case "kick": {
+      if (senderId !== room.hostId) return { ok: false, code: "NOT_HOST", room };
+      if (msg.targetPlayerId === senderId) return { ok: false, code: "BAD_MESSAGE", room };
+      const idx = room.players.findIndex((p) => p.id === msg.targetPlayerId);
+      if (idx === -1) return { ok: false, code: "UNKNOWN_PLAYER", room };
+      const next = structuredClone(room);
+      next.players.splice(idx, 1);
+      delete next.sessions[msg.targetPlayerId];
+      delete next.scores[msg.targetPlayerId];
+      delete next.stagedCount[msg.targetPlayerId];
+      handlePlayerLeft(next, msg.targetPlayerId, deps, connected);
+      return { ok: true, room: next };
+    }
     case "setLang": {
       // Legal in every phase: the in-app EN/DA toggle follows the player
       // mid-game, and the next snapshot is rendered in the new language.
@@ -251,6 +268,10 @@ export async function applyEvent(
     case "ping":
       return { ok: true, room };
     case "submitEntry":
+      if (containsObjectionableContent(msg.text)) {
+        return { ok: false, code: "CONTENT_BLOCKED", room };
+      }
+      return applyRoundMessage(room, senderId, msg, deps, connected);
     case "submitGuess":
     case "handIn":
       return applyRoundMessage(room, senderId, msg, deps, connected);

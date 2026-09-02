@@ -32,18 +32,27 @@
 	import { m } from '$lib/paraglide/messages';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import LeaveButton from '$lib/components/LeaveButton.svelte';
+	import AnswerSafetyButton from '$lib/components/AnswerSafetyButton.svelte';
 
 	let {
 		room,
 		you,
 		offset,
-		onLeave
+		onLeave,
+		answerHidden,
+		answerHiddenByPlayer,
+		onToggleHidden,
+		onReport
 	}: {
 		room: RevealView;
 		/** This reader's playerId, so their own line can be called out. */
 		you: string;
 		offset: number;
 		onLeave: () => void;
+		answerHidden: boolean;
+		answerHiddenByPlayer: boolean;
+		onToggleHidden: () => void;
+		onReport: () => void;
 	} = $props();
 
 	const byId = $derived(new Map(room.players.map((p) => [p.id, p])));
@@ -119,9 +128,17 @@
 		data-testid="answer-card"
 		class="rv-card mt-3 flex shrink-0 flex-col gap-1.5 rounded-card bg-surface px-5 py-4 text-ink shadow-[0_6px_0_rgba(22,11,61,0.4)]"
 	>
-		<span class="text-[10px] font-extrabold tracking-[0.18em] text-surface-2 uppercase">
-			{room.prompt}
-		</span>
+		<div class="flex shrink-0 items-center gap-2">
+			<span class="min-w-0 flex-1 text-[10px] font-extrabold tracking-[0.18em] text-surface-2 uppercase">
+				{room.prompt}
+			</span>
+			<AnswerSafetyButton
+				hidden={answerHidden}
+				hiddenByPlayer={answerHiddenByPlayer}
+				onToggleHidden={onToggleHidden}
+				onReport={onReport}
+			/>
+		</div>
 		<p
 			data-testid="staged-answer"
 			class="rv-answer font-display text-[22px] leading-[1.16] font-semibold tracking-[-0.01em] text-balance"

@@ -248,6 +248,19 @@
 			</a>
 		</div>
 
+		<nav
+			class="reveal ho-legal mt-3 flex shrink-0 justify-center gap-4 text-[11px] font-bold text-white/65"
+			aria-label="Safety"
+			style="animation-delay: 375ms"
+		>
+			<a class="min-h-11 content-center underline underline-offset-4" href="/community-rules">
+				{m['nav.community']()}
+			</a>
+			<a class="min-h-11 content-center underline underline-offset-4" href="/support">
+				{m['nav.support']()}
+			</a>
+		</nav>
+
 		<div
 			class="reveal ho-locale mt-4 flex shrink-0 items-center justify-end gap-1.5 text-[13px] font-bold tracking-[0.14em] text-white/60"
 			style="animation-delay: 400ms"
@@ -438,6 +451,10 @@
 			max-width: 38rem;
 			margin-top: 1.5rem;
 			font-size: 16px;
+		}
+
+		.ho-legal {
+			font-size: 14px;
 		}
 	}
 

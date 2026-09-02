@@ -5,6 +5,15 @@
 	import { clearIdentity, loadIdentity, saveIdentity } from '$lib/stores/session.svelte';
 	import type { Identity } from '$lib/stores/session.svelte';
 	import { currentLocale } from '$lib/i18n';
+	import {
+		loadBlockedPlayers,
+		loadHiddenAnswers,
+		redactRoom,
+		reportAnswerUrl,
+		reportPlayerUrl,
+		saveBlockedPlayers,
+		saveHiddenAnswers
+	} from '$lib/safety';
 	import type { Phase, RoomView, ServerMessage, Settings } from '@aha/shared';
 	import JoinForm from './JoinForm.svelte';
 	import Lobby from './Lobby.svelte';
@@ -29,10 +38,27 @@
 	let joining = $state(false);
 	let errorNonce = $state(0);
 	let toastMsg = $state<string | null>(null);
+	let blockedPlayerIds = $state<string[]>([]);
+	let hiddenAnswerIds = $state<string[]>([]);
 
 	let sockRef: RoomSocket | null = null;
 	let pendingIdentity: { name: string; emoji: string } | null = null;
 	let toastTimer: ReturnType<typeof setTimeout> | null = null;
+	const blockedPlayers = $derived(new Set(blockedPlayerIds));
+	const hiddenAnswers = $derived(new Set(hiddenAnswerIds));
+	const displayedRoom = $derived(
+		view === null
+			? null
+			: redactRoom(view.room, blockedPlayers, hiddenAnswers, {
+					player: m['safety.hiddenPlayer'](),
+					answer: m['safety.hiddenAnswer']()
+				})
+	);
+
+	$effect(() => {
+		blockedPlayerIds = loadBlockedPlayers(data.code);
+		hiddenAnswerIds = loadHiddenAnswers(data.code);
+	});
 
 	function toast(text: string) {
 		toastMsg = text;
@@ -83,12 +109,24 @@
 					toast(m['errors.nameTaken']());
 					screen = 'join';
 					errorNonce++;
-			} else if (msg.code === 'ROOM_FULL') {
-				toastThen(m['errors.fullRoom'](), () => void goto('/'));
-			} else {
-					if (msg.code === 'UNKNOWN_PLAYER') clearIdentity(code);
+				} else if (msg.code === 'CONTENT_BLOCKED') {
+					toast(m['errors.contentBlocked']());
+					if (screen === 'join') errorNonce++;
+				} else if (msg.code === 'ROOM_FULL') {
+					toastThen(m['errors.fullRoom'](), () => void goto('/'));
+				} else if (msg.code === 'KICKED') {
+					clearIdentity(code);
+					sockRef?.close();
+					toastThen(m['errors.kicked'](), () => void goto('/'));
+				} else if (msg.code === 'RATE_LIMITED') {
+					toast(m['errors.rateLimited']());
+				} else if (msg.code === 'UNKNOWN_PLAYER') {
+					clearIdentity(code);
 					toast(m['errors.generic']());
 					screen = 'join';
+					errorNonce++;
+				} else {
+					toast(m['errors.generic']());
 				}
 				break;
 			}
@@ -174,6 +212,51 @@
 		sockRef?.submitGuess(answerId, playerId);
 	}
 
+	function kickPlayer(playerId: string) {
+		sockRef?.send({ v: 1, t: 'kick', targetPlayerId: playerId });
+	}
+
+	function toggleBlockedPlayer(playerId: string) {
+		blockedPlayerIds = blockedPlayers.has(playerId)
+			? blockedPlayerIds.filter((id) => id !== playerId)
+			: [...blockedPlayerIds, playerId];
+		saveBlockedPlayers(data.code, blockedPlayerIds);
+	}
+
+	function toggleHiddenAnswer(answerId: string) {
+		hiddenAnswerIds = hiddenAnswers.has(answerId)
+			? hiddenAnswerIds.filter((id) => id !== answerId)
+			: [...hiddenAnswerIds, answerId];
+		saveHiddenAnswers(data.code, hiddenAnswerIds);
+	}
+
+	function reportPlayer(playerId: string) {
+		const player = view?.room.players.find((candidate) => candidate.id === playerId);
+		if (player === undefined) return;
+		window.location.href = reportPlayerUrl({
+			lang: currentLocale(),
+			roomCode: data.code,
+			playerId,
+			playerName: player.name
+		});
+	}
+
+	function reportAnswer(answerId: string) {
+		const room = view?.room;
+		if (room?.phase !== 'GUESSING' && room?.phase !== 'REVEAL') return;
+		if (room.answer.id !== answerId) return;
+		const author = room.phase === 'REVEAL'
+			? room.players.find((player) => player.id === room.authorId)
+			: undefined;
+		window.location.href = reportAnswerUrl({
+			lang: currentLocale(),
+			roomCode: data.code,
+			answerId,
+			answerText: room.answer.text,
+			...(author === undefined ? {} : { author: { id: author.id, name: author.name } })
+		});
+	}
+
 	/** AHA has one field colour and every screen wears it (see the ledger's
 	    "Chosen identity — A · AHA" ruling): join, lobby, and every phase.
 	    Kept as a literal inside the $derived — never a lookup object — because
@@ -245,15 +328,20 @@
 			</svg>
 		</button>
 		<JoinForm pending={joining} errorNonce={errorNonce} onJoin={join} />
-	{:else if view?.room.phase === 'LOBBY'}
+	{:else if displayedRoom?.phase === 'LOBBY' && view}
 		<Lobby
 			isHost={view.isHost}
-			room={view.room}
+			you={view.you}
+			room={displayedRoom}
 			onStart={startGame}
 			onUpdate={updateSettings}
 			onLeave={leaveRoom}
+			onKick={kickPlayer}
+			onToggleBlocked={toggleBlockedPlayer}
+			onReportPlayer={reportPlayer}
+			isBlocked={(playerId) => blockedPlayers.has(playerId)}
 		/>
-	{:else if view?.room.phase === 'INTRO'}
+	{:else if displayedRoom?.phase === 'INTRO'}
 		<section
 			data-testid="intro-splash"
 			class="pop-in grid fill-vp place-items-center bg-field px-4 text-center"
@@ -272,25 +360,42 @@
 				</span>
 			</div>
 		</section>
-	{:else if view?.room.phase === 'ANSWERING'}
+	{:else if displayedRoom?.phase === 'ANSWERING'}
 		<Answering
-			room={view.room}
+			room={displayedRoom}
 			{offset}
 			onSubmit={submitEntry}
 			onHandIn={handIn}
 			onLeave={leaveRoom}
 		/>
-	{:else if view?.room.phase === 'GUESSING'}
-		<Guessing room={view.room} {offset} onGuess={submitGuess} onLeave={leaveRoom} />
-	{:else if view?.room.phase === 'REVEAL'}
-		<Reveal room={view.room} you={view.you} {offset} onLeave={leaveRoom} />
-	{:else if view?.room.phase === 'STANDINGS'}
-		<Standings room={view.room} you={view.you} {offset} onLeave={leaveRoom} />
-	{:else if view?.room.phase === 'FINALE'}
+	{:else if displayedRoom?.phase === 'GUESSING'}
+		<Guessing
+			room={displayedRoom}
+			{offset}
+			onGuess={submitGuess}
+			onLeave={leaveRoom}
+			answerHidden={hiddenAnswers.has(displayedRoom.answer.id)}
+			onToggleHidden={() => toggleHiddenAnswer(displayedRoom.answer.id)}
+			onReport={() => reportAnswer(displayedRoom.answer.id)}
+		/>
+	{:else if displayedRoom?.phase === 'REVEAL' && view}
+		<Reveal
+			room={displayedRoom}
+			you={view.you}
+			{offset}
+			onLeave={leaveRoom}
+			answerHidden={hiddenAnswers.has(displayedRoom.answer.id) || blockedPlayers.has(displayedRoom.authorId)}
+			answerHiddenByPlayer={blockedPlayers.has(displayedRoom.authorId)}
+			onToggleHidden={() => toggleHiddenAnswer(displayedRoom.answer.id)}
+			onReport={() => reportAnswer(displayedRoom.answer.id)}
+		/>
+	{:else if displayedRoom?.phase === 'STANDINGS' && view}
+		<Standings room={displayedRoom} you={view.you} {offset} onLeave={leaveRoom} />
+	{:else if displayedRoom?.phase === 'FINALE' && view}
 		<!-- The only in-room screen with NO leave control: its single action
 		     puts the room back in the lobby with the same players, and leaving
 		     for good is done from there. -->
-		<Finale room={view.room} you={view.you} onBackToLobby={backToLobby} />
+		<Finale room={displayedRoom} you={view.you} onBackToLobby={backToLobby} />
 	{/if}
 
 	{#if offlineLong && screen !== 'INTRO'}

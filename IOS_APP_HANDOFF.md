@@ -155,12 +155,16 @@ work:
   origin policy), including the full game, short viewport, cadence, and leaver
   flows.
 
-Reverified on 2026-09-02 after the iPad/privacy and rate-guard work:
+Reverified on 2026-09-02 after the iPad/privacy, rate-guard, and local UGC-safety work:
 
 - `pnpm typecheck`: passed across the workspace.
-- `pnpm test`: passed, 221 tests total (shared 124, web 62, rooms 35).
-- Playwright: 7/7 passed, including the 1032 x 1376 iPad composition assertion
-  and the full browser game flow.
+- `pnpm test`: passed, 239 tests total (shared 130, web 73, rooms 36).
+- Playwright: all 10 current specs passed (7 full regression specs plus 3 focused
+  safety specs), including the 1032 x 1376 iPad composition assertion, full
+  browser game flow, server name rejection, persistent local blocking, host
+  removal, anonymous-answer hide/restore/report controls, and reachable
+  community/support pages.
+- `pnpm audit --prod`: no known vulnerabilities.
 
 The generated Capacitor project is under `apps/mobile/ios`. Its project settings
 target iPhone+iPad (`TARGETED_DEVICE_FAMILY = "1,2"`) with iOS 15.0 as the
@@ -385,6 +389,20 @@ cannot monopolize the Durable Object queue. Wrangler 4.125 dry-run recognizes bo
 bindings and the Rooms suite covers hashing, local bypass, and flood closure. The
 edge counters are intentionally permissive/location-local and are a safety layer,
 not billing or exact accounting.
+
+The code-side UGC safety set is now implemented on `ios-app`: deterministic
+Danish/English server filtering runs before player names or answers enter room
+state; every participant can locally mask another player and hide/report the
+current answer; player and answer reports open a localized, prefilled email to
+`support@adrez.dev`; and the host can remove another player, revoke that room
+session, and close its sockets. Community-rules and support pages are reachable
+from the landing page in both languages. The guessing snapshot remains anonymous:
+answer reporting before reveal includes no author, and local player masking does
+not alter candidate IDs or scoring. This is an ephemeral session removal, not an
+account-level ban: a removed person with the private invitation can still create a
+new pseudonymous identity. Do not claim the release gate complete until mailbox
+ownership/access, response expectations, retention/deletion, final public URLs,
+and deployed end-to-end behavior have been verified.
 
 The current code-derived privacy inventory and open infrastructure checks are in
 `docs/ios-privacy-data-map.md`. The app target now bundles

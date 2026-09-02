@@ -46,20 +46,34 @@
 		type Settings
 	} from '@aha/shared';
 	import LeaveButton from '$lib/components/LeaveButton.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
 	let {
 		isHost,
+		you,
 		room,
 		onStart,
 		onUpdate,
-		onLeave
+		onLeave,
+		onKick,
+		onToggleBlocked,
+		onReportPlayer,
+		isBlocked
 	}: {
 		isHost: boolean;
+		you: string;
 		room: LobbyView;
 		onStart: () => void;
 		onUpdate: (patch: Partial<Settings>) => void;
 		onLeave: () => void;
+		onKick: (playerId: string) => void;
+		onToggleBlocked: (playerId: string) => void;
+		onReportPlayer: (playerId: string) => void;
+		isBlocked: (playerId: string) => boolean;
 	} = $props();
+
+	let actionsFor = $state<string | null>(null);
+	let kickTarget = $state<{ id: string; name: string } | null>(null);
 
 	/* Share banner: tap-to-copy (+ native share sheet when available) */
 	let copied = $state(false);
@@ -445,30 +459,71 @@
 
 			<ul class="mt-2 flex flex-col gap-1.5" role="list">
 				{#each room.players as player, i (player.id)}
-					<li
-						data-testid="player-card"
-						class="lo-player pop-in flex min-h-[48px] items-center gap-2.5 rounded-2xl border-2 border-white/15 bg-white/10 px-2.5 py-1.5"
-						style="animation-delay: {i * 60}ms"
-					>
-						<span
-							class="lo-avatar grid size-9 shrink-0 place-items-center rounded-full bg-surface text-[20px] leading-none"
-							aria-hidden="true"
+					<li class="lo-player pop-in flex flex-col" style="animation-delay: {i * 60}ms">
+						<div
+							data-testid="player-card"
+							class="flex min-h-[48px] items-center gap-2.5 rounded-2xl border-2 border-white/15 bg-white/10 px-2.5 py-1.5"
 						>
-							{player.emoji}
-						</span>
-						<span
-							data-testid="player-name"
-							class="min-w-0 flex-1 truncate font-display text-[17px] font-semibold"
-						>
-							{player.name}
-						</span>
-						{#if player.id === room.hostId}
 							<span
-								class="shrink-0 rounded-full bg-action px-2 py-0.5 text-[9px] font-extrabold tracking-[0.14em] text-ink uppercase"
-								title={m['lobby.hostTag']()}
+								class="lo-avatar grid size-9 shrink-0 place-items-center rounded-full bg-surface text-[20px] leading-none"
+								aria-hidden="true"
 							>
-								{m['lobby.hostTag']()}
+								{player.emoji}
 							</span>
+							<span
+								data-testid="player-name"
+								class="min-w-0 flex-1 truncate font-display text-[17px] font-semibold"
+							>
+								{player.name}
+							</span>
+							{#if player.id === room.hostId}
+								<span
+									class="shrink-0 rounded-full bg-action px-2 py-0.5 text-[9px] font-extrabold tracking-[0.14em] text-ink uppercase"
+									title={m['lobby.hostTag']()}
+								>
+									{m['lobby.hostTag']()}
+								</span>
+							{/if}
+							{#if player.id !== you}
+								<button
+									type="button"
+									data-testid="player-actions"
+									aria-label={`${m['safety.playerActions']()}: ${player.name}`}
+									aria-expanded={actionsFor === player.id}
+									onclick={() => (actionsFor = actionsFor === player.id ? null : player.id)}
+									class="grid size-11 shrink-0 place-items-center rounded-full text-lg font-bold text-white/75"
+								>•••</button>
+							{/if}
+						</div>
+						{#if actionsFor === player.id}
+							<div
+								data-testid="player-safety-actions"
+								class="mt-1 grid grid-cols-2 gap-1.5 rounded-2xl bg-ink/25 p-2"
+							>
+								<button
+									type="button"
+									onclick={() => onToggleBlocked(player.id)}
+									class="min-h-11 rounded-full bg-white/10 px-3 text-[12px] font-bold"
+								>
+									{isBlocked(player.id) ? m['safety.unblockPlayer']() : m['safety.blockPlayer']()}
+								</button>
+								<button
+									type="button"
+									onclick={() => onReportPlayer(player.id)}
+									class="min-h-11 rounded-full bg-accent-wrong px-3 text-[12px] font-bold text-ink"
+								>
+									{m['safety.reportPlayer']()}
+								</button>
+								{#if isHost}
+									<button
+										type="button"
+										onclick={() => (kickTarget = { id: player.id, name: player.name })}
+										class="col-span-2 min-h-11 rounded-full border-2 border-accent-wrong px-3 text-[12px] font-bold text-white"
+									>
+										{m['safety.kickPlayer']()}
+									</button>
+								{/if}
+							</div>
 						{/if}
 					</li>
 				{/each}
@@ -754,6 +809,21 @@
 		{/if}
 	</div>
 </div>
+
+<ConfirmDialog
+	open={kickTarget !== null}
+	testid="kick-confirm"
+	title={m['safety.kickTitle']({ name: kickTarget?.name ?? '' })}
+	body={m['safety.kickBody']()}
+	confirmLabel={m['safety.kickPlayer']()}
+	destructive
+	onCancel={() => (kickTarget = null)}
+	onConfirm={() => {
+		if (kickTarget !== null) onKick(kickTarget.id);
+		kickTarget = null;
+		actionsFor = null;
+	}}
+/>
 
 <style>
 	.pop-in {

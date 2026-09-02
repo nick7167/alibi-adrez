@@ -284,6 +284,8 @@ export type ClientMessage =
    */
   | { v: 1; t: "returnToLobby" }
   | { v: 1; t: "leave" }
+  /** Host-only removal. Revokes the target's current room session. */
+  | { v: 1; t: "kick"; targetPlayerId: string }
   | { v: 1; t: "ping" }
   /**
    * ANSWERING only, and an **upsert**: re-submitting the same `questionIndex`
@@ -312,7 +314,7 @@ export type ClientMessage =
 export type ErrorCode =
   | "BAD_MESSAGE" | "ROOM_FULL" | "NAME_TAKEN"
   | "NOT_HOST" | "UNKNOWN_PLAYER" | "GAME_STARTED" | "INTERNAL"
-  | "WRONG_PHASE" | "RATE_LIMITED"
+  | "WRONG_PHASE" | "RATE_LIMITED" | "CONTENT_BLOCKED" | "KICKED"
   /** You wrote the answer under scrutiny; you cannot guess on it. */
   | "IS_AUTHOR"
   /** One guess per answer, and it is final. */
@@ -398,6 +400,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     case "ping":
     case "handIn":
       return { v: 1, t: data.t };
+    case "kick":
+      return validId(data.targetPlayerId)
+        ? { v: 1, t: "kick", targetPlayerId: data.targetPlayerId }
+        : null;
     case "submitEntry":
       // The index is bounded by the largest question set a host can configure,
       // the same defensive ceiling `validId` gives an opaque id. The engine

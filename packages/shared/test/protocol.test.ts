@@ -27,6 +27,12 @@ describe("parseClientMessage", () => {
     expect(parseClientMessage("not json")).toBeNull();
     expect(parseClientMessage("x".repeat(2049))).toBeNull();
   });
+  it("parses host removal only with a bounded target id", () => {
+    expect(parseClientMessage('{"v":1,"t":"kick","targetPlayerId":"p2"}'))
+      .toEqual({ v: 1, t: "kick", targetPlayerId: "p2" });
+    expect(parseClientMessage('{"v":1,"t":"kick","targetPlayerId":""}')).toBeNull();
+    expect(parseClientMessage('{"v":1,"t":"kick"}')).toBeNull();
+  });
 });
 
 describe("constants", () => {

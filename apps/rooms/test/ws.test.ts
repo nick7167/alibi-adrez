@@ -149,6 +149,26 @@ describe("lobby websocket", () => {
     a.ws.close();
   });
 
+  it("lets the host remove a player and closes the revoked socket", async () => {
+    const host = await connectAndJoin("WSK", "Host");
+    const guest = await connectAndJoin("WSK", "Guest");
+    const guestWelcome = guest.inbox.find((message: any) => message.t === "welcome") as any;
+    host.ws.send(JSON.stringify({
+      v: 1,
+      t: "kick",
+      targetPlayerId: guestWelcome.playerId,
+    }));
+    const deadline = Date.now() + 3000;
+    while (!guest.inbox.some((message: any) => message.code === "KICKED") && Date.now() < deadline) {
+      await sleep(10);
+    }
+    expect(guest.inbox.find((message: any) => message.t === "error"))
+      .toMatchObject({ code: "KICKED" });
+    const hostState = (host.inbox as any[]).filter((message) => message.t === "state").at(-1);
+    expect(hostState.room.players.map((player: any) => player.name)).toEqual(["Host"]);
+    host.ws.close();
+  });
+
   describe("carried from task 6 review: atomic /init", () => {
     it("serializes concurrent /init for the same room code", async () => {
       const stub = env.ROOMS_DO.get(env.ROOMS_DO.idFromName("WST"));

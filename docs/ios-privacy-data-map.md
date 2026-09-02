@@ -42,12 +42,13 @@ AHA cannot connect it to an account or a person outside that room.
 | User ID | Random player UUID and hashed reconnect credential | Yes | No | App Functionality |
 | Gameplay Content | Room membership/code, settings, question IDs, answers, guesses, scores, ranks, and game progress | Yes, where player-specific | No | App Functionality |
 | Other Data Types | Selected emoji/avatar, language preference, and the SHA-256 client-network key used by the edge rate limiter; keep this conservative unless App Store Connect guidance places a field elsewhere | Yes | No | App Functionality (security) |
+| Customer Support | A user-approved report email can contain the room code, player/answer IDs, player name or answer text, and the sender's added description/contact address | Yes | No | App Functionality (customer support) |
 
 The free-text answers are game UGC, so `Gameplay Content` is the better primary
-classification than treating them only as generic free text. Any future
-free-form report or support message is separate and would add `Customer Support`
-and/or `Other User Content`; those flows do not exist yet and must not be
-declared as current behavior.
+classification than treating them only as generic free text. A report is
+separate `Customer Support` data: AHA builds a `mailto:` draft locally, and the
+user decides whether to send it through their configured mail provider. AHA's
+room backend does not receive or persist the report.
 
 Current code supports **no tracking**: data is not combined with third-party
 data for advertising or measurement and is not shared with a data broker.
@@ -61,7 +62,9 @@ data for advertising or measurement and is not shared with a data broker.
 | Durable Object | A player who explicitly leaves | Their player record, session hash, score, staging count, and authored answers are removed as part of the leave event. |
 | iOS WebView local storage | Per-room player ID, raw reconnect token, display name, and emoji | Cleared on an explicit leave or an `UNKNOWN_PLAYER` response. It can otherwise survive app restarts, including after the server room expires. |
 | iOS WebView local storage | Locale | Persists until changed or app storage is cleared. |
+| iOS WebView local storage | Blocked player IDs and hidden answer IDs, keyed by room code | Persists until app storage is cleared. It stays on-device and only changes local presentation. |
 | Cloudflare Rate Limiting binding | SHA-256 hash of `CF-Connecting-IP` for room creation/access counters | Configured in 60-second windows. Verify whether Cloudflare retains any associated counter or request data beyond the active window. |
+| User's mail provider and AHA support mailbox | Only a report the user explicitly sends, including the prefilled room/player/answer context and any text the user adds | Retention and deletion procedure for the support mailbox must be verified before release. |
 
 Names and emojis are visible to the other players in the same room. Answers are
 shown according to the game rules; their authorship is hidden during guessing
@@ -102,7 +105,7 @@ the appropriate location, identifier, usage, or diagnostics types. Do not infer
 Capacitor iOS 8.5.1 and CapacitorCordova 8.5.1 currently ship dependency
 privacy manifests declaring no tracking, collected data types, tracking
 domains, or required-reason API use. AHA currently has no native plugin beyond
-the Capacitor shell. AHA's app-owned `PrivacyInfo.xcprivacy` declares the four
+the Capacitor shell. AHA's app-owned `PrivacyInfo.xcprivacy` declares the five
 proposed types above, no tracking, and no required-reason API use. Hosted Xcode
 must compile it into the app, and the final signed archive's aggregated privacy
 report must still be reviewed; this is not copied from Vildsvar.
@@ -115,8 +118,9 @@ native SDK.
 
 - Confirm the Cloudflare facts above against the production account and current
   contracts/settings.
-- Implement the required UGC filtering, reporting, blocking, host controls, and
-  operational support path; extend this map before those features ship.
+- Verify the support mailbox ownership, access, response process, and retention;
+  the in-app UGC filtering/reporting/blocking/host controls are implemented but
+  cannot establish those operational facts from code.
 - Decide a user-facing way to clear stale local room identities, or document why
   explicit leave plus OS app-data controls are sufficient.
 - Archive-validate AHA's own privacy manifest and review Xcode's aggregated
