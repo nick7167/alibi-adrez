@@ -1,0 +1,63 @@
+# Prepared for AHA only. This workflow has no automatic trigger and must not be
+# started until dev.adrez.aha is approved/registered, AHA-specific signing files
+# exist, and the separate AHA Codemagic application has been configured.
+workflows:
+  aha-testflight:
+    name: AHA TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      # Existing account-level integration; no key material belongs in this file.
+      app_store_connect: vildsvar-app-store-connect
+
+    environment:
+      xcode: 26.6
+      node: 22
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: dev.adrez.aha
+      vars:
+        XCODE_PROJECT: apps/mobile/ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+
+    scripts:
+      - name: Enable pinned pnpm
+        script: |
+          corepack enable
+          corepack prepare pnpm@10.14.0 --activate
+
+      - name: Install dependencies
+        script: pnpm install --frozen-lockfile
+
+      - name: Validate TypeScript and tests
+        script: |
+          pnpm typecheck
+          pnpm test
+
+      - name: Build web assets and sync Capacitor
+        script: pnpm sync:ios
+
+      - name: Validate AHA privacy manifest
+        script: |
+          test -f apps/mobile/ios/App/App/PrivacyInfo.xcprivacy
+          plutil -lint apps/mobile/ios/App/App/PrivacyInfo.xcprivacy
+
+      - name: Apply AHA signing profiles
+        script: xcode-project use-profiles
+
+      - name: Build signed IPA
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-xcargs "CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      app_store_connect:
+        auth: integration

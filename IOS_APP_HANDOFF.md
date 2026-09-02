@@ -434,7 +434,7 @@ reviewer instructions live in `docs/ios-review-notes.md`.
 
 - [x] Add a GitHub Actions hosted-macOS job for unsigned native compile checks and
   iPhone/iPad simulator smoke tests using current Xcode 26.
-- [ ] Create an AHA-specific `codemagic.yaml` based on the proven Vildsvar pattern.
+- [x] Create an AHA-specific `codemagic.yaml` based on the proven Vildsvar pattern.
 - [ ] Reuse the user's existing Apple Developer membership and App Store Connect API
   credentials securely; never commit or print secrets.
 - [ ] Register the unique App ID/bundle ID, distribution certificate, and App Store
@@ -442,6 +442,14 @@ reviewer instructions live in `docs/ios-review-notes.md`.
 - [ ] Add AHA as a separate Codemagic app/workflow. Do not reuse Vildsvar's App Store
   record or provisioning profile.
 - [ ] Build, upload, and process the first TestFlight build.
+
+The root `codemagic.yaml` now contains a manual-only `aha-testflight` workflow
+adapted to AHA's paths, pnpm 10.14 pin, Xcode 26.6, privacy-manifest validation,
+and current provisional `dev.adrez.aha` bundle identifier. It references the
+existing account-level App Store Connect integration but contains no credentials.
+Do not start it until that bundle identifier is approved and registered, AHA's
+own signing files exist, and the repository has been added as a separate AHA
+Codemagic application.
 
 `.github/workflows/ios-native-build.yml` pins hosted Xcode 26.6, compiles an
 unsigned generic-iOS target and a simulator target, launches current iPhone and
