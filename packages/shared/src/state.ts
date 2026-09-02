@@ -17,7 +17,13 @@ import {
 } from "./protocol";
 import { PACK_IDS } from "../content/prompts";
 import type { ConnectedIds, Entry, GuessRound } from "./round";
-import { applyRoundMessage, beginGame, handlePlayerLeft, returnToLobby } from "./round";
+import {
+  applyRoundMessage,
+  beginGame,
+  beginPracticeGame,
+  handlePlayerLeft,
+  returnToLobby,
+} from "./round";
 import { hashToken } from "./token";
 import { viewForPlayer } from "./view";
 import { containsObjectionableContent } from "./moderation";
@@ -172,12 +178,27 @@ export async function applyEvent(
       if (containsObjectionableContent(msg.name)) {
         return { ok: false, code: "CONTENT_BLOCKED", room };
       }
+      // Practice participants are room scaffolding, not seats a real guest
+      // should inherit. The first human join after a solo run turns the room
+      // back into an ordinary interoperable lobby before name/capacity checks.
+      const humans = room.players.filter((player) => player.isBot !== true);
       const lower = msg.name.toLowerCase();
-      if (room.players.some((p) => p.name.toLowerCase() === lower)) {
+      if (humans.some((p) => p.name.toLowerCase() === lower)) {
         return { ok: false, code: "NAME_TAKEN", room };
       }
-      if (room.players.length >= MAX_PLAYERS) return { ok: false, code: "ROOM_FULL", room };
+      if (humans.length >= MAX_PLAYERS) return { ok: false, code: "ROOM_FULL", room };
       const next = structuredClone(room);
+      const removedBots = next.players.filter((player) => player.isBot === true);
+      next.players = next.players.filter((player) => player.isBot !== true);
+      for (const bot of removedBots) {
+        delete next.sessions[bot.id];
+        delete next.scores[bot.id];
+        delete next.stagedCount[bot.id];
+        delete next.entries[bot.id];
+        delete next.handedIn[bot.id];
+        delete next.prevRanks[bot.id];
+      }
+      if (!next.players.some((player) => player.id === next.hostId)) next.hostId = "";
       const playerId = deps.newId();
       const token = deps.newToken();
       next.players.push({ id: playerId, name: msg.name, emoji: msg.emoji, lang: msg.lang ?? DEFAULT_LANG });
@@ -208,7 +229,33 @@ export async function applyEvent(
       // Everyone on zero and unstaged, then the INTRO splash. `beginGame` is
       // the only thing that knows what a fresh game looks like, and
       // `enterPhase` inside it is the only thing that sets phase + deadline.
-      beginGame(next, deps);
+      if (next.players.some((player) => player.isBot === true)) beginPracticeGame(next, deps);
+      else beginGame(next, deps);
+      return { ok: true, room: next };
+    }
+    case "startPractice": {
+      if (room.phase !== "LOBBY") return { ok: false, code: "WRONG_PHASE", room };
+      if (senderId !== room.hostId) return { ok: false, code: "NOT_HOST", room };
+      const humans = room.players.filter((player) => player.isBot !== true);
+      if (humans.length !== 1 || humans[0]?.id !== senderId) {
+        return { ok: false, code: "BAD_MESSAGE", room };
+      }
+      const next = structuredClone(room);
+      next.players = [...humans];
+      const botProfiles = [
+        { name: "Maja", emoji: "🐸" },
+        { name: "Oscar", emoji: "🐼" },
+      ] as const;
+      for (const profile of botProfiles) {
+        next.players.push({
+          id: deps.newId(),
+          name: profile.name,
+          emoji: profile.emoji,
+          lang: humans[0].lang,
+          isBot: true,
+        });
+      }
+      beginPracticeGame(next, deps);
       return { ok: true, room: next };
     }
     case "returnToLobby": {

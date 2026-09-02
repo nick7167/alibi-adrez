@@ -140,8 +140,9 @@ and should be run before structural mobile changes and again before release:
 pnpm --filter web exec playwright test
 ```
 
-Watch for an unrelated Vite process on port 5173; the existing Playwright config may
-reuse it. Follow the README's port warning before trusting results.
+The Playwright servers can be isolated from another worktree by setting
+`AHA_E2E_WEB_PORT` and `AHA_E2E_ROOMS_PORT`; the Vite API/WebSocket proxy follows
+the selected Rooms port. Use that when another project already owns 5173/8787.
 
 Reverified later on 2026-09-01 from `ios-app` after the initial mobile transport
 work:
@@ -165,6 +166,16 @@ Reverified on 2026-09-02 after the iPad/privacy, rate-guard, and local UGC-safet
   removal, anonymous-answer hide/restore/report controls, and reachable
   community/support pages.
 - `pnpm audit --prod`: no known vulnerabilities.
+
+Reverified again after the solo reviewer path:
+
+- `pnpm typecheck`: passed with 0 Svelte errors and 0 warnings.
+- `pnpm test`: passed, 245 tests total (shared 135, web 73, rooms 37).
+- Playwright: all 11 specs passed under four parallel browser workers on isolated
+  local servers, including the complete solo reviewer journey and the existing
+  multiplayer, safety, short-viewport, iPad, cadence, and leaver regressions.
+- Cloudflare web build, static mobile build, Capacitor iOS sync, privacy-manifest
+  lint, and `pnpm audit --prod` all passed.
 
 The generated Capacitor project is under `apps/mobile/ios`. Its project settings
 target iPhone+iPad (`TARGETED_DEVICE_FAMILY = "1,2"`) with iOS 15.0 as the
@@ -366,7 +377,7 @@ Entertainment.
 - [ ] Add rate limits and brute-force protections.
 - [ ] Implement UGC filtering, reporting, blocking/hiding, host removal/room banning,
   and support escalation.
-- [ ] Add the solo practice/reviewer path.
+- [x] Add the solo practice/reviewer path.
 - [ ] Add unit/integration/e2e tests for native origin, cross-platform room play,
   abuse controls, reconnects, and the full reviewer journey.
 - [ ] Draft privacy, support, and community-rules pages under canonical URLs such as
@@ -409,6 +420,16 @@ The current code-derived privacy inventory and open infrastructure checks are in
 `PrivacyInfo.xcprivacy`; the final signed archive's aggregated privacy report and
 Cloudflare account-level retention still require verification.
 
+The solo App Review path is implemented on the real room protocol and Durable
+Object rather than as mocked screens. A lone host sees a public practice action;
+it adds two clearly labeled, localized bot players with fixed coherent answers and
+then uses the normal INTRO, ANSWERING, GUESSING, REVEAL, STANDINGS, FINALE, scoring,
+reconnect, safety, and leave flows. Bot votes use the same round transition as human
+votes. A real guest joining the finished lobby removes all bot scaffolding before
+normal name/capacity checks, preserving ordinary web/iOS room interoperability.
+Shared-state, Durable Object socket, and real-browser tests cover the path. Draft
+reviewer instructions live in `docs/ios-review-notes.md`.
+
 ### Phase D — hosted native CI and signing
 
 - [x] Add a GitHub Actions hosted-macOS job for unsigned native compile checks and
@@ -436,6 +457,13 @@ and iPad. Its retained screenshots were also reviewed manually; the phone layout
 remained unchanged and the iPad now uses the intended tablet-scale composition.
 The focused simulator logs contained only simulator/WebKit subsystem diagnostics,
 with no application crash or uncaught JavaScript error.
+
+Run 33610151258 passed the same complete Xcode 26.6 pipeline for UGC-safety commit
+`401a456`: generic device and simulator builds, embedded privacy-manifest check,
+iPhone launch, iPad launch, and evidence upload all succeeded. Its retained phone
+and tablet screenshots were reviewed manually and show the full AHA landing UI,
+including reachable Community rules and Support links, with no blank or clipped
+native launch state.
 
 ### Phase E — device-quality validation
 
@@ -591,7 +619,9 @@ The new session should:
    generation, universal/iOS 15 settings, and local origin-policy tests as complete.
 5. Continue the remaining name/IP interactive checks when a compliant browser path
    is available, but do not let that block name-independent implementation.
-6. Use the hosted native evidence and privacy data map while continuing backend
-   security, moderation, and the solo reviewer journey without deploying production.
+6. Treat the local security, UGC-safety, and solo-reviewer implementations as
+   code-complete but not production-verified. Continue safe-area/accessibility,
+   universal-link preparation, and the AHA-specific Codemagic workflow without
+   deploying production or creating name-dependent store records prematurely.
 7. Continue autonomously through all reversible work. Ask the user only when final
    name approval or another genuinely user-only action becomes the critical path.

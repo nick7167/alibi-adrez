@@ -53,6 +53,7 @@
 		you,
 		room,
 		onStart,
+		onPractice,
 		onUpdate,
 		onLeave,
 		onKick,
@@ -64,6 +65,7 @@
 		you: string;
 		room: LobbyView;
 		onStart: () => void;
+		onPractice: () => void;
 		onUpdate: (patch: Partial<Settings>) => void;
 		onLeave: () => void;
 		onKick: (playerId: string) => void;
@@ -326,6 +328,9 @@
 	});
 
 	const canStart = $derived(room.players.length >= MIN_PLAYERS);
+	const canPractice = $derived(
+		isHost && room.players.filter((player) => player.isBot !== true).length === 1
+	);
 
 	/* Move focus to the lobby heading when the form swaps over to this screen. */
 	let headingEl = $state<HTMLElement | null>(null);
@@ -482,6 +487,14 @@
 									title={m['lobby.hostTag']()}
 								>
 									{m['lobby.hostTag']()}
+								</span>
+							{/if}
+							{#if player.isBot}
+								<span
+									data-testid="bot-tag"
+									class="shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-extrabold tracking-[0.14em] text-white/85 uppercase"
+								>
+									{m['lobby.botTag']()}
 								</span>
 							{/if}
 							{#if player.id !== you}
@@ -797,6 +810,19 @@
 			{#if !canStart}
 				<p class="mt-2 text-center text-[13px] font-semibold text-white/75">
 					{m['lobby.needThree']()}
+				</p>
+			{/if}
+			{#if canPractice}
+				<button
+					type="button"
+					data-testid="practice-game"
+					onclick={onPractice}
+					class="mt-3 flex min-h-12 w-full items-center justify-center rounded-full border-2 border-white/35 bg-white/10 px-6 font-display text-[16px] font-bold text-white"
+				>
+					{m['lobby.practice']()}
+				</button>
+				<p class="mt-1.5 text-center text-[12px] font-semibold text-white/65">
+					{m['lobby.practiceHint']()}
 				</p>
 			{/if}
 		{:else}

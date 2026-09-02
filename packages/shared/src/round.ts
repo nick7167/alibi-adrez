@@ -1,5 +1,5 @@
 import { PROMPTS, promptsForPacks } from "../content/prompts";
-import type { ClientMessage, Phase } from "./protocol";
+import type { ClientMessage, Lang, Phase } from "./protocol";
 import { MIN_PLAYERS } from "./protocol";
 import type { ApplyResult, EventDeps, InternalRoom } from "./state";
 
@@ -295,6 +295,90 @@ export function beginGame(room: InternalRoom, deps: EventDeps): void {
   room.handedIn = {};
   room.rounds = [];
   enterPhase(room, "INTRO", deps);
+}
+
+const PRACTICE_QUESTIONS = ["last-search", "breakfast-today", "useless-skill"] as const;
+
+const PRACTICE_ANSWERS: Record<(typeof PRACTICE_QUESTIONS)[number], Record<Lang, [string, string]>> = {
+  "last-search": {
+    en: ["Weather tomorrow", "How long to boil an egg"],
+    da: ["Vejret i morgen", "Hvor længe skal et æg koge"],
+  },
+  "breakfast-today": {
+    en: ["Toast and too much coffee", "Yoghurt with granola"],
+    da: ["Toast og alt for meget kaffe", "Yoghurt med müsli"],
+  },
+  "useless-skill": {
+    en: ["Folding fitted sheets", "Recognising songs in two seconds"],
+    da: ["At folde faconlagner", "At genkende sange på to sekunder"],
+  },
+};
+
+/**
+ * Starts the public solo-review path on the normal game engine. Questions and
+ * bot answers are fixed so every language has coherent content and the three
+ * rounds spread authorship across the human and both bots.
+ */
+export function beginPracticeGame(room: InternalRoom, deps: EventDeps): void {
+  room.settings = {
+    questions: PRACTICE_QUESTIONS.length,
+    rounds: 3,
+    answerSec: 180,
+    guessSec: 25,
+    revealSec: 7,
+    standingsEvery: 2,
+    packs: ["everyday"],
+  };
+  beginGame(room, deps);
+  room.questions = [...PRACTICE_QUESTIONS];
+  const bots = room.players.filter((player) => player.isBot === true);
+  bots.forEach((bot, botIndex) => {
+    const entries: Record<number, Entry> = {};
+    PRACTICE_QUESTIONS.forEach((promptId, questionIndex) => {
+      entries[questionIndex] = {
+        answerId: deps.newId(),
+        text: PRACTICE_ANSWERS[promptId][bot.lang][botIndex % 2]!,
+      };
+    });
+    room.entries[bot.id] = entries;
+    room.handedIn[bot.id] = true;
+  });
+}
+
+/**
+ * Casts every pending bot vote on a practice guessing screen. It uses the
+ * same submitGuess transition as a person; only the target selection is
+ * automated. The first bot guesses correctly and the second takes a plausible
+ * wrong option, so the reviewer sees both scoring outcomes.
+ */
+export function playPracticeBotGuesses(
+  room: InternalRoom,
+  deps: EventDeps,
+): { room: InternalRoom; changed: boolean } {
+  if (room.phase !== "GUESSING") return { room, changed: false };
+  const live = currentRound(room);
+  if (live === undefined) return { room, changed: false };
+  const author = authorOf(room, live.answerId);
+  if (author === undefined) return { room, changed: false };
+  const bots = room.players.filter((player) => player.isBot === true);
+  let next = room;
+  let changed = false;
+  for (const [botIndex, bot] of bots.entries()) {
+    if (bot.id === author || currentRound(next)?.guesses[bot.id] !== undefined) continue;
+    const wrong = next.players.find((player) => player.id !== bot.id && player.id !== author)?.id;
+    const targetPlayerId = botIndex === 0 ? author : (wrong ?? author);
+    const result = applyRoundMessage(next, bot.id, {
+      v: 1,
+      t: "submitGuess",
+      answerId: live.answerId,
+      playerId: targetPlayerId,
+    }, deps);
+    if (!result.ok) continue;
+    next = result.room;
+    changed = true;
+    if (next.phase !== "GUESSING") break;
+  }
+  return { room: next, changed };
 }
 
 /**

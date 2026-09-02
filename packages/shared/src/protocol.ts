@@ -49,6 +49,8 @@ export interface Player {
   emoji: EmojiId;
   /** Language this player reads; personalizes their snapshots. */
   lang: Lang;
+  /** Server-controlled participant used only by the visible practice mode. */
+  isBot?: true;
 }
 
 export interface Settings {
@@ -270,6 +272,8 @@ export type ClientMessage =
   | { v: 1; t: "reconnect"; playerId: string; token: string }
   | { v: 1; t: "updateSettings"; patch: Partial<Settings> }
   | { v: 1; t: "startGame" }
+  /** Host-only solo review path: replace existing bots, add two, and start. */
+  | { v: 1; t: "startPractice" }
   /**
    * FINALE only: put the room back in the lobby with everyone still seated and
    * the settings kept, so the same group can play again without re-sharing the
@@ -395,6 +399,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isPlainObject(data.patch)
         ? { v: 1, t: "updateSettings", patch: data.patch as Partial<Settings> } : null;
     case "startGame":
+    case "startPractice":
     case "returnToLobby":
     case "leave":
     case "ping":

@@ -119,6 +119,86 @@ describe("lobby state machine", () => {
     expect(r.room.scores).toEqual({ p1: 0, p2: 0, p3: 0 });
     expect(r.room.stagedCount).toEqual({ p1: 0, p2: 0, p3: 0 });
   });
+  it("starts a coherent one-human practice game with two server bots", async () => {
+    let botId = 0;
+    const deps = { ...makeDeps(), newId: () => `bot${++botId}` };
+    const room = await lobbyWithPlayers(1);
+    const result = await applyEvent(room, "p1", { v: 1, t: "startPractice" }, deps);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.room.phase).toBe("INTRO");
+    expect(result.room.players).toMatchObject([
+      { id: "p1", name: "P1" },
+      { name: "Maja", isBot: true },
+      { name: "Oscar", isBot: true },
+    ]);
+    expect(result.room.questions).toEqual(["last-search", "breakfast-today", "useless-skill"]);
+    const bots = result.room.players.filter((player) => player.isBot);
+    expect(Object.values(result.room.entries[bots[0]!.id] ?? {}).map((entry) => entry.text))
+      .toEqual(["Weather tomorrow", "Toast and too much coffee", "Folding fitted sheets"]);
+    expect(result.room.handedIn).toEqual({ [bots[0]!.id]: true, [bots[1]!.id]: true });
+    expect(Object.keys(result.room.sessions)).toEqual(["p1"]);
+  });
+
+  it("seeds coherent Danish bot answers for a Danish practice host", async () => {
+    let id = 0;
+    const deps = { ...makeDeps(), newId: () => `da${++id}` };
+    const joined = await applyEvent(
+      createRoom("TEST"),
+      "",
+      { v: 1, t: "join", name: "Vært", emoji: "🦊", lang: "da" },
+      deps,
+    );
+    if (!joined.ok) throw new Error("Danish host setup failed");
+    const result = await applyEvent(joined.room, joined.welcome!.playerId, {
+      v: 1,
+      t: "startPractice",
+    }, deps);
+    if (!result.ok) throw new Error("Danish practice setup failed");
+    const bots = result.room.players.filter((player) => player.isBot);
+    expect(bots.every((bot) => bot.lang === "da")).toBe(true);
+    expect(Object.values(result.room.entries[bots[0]!.id] ?? {}).map((entry) => entry.text))
+      .toEqual(["Vejret i morgen", "Toast og alt for meget kaffe", "At folde faconlagner"]);
+  });
+
+  it("keeps practice host-only and refuses to replace real guests", async () => {
+    const deps = makeDeps();
+    const room = await lobbyWithPlayers(2);
+    expect(await applyEvent(room, "p2", { v: 1, t: "startPractice" }, deps))
+      .toMatchObject({ ok: false, code: "NOT_HOST" });
+    expect(await applyEvent(room, "p1", { v: 1, t: "startPractice" }, deps))
+      .toMatchObject({ ok: false, code: "BAD_MESSAGE" });
+  });
+  it("removes practice bots when a real guest joins the finished room", async () => {
+    let id = 0;
+    const deps = { ...makeDeps(), newId: () => `practice${++id}` };
+    const room = await lobbyWithPlayers(1);
+    const started = await applyEvent(room, "p1", { v: 1, t: "startPractice" }, deps);
+    if (!started.ok) throw new Error("practice setup failed");
+    started.room.phase = "FINALE";
+    started.room.deadline = null;
+    const returned = await applyEvent(started.room, "p1", { v: 1, t: "returnToLobby" }, deps);
+    if (!returned.ok) throw new Error("lobby return failed");
+
+    // A human may use a former bot's display name: bots disappear before the
+    // ordinary lobby's name and capacity checks run.
+    const joined = await applyEvent(
+      returned.room,
+      "",
+      { v: 1, t: "join", name: "Maja", emoji: "🦋" },
+      deps,
+    );
+    expect(joined.ok).toBe(true);
+    if (!joined.ok) return;
+    const guestId = joined.welcome!.playerId;
+    expect(joined.room.players).toMatchObject([
+      { id: "p1", name: "P1" },
+      { id: guestId, name: "Maja" },
+    ]);
+    expect(joined.room.players.some((player) => player.isBot)).toBe(false);
+    expect(joined.room.hostId).toBe("p1");
+    expect(Object.keys(joined.room.sessions)).toEqual(["p1", guestId]);
+  });
   it("rejects every in-game message while the room is still in the lobby", async () => {
     const deps = makeDeps();
     const room = await lobbyWithPlayers(3);

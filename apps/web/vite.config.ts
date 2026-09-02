@@ -7,6 +7,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(({ command, mode }) => {
 	const mobile = mode === 'mobile';
+	const roomsDevOrigin = process.env.AHA_ROOMS_DEV_ORIGIN ?? 'http://localhost:8787';
 
 	return {
 		plugins: [
@@ -56,7 +57,7 @@ export default defineConfig(({ command, mode }) => {
 	// src/routes/api/[...path]/+server.ts.
 		server:
 			command === 'serve'
-				? { proxy: { '/api': { target: 'http://localhost:8787', ws: true } } }
+				? { proxy: { '/api': { target: roomsDevOrigin, ws: true } } }
 				: undefined
 	};
 });

@@ -173,6 +173,10 @@
 		sockRef?.send({ v: 1, t: 'startGame' });
 	}
 
+	function startPractice() {
+		sockRef?.send({ v: 1, t: 'startPractice' });
+	}
+
 	/** FINALE: put the room back in the lobby, same players, same settings.
 	    Any player may send it — it is the finale's only way onward, so a
 	    host-only reset would strand everyone else on a terminal screen. */
@@ -334,6 +338,7 @@
 			you={view.you}
 			room={displayedRoom}
 			onStart={startGame}
+			onPractice={startPractice}
 			onUpdate={updateSettings}
 			onLeave={leaveRoom}
 			onKick={kickPlayer}

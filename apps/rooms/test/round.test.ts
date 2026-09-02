@@ -68,8 +68,8 @@ function send(c: Client, msg: unknown): void {
   c.ws.send(JSON.stringify(msg));
 }
 
-async function untilPhase(c: Client, want: string): Promise<void> {
-  await until(() => phase(c) === want, `${c.name} to see ${want} (saw ${phase(c)})`);
+async function untilPhase(c: Client, want: string, timeoutMs = 3000): Promise<void> {
+  await until(() => phase(c) === want, `${c.name} to see ${want} (saw ${phase(c)})`, timeoutMs);
 }
 
 /** Seats `names` and returns them; the first is the host. */
@@ -245,6 +245,78 @@ describe("the game loop in the Durable Object", () => {
     await until(() => (view(other)?.guessedCount ?? 0) >= 1, "the room to see the guess counted");
     for (const client of [host, b, c]) client.ws.close();
   });
+
+  it("plays the complete solo practice game through the real socket", async () => {
+    const code = "RDP";
+    const host = await join(code, "Reviewer");
+
+    send(host, { v: 1, t: "startPractice" });
+    await untilPhase(host, "INTRO", 10_000);
+    expect(view(host)?.players).toHaveLength(3);
+    expect((view(host)?.players as Frame[]).filter((player) => player.isBot === true)).toHaveLength(2);
+
+    const seeded = await stored(code);
+    const bots = (seeded.players as Frame[]).filter((player) => player.isBot === true);
+    expect(bots).toHaveLength(2);
+    for (const bot of bots) {
+      expect(Object.keys(seeded.entries[bot.id] as Frame)).toHaveLength(3);
+      expect(seeded.handedIn[bot.id]).toBe(true);
+      expect(seeded.sessions[bot.id]).toBeUndefined();
+    }
+
+    expect(await expirePhase(code), "practice INTRO must have armed its alarm").toBe(true);
+    await untilPhase(host, "ANSWERING", 10_000);
+    expect(view(host)?.questions).toHaveLength(3);
+    for (let questionIndex = 0; questionIndex < 3; questionIndex++) {
+      send(host, {
+        v: 1,
+        t: "submitEntry",
+        questionIndex,
+        text: `reviewer answer ${questionIndex}`,
+      });
+    }
+    await until(
+      () => Object.keys(view(host)?.myAnswers ?? {}).length === 3,
+      "all reviewer answers to land",
+    );
+    send(host, { v: 1, t: "handIn" });
+    await until(
+      () => phase(host) === "GUESSING" || phase(host) === "REVEAL",
+      "practice guessing to begin",
+      10_000,
+    );
+
+    let revealCount = 0;
+    for (let guard = 0; guard < 20 && phase(host) !== "FINALE"; guard++) {
+      if (phase(host) === "GUESSING") {
+        const guessing = view(host)!;
+        expect(guessing.youWrote).toBeUndefined();
+        expect(guessing.candidates).toHaveLength(2);
+        send(host, {
+          v: 1,
+          t: "submitGuess",
+          answerId: guessing.answer.id,
+          playerId: guessing.candidates[0],
+        });
+        await untilPhase(host, "REVEAL", 10_000);
+      }
+      if (phase(host) === "REVEAL") {
+        revealCount++;
+        expect(view(host)?.awarded).toHaveLength(3);
+        expect(await expirePhase(code), "practice REVEAL must have armed its alarm").toBe(true);
+        await until(() => phase(host) !== "REVEAL", "practice reveal to hand over", 10_000);
+      }
+      if (phase(host) === "STANDINGS") {
+        expect(await expirePhase(code), "practice STANDINGS must have armed its alarm").toBe(true);
+        await until(() => phase(host) !== "STANDINGS", "practice standings to hand over", 10_000);
+      }
+    }
+
+    expect(phase(host)).toBe("FINALE");
+    expect(revealCount).toBe(3);
+    expect((view(host)?.scoreboard as Frame[]).reduce((sum, line) => sum + line.score, 0)).toBeGreaterThan(0);
+    host.ws.close();
+  }, 15_000);
 
   it("shows the standings beat on the cadence the host set", async () => {
     const code = "RDI";

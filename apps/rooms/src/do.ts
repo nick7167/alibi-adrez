@@ -4,6 +4,7 @@ import {
   applyEvent,
   createRoom,
   parseClientMessage,
+  playPracticeBotGuesses,
   resolveIfEveryoneReady,
   snapshotForPlayer,
   type ClientMessage,
@@ -203,6 +204,12 @@ export class RoomDurableObject implements DurableObject {
       await this.save(room);
       this.broadcastState(room);
     }
+    const automated = playPracticeBotGuesses(room, eventDeps());
+    if (automated.changed) {
+      room = automated.room;
+      await this.save(room);
+      this.broadcastState(room);
+    }
     return room;
   }
 
@@ -301,6 +308,7 @@ export class RoomDurableObject implements DurableObject {
       case "kick":
       case "updateSettings":
       case "startGame":
+      case "startPractice":
       case "returnToLobby":
       case "setLang":
       case "submitEntry":
@@ -323,12 +331,14 @@ export class RoomDurableObject implements DurableObject {
           await this.rescheduleAlarm(room);
           return;
         }
-        await this.save(result.room);
+        const automated = playPracticeBotGuesses(result.room, eventDeps());
+        const finalRoom = automated.room;
+        await this.save(finalRoom);
         if (msg.t === "kick") this.disconnectPlayer(msg.targetPlayerId, "KICKED");
-        this.broadcastState(result.room);
+        this.broadcastState(finalRoom);
         // Starting the game, the last guess landing early, a leave that ends
         // the game — any of these moves the phase deadline.
-        await this.rescheduleAlarm(result.room);
+        await this.rescheduleAlarm(finalRoom);
         if (msg.t === "leave") ws.close(1000, "left");
         return;
       }
