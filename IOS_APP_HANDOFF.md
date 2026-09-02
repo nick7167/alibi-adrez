@@ -168,10 +168,11 @@ Reverified on 2026-09-02 after the iPad/privacy, rate-guard, and local UGC-safet
   community/support pages.
 - `pnpm audit --prod`: no known vulnerabilities.
 
-Reverified again after the solo reviewer path and code-side accessibility pass:
+Reverified again after the solo reviewer path, code-side accessibility pass, and
+universal-link listener preparation:
 
 - `pnpm typecheck`: passed with 0 Svelte errors and 0 warnings.
-- `pnpm test`: passed, 245 tests total (shared 135, web 73, rooms 37).
+- `pnpm test`: passed, 259 tests total (shared 135, web 87, rooms 37).
 - Playwright: all 11 specs passed under four parallel browser workers on isolated
   local servers, including the complete solo reviewer journey and the existing
   multiplayer, safety, short-viewport, iPad, cadence, and leaver regressions. The
@@ -368,7 +369,7 @@ Entertainment.
 - [x] Add Capacitor 8 and generate the iOS project.
 - [x] Configure universal iPhone/iPad support and iOS 15 minimum.
 - [x] Add native safe-area/status-bar handling to every route and keyboard state.
-- [ ] Add only justified Capacitor plugins, browser fallbacks, and permissions.
+- [x] Add only justified Capacitor plugins, browser fallbacks, and permissions.
 - [ ] Add a real iOS app icon, polished launch screen, and final display name.
 - [x] Add an AHA-specific app privacy manifest based on audited current behavior.
 - [ ] Add universal links for `aha.adrez.dev/room/<code>` so app and web users share
@@ -376,8 +377,15 @@ Entertainment.
 
 The code-side safe-area and accessibility evidence, plus the deliberately open
 physical-device checks, are recorded in `docs/ios-accessibility-audit.md`. Phase B's
-implementation is complete; the physical iPhone, VoiceOver, Dynamic Type, and
-Accessibility Inspector checks remain separate Phase E release gates.
+safe-area implementation is complete; the physical iPhone, VoiceOver, Dynamic Type,
+and Accessibility Inspector checks remain separate Phase E release gates.
+
+Universal-link routing is prepared with the official Capacitor App plugin for both
+cold and warm launches, a strict `aha.adrez.dev/room/<code>` parser, and rejection
+tests. `docs/ios-universal-links.md` records the remaining identity-gated App ID,
+entitlement, provisioning, AASA publication, production approval, and physical
+device validation. The universal-links checkbox remains open until those steps are
+complete.
 
 ### Phase C — backend and review compliance
 
@@ -488,6 +496,12 @@ classes render the full landing UI with correct safe-area clearance, and the iPa
 keeps the tablet-scale composition. Focused logs contain only expected simulator,
 WebKit privacy-list, text-input, and XPC diagnostics; there is no app crash or
 uncaught JavaScript failure.
+
+Run 33639995088 passed the complete Xcode 26.6 pipeline for accessibility commit
+`3123851`: both builds, privacy-manifest validation, simulator launches, and
+evidence upload succeeded. Its iPhone and iPad captures were inspected manually
+and retain the correct full landing layouts and safe-area clearance. The focused
+logs contain no crash, fatal exception, or uncaught JavaScript failure.
 
 ### Phase E — device-quality validation
 
@@ -628,6 +642,8 @@ for signed archive/publish work.
 - Screenshot specifications: <https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/>
 - App privacy details: <https://developer.apple.com/app-store/app-privacy-details/>
 - Human Interface Guidelines: <https://developer.apple.com/design/human-interface-guidelines/>
+- Capacitor App API: <https://capacitorjs.com/docs/apis/app>
+- Capacitor Universal/App Links guide: <https://capacitorjs.com/docs/guides/deep-links>
 
 These rules change. Re-read official Apple sources immediately before implementing
 or submitting anything affected by them.
@@ -643,9 +659,11 @@ The new session should:
    generation, universal/iOS 15 settings, and local origin-policy tests as complete.
 5. Continue the remaining name/IP interactive checks when a compliant browser path
    is available, but do not let that block name-independent implementation.
-6. Treat the local security, UGC-safety, and solo-reviewer implementations as
-   code-complete but not production-verified. Continue safe-area/accessibility,
-   universal-link preparation, and the AHA-specific Codemagic workflow without
-   deploying production or creating name-dependent store records prematurely.
+6. Treat the local security, UGC-safety, solo-reviewer, safe-area/accessibility,
+   universal-link listener, and Codemagic workflow implementations as code-complete
+   but not production-verified. The signed universal-link entitlement and AASA file
+   remain identity/deployment-gated. Continue name-independent native polish and
+   release documentation without deploying production or creating name-dependent
+   store records prematurely.
 7. Continue autonomously through all reversible work. Ask the user only when final
    name approval or another genuinely user-only action becomes the critical path.

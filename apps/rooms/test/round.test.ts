@@ -286,7 +286,6 @@ describe("the game loop in the Durable Object", () => {
       10_000,
     );
 
-    let revealCount = 0;
     for (let guard = 0; guard < 20 && phase(host) !== "FINALE"; guard++) {
       if (phase(host) === "GUESSING") {
         const guessing = view(host)!;
@@ -301,7 +300,6 @@ describe("the game loop in the Durable Object", () => {
         await untilPhase(host, "REVEAL", 10_000);
       }
       if (phase(host) === "REVEAL") {
-        revealCount++;
         expect(view(host)?.awarded).toHaveLength(3);
         expect(await expirePhase(code), "practice REVEAL must have armed its alarm").toBe(true);
         await until(() => phase(host) !== "REVEAL", "practice reveal to hand over", 10_000);
@@ -313,7 +311,11 @@ describe("the game loop in the Durable Object", () => {
     }
 
     expect(phase(host)).toBe("FINALE");
-    expect(revealCount).toBe(3);
+    const revealFrames = host.inbox.filter(
+      (frame) => frame.t === "state" && frame.room?.phase === "REVEAL",
+    );
+    expect(new Set(revealFrames.map((frame) => frame.room.answer.id)).size).toBe(3);
+    for (const frame of revealFrames) expect(frame.room.awarded).toHaveLength(3);
     expect((view(host)?.scoreboard as Frame[]).reduce((sum, line) => sum + line.score, 0)).toBeGreaterThan(0);
     host.ws.close();
   }, 15_000);
