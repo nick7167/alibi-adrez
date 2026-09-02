@@ -33,6 +33,7 @@
 	 */
 	import type { FinaleView } from '@aha/shared';
 	import { m } from '$lib/paraglide/messages';
+	import { focusOnMount } from '$lib/focus-on-mount';
 
 	let {
 		room,
@@ -115,6 +116,7 @@
 		<h1
 			data-testid="finale-headline"
 			tabindex="-1"
+			use:focusOnMount
 			class="fi-headline max-w-full truncate text-center font-display text-[34px] leading-tight font-bold outline-none"
 		>
 			{top.length > 1 ? m['finale.tie']() : m['finale.winner']({ name: top[0]?.player.name ?? '—' })}

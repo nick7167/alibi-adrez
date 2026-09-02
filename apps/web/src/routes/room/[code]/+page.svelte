@@ -5,6 +5,7 @@
 	import { clearIdentity, loadIdentity, saveIdentity } from '$lib/stores/session.svelte';
 	import type { Identity } from '$lib/stores/session.svelte';
 	import { currentLocale } from '$lib/i18n';
+	import { focusOnMount } from '$lib/focus-on-mount';
 	import {
 		loadBlockedPlayers,
 		loadHiddenAnswers,
@@ -355,7 +356,12 @@
 				<div class="pixel-loader" aria-hidden="true">
 					<span></span><span></span><span></span>
 				</div>
-				<h1 tabindex="-1" class="mt-8 font-display text-6xl font-bold tracking-tight text-white">
+				<h1
+					data-testid="intro-title"
+					tabindex="-1"
+					use:focusOnMount
+					class="mt-8 font-display text-6xl font-bold tracking-tight text-white outline-none"
+				>
 					{m['intro.starting']()}
 				</h1>
 				<span

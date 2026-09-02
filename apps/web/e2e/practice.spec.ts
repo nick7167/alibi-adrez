@@ -14,7 +14,10 @@ test('a reviewer can complete the real game alone, reconnect, moderate, and leav
 	browser
 }) => {
 	test.setTimeout(180_000);
-	const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+	const context = await browser.newContext({
+		viewport: { width: 390, height: 844 },
+		reducedMotion: 'reduce'
+	});
 	const page = await context.newPage();
 	watch(page, 'PRACTICE');
 
@@ -42,6 +45,11 @@ test('a reviewer can complete the real game alone, reconnect, moderate, and leav
 	await expect(page.getByTestId('player-card')).toHaveCount(1);
 	await expect(page.getByTestId('start-game')).toBeDisabled();
 	await expect(page.getByTestId('practice-game')).toBeVisible();
+	expect(
+		await page.getByTestId('practice-game').evaluate((element) =>
+			getComputedStyle(element).transitionDuration
+		)
+	).toBe('0s');
 	await page.setViewportSize({ width: 390, height: 420 });
 	const practiceBox = await page.getByTestId('practice-game').boundingBox();
 	expect(practiceBox, 'practice action has no box at keyboard height').not.toBeNull();
@@ -54,8 +62,10 @@ test('a reviewer can complete the real game alone, reconnect, moderate, and leav
 	await clickUntil('practice-game', page, () =>
 		expect(page.getByTestId('intro-splash')).toBeVisible()
 	);
+	await expect(page.getByTestId('intro-title')).toBeFocused();
 
 	await expect(page.getByTestId('entry-field')).toBeVisible({ timeout: 30_000 });
+	await expect(page.getByTestId('prompt')).toBeFocused();
 	await expect(page.getByTestId('question-counter')).toContainText('1');
 	await expect(page.getByTestId('question-counter')).toContainText('3');
 	const firstAnswer = 'A tiny reviewer answer';
@@ -101,11 +111,13 @@ test('a reviewer can complete the real game alone, reconnect, moderate, and leav
 
 		if ((await page.getByTestId('finale-headline').count()) === 1) break;
 		if ((await page.getByTestId('standings-rows').count()) === 1) {
+			await expect(page.getByTestId('standings-title')).toBeFocused();
 			await expect(page.getByTestId('standings-rows')).toHaveCount(0, { timeout: 15_000 });
 			continue;
 		}
 
 		if ((await page.getByTestId('guess-grid').count()) === 1) {
+			await expect(page.getByTestId('prompt')).toBeFocused();
 			await expect(page.getByTestId('guess-chip')).toHaveCount(2);
 			if (!safetyChecked) {
 				const answer = (await page.getByTestId('staged-answer').textContent())?.trim() ?? '';
@@ -125,6 +137,7 @@ test('a reviewer can complete the real game alone, reconnect, moderate, and leav
 		}
 
 		if ((await page.getByTestId('reveal-author').count()) === 1) {
+			await expect(page.getByTestId('reveal-author')).toBeFocused();
 			await expect(page.getByTestId('reveal-rows')).toBeVisible();
 			const answer = (await page.getByTestId('staged-answer').textContent())?.trim() ?? '';
 			expect(answer.length).toBeGreaterThan(0);
@@ -133,6 +146,7 @@ test('a reviewer can complete the real game alone, reconnect, moderate, and leav
 	}
 
 	await expect(page.getByTestId('finale-headline')).toBeVisible({ timeout: 60_000 });
+	await expect(page.getByTestId('finale-headline')).toBeFocused();
 	expect(guesses).toBeGreaterThan(0);
 	expect(safetyChecked).toBe(true);
 	const revealedAnswers = new Set(

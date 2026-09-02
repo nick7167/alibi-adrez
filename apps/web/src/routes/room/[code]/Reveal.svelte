@@ -30,6 +30,7 @@
 	 */
 	import type { RevealView } from '@aha/shared';
 	import { m } from '$lib/paraglide/messages';
+	import { focusOnMount } from '$lib/focus-on-mount';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import LeaveButton from '$lib/components/LeaveButton.svelte';
 	import AnswerSafetyButton from '$lib/components/AnswerSafetyButton.svelte';
@@ -155,10 +156,13 @@
 			<span class="text-[11px] font-extrabold tracking-[0.18em] text-action uppercase">
 				{youWrote ? m['reveal.yours']() : m['reveal.itWas']()}
 			</span>
-			<div
+			<h1
 				data-testid="reveal-author"
 				data-author={room.authorId}
-				class="rv-author sticker flex max-w-full items-center gap-3 rounded-full bg-action py-2.5 pr-7 pl-2.5 text-ink"
+				tabindex="-1"
+				use:focusOnMount
+				aria-label={`${youWrote ? m['reveal.yours']() : m['reveal.itWas']()}: ${author?.name ?? '—'}`}
+				class="rv-author sticker flex max-w-full items-center gap-3 rounded-full bg-action py-2.5 pr-7 pl-2.5 text-ink outline-none"
 			>
 				<span
 					class="rv-author-avatar grid size-14 shrink-0 place-items-center rounded-full bg-surface text-[30px] leading-none"
@@ -167,7 +171,7 @@
 				<span class="rv-author-name min-w-0 truncate font-display text-[34px] leading-none font-bold">
 					{author?.name ?? '—'}
 				</span>
-			</div>
+			</h1>
 		</div>
 
 		<!-- Who guessed whom, and what it was worth. The list is the flexible

@@ -33,6 +33,7 @@
 	 * the pager and the hand-in button do not.
 	 */
 	import { MAX_ENTRY_LENGTH, type AnsweringView } from '@aha/shared';
+	import { focusOnMount } from '$lib/focus-on-mount';
 	import { m } from '$lib/paraglide/messages';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import LeaveButton from '$lib/components/LeaveButton.svelte';
@@ -174,7 +175,9 @@
 			</p>
 			<h1
 				data-testid="prompt"
-				class="an-prompt-title mt-2 font-display text-[30px] leading-[1.08] font-semibold tracking-[-0.015em] text-balance text-white"
+				tabindex="-1"
+				use:focusOnMount
+				class="an-prompt-title mt-2 font-display text-[30px] leading-[1.08] font-semibold tracking-[-0.015em] text-balance text-white outline-none"
 			>
 				{current}
 			</h1>

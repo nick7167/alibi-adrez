@@ -29,6 +29,7 @@
 	 */
 	import type { StandingsView } from '@aha/shared';
 	import { m } from '$lib/paraglide/messages';
+	import { focusOnMount } from '$lib/focus-on-mount';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import LeaveButton from '$lib/components/LeaveButton.svelte';
 
@@ -77,7 +78,9 @@
 
 	<h1
 		data-testid="standings-title"
-		class="st-title mt-4 shrink-0 text-center font-display text-[40px] leading-[1.05] font-bold tracking-[-0.02em] text-white"
+		tabindex="-1"
+		use:focusOnMount
+		class="st-title mt-4 shrink-0 text-center font-display text-[40px] leading-[1.05] font-bold tracking-[-0.02em] text-white outline-none"
 	>
 		{m['standings.title']()}
 	</h1>

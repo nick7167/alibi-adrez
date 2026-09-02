@@ -39,6 +39,7 @@
 	import { untrack } from 'svelte';
 	import type { GuessingView } from '@aha/shared';
 	import { m } from '$lib/paraglide/messages';
+	import { focusOnMount } from '$lib/focus-on-mount';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import LeaveButton from '$lib/components/LeaveButton.svelte';
 	import AnswerSafetyButton from '$lib/components/AnswerSafetyButton.svelte';
@@ -165,9 +166,14 @@
 		<span class="text-[10px] font-extrabold tracking-[0.18em] text-action uppercase">
 			{m['guessing.eyebrow']()}
 		</span>
-		<span data-testid="prompt" class="gu-prompt-text font-display text-[17px] leading-[1.25] font-medium">
+		<h1
+			data-testid="prompt"
+			tabindex="-1"
+			use:focusOnMount
+			class="gu-prompt-text font-display text-[17px] leading-[1.25] font-medium outline-none"
+		>
 			{room.prompt}
-		</span>
+		</h1>
 	</div>
 
 	<!-- The hero. White is the answer card and only the answer card. -->

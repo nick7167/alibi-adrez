@@ -118,7 +118,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sticker {
+  :where(*, *::before, *::after) {
+    scroll-behavior: auto !important;
     transition: none;
   }
 }

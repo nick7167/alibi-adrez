@@ -120,7 +120,8 @@ Important implementation facts:
 - `scripts/bots.mjs` is a development CLI only. App Review cannot use it.
 - Capacitor configuration, a universal native iOS project, an unsigned hosted-Xcode
   workflow, and an AHA-specific privacy manifest now exist on `ios-app`. There is
-  still no Codemagic workflow, App Store record, or AHA-specific signing setup.
+  also a manual-only Codemagic workflow, but still no App Store record or
+  AHA-specific signing setup.
 
 ## 5. Baseline verification
 
@@ -167,13 +168,15 @@ Reverified on 2026-09-02 after the iPad/privacy, rate-guard, and local UGC-safet
   community/support pages.
 - `pnpm audit --prod`: no known vulnerabilities.
 
-Reverified again after the solo reviewer path:
+Reverified again after the solo reviewer path and code-side accessibility pass:
 
 - `pnpm typecheck`: passed with 0 Svelte errors and 0 warnings.
 - `pnpm test`: passed, 245 tests total (shared 135, web 73, rooms 37).
 - Playwright: all 11 specs passed under four parallel browser workers on isolated
   local servers, including the complete solo reviewer journey and the existing
-  multiplayer, safety, short-viewport, iPad, cadence, and leaver regressions.
+  multiplayer, safety, short-viewport, iPad, cadence, and leaver regressions. The
+  reviewer journey runs with Reduce Motion enabled and asserts focus at every game
+  phase transition.
 - Cloudflare web build, static mobile build, Capacitor iOS sync, privacy-manifest
   lint, and `pnpm audit --prod` all passed.
 
@@ -364,12 +367,17 @@ Entertainment.
 - [x] Centralize native/web API and WebSocket URL resolution.
 - [x] Add Capacitor 8 and generate the iOS project.
 - [x] Configure universal iPhone/iPad support and iOS 15 minimum.
-- [ ] Add native safe-area/status-bar handling to every route and keyboard state.
+- [x] Add native safe-area/status-bar handling to every route and keyboard state.
 - [ ] Add only justified Capacitor plugins, browser fallbacks, and permissions.
 - [ ] Add a real iOS app icon, polished launch screen, and final display name.
 - [x] Add an AHA-specific app privacy manifest based on audited current behavior.
 - [ ] Add universal links for `aha.adrez.dev/room/<code>` so app and web users share
   the same invite URL, with web fallback when the app is not installed.
+
+The code-side safe-area and accessibility evidence, plus the deliberately open
+physical-device checks, are recorded in `docs/ios-accessibility-audit.md`. Phase B's
+implementation is complete; the physical iPhone, VoiceOver, Dynamic Type, and
+Accessibility Inspector checks remain separate Phase E release gates.
 
 ### Phase C — backend and review compliance
 
@@ -472,6 +480,14 @@ iPhone launch, iPad launch, and evidence upload all succeeded. Its retained phon
 and tablet screenshots were reviewed manually and show the full AHA landing UI,
 including reachable Community rules and Support links, with no blank or clipped
 native launch state.
+
+Run 33637981195 passed the complete pipeline for solo-reviewer commit `fb437d0`.
+Both Xcode builds, the privacy-manifest check, iPhone and iPad launches, and evidence
+upload succeeded. The retained screenshots were reviewed manually: both device
+classes render the full landing UI with correct safe-area clearance, and the iPad
+keeps the tablet-scale composition. Focused logs contain only expected simulator,
+WebKit privacy-list, text-input, and XPC diagnostics; there is no app crash or
+uncaught JavaScript failure.
 
 ### Phase E — device-quality validation
 
