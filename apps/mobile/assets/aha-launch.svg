@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732">
+  <!-- The square is aspect-filled by LaunchScreen.storyboard in every orientation. -->
+  <rect width="2732" height="2732" fill="#4A1FD6"/>
+  <path
+    d="M1366 948 L1578 1542 M1366 948 L1154 1542 M1227 1352 H1505"
+    fill="none"
+    stroke="#FFE14D"
+    stroke-width="122"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <rect x="1588" y="1486" width="126" height="126" rx="10" fill="#22E39A" transform="rotate(45 1651 1549)"/>
+</svg>

@@ -50,6 +50,18 @@ jobs:
       - name: Build web assets and sync Capacitor
         run: pnpm --filter @aha/mobile sync
 
+      - name: Validate native artwork
+        run: |
+          ICON="apps/mobile/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-AHA-1024.png"
+          SPLASH="apps/mobile/ios/App/App/Assets.xcassets/Splash.imageset/aha-launch-2732.png"
+
+          test "$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/{print $2}')" = "1024"
+          test "$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/{print $2}')" = "1024"
+          test "$(sips -g hasAlpha "$ICON" | awk '/hasAlpha/{print $2}')" = "no"
+          test "$(sips -g pixelWidth "$SPLASH" | awk '/pixelWidth/{print $2}')" = "2732"
+          test "$(sips -g pixelHeight "$SPLASH" | awk '/pixelHeight/{print $2}')" = "2732"
+          test "$(sips -g hasAlpha "$SPLASH" | awk '/hasAlpha/{print $2}')" = "no"
+
       - name: Compile the native app without signing
         run: |
           xcodebuild \

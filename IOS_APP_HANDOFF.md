@@ -387,6 +387,13 @@ entitlement, provisioning, AASA publication, production approval, and physical
 device validation. The universal-links checkbox remains open until those steps are
 complete.
 
+The default Capacitor app icon and splash artwork have been replaced by
+AHA-specific, opaque RGB assets with reproducible SVG sources. Their dimensions,
+crop strategy, and remaining physical-device checks are recorded in
+`docs/ios-native-assets.md`. This checklist item stays open only because the final
+public display name is still gated and the new assets still need hosted/physical
+native inspection.
+
 ### Phase C — backend and review compliance
 
 - [ ] Allow intentional native HTTPS/WSS transport without broadening trust globally.
@@ -502,6 +509,13 @@ Run 33639995088 passed the complete Xcode 26.6 pipeline for accessibility commit
 evidence upload succeeded. Its iPhone and iPad captures were inspected manually
 and retain the correct full landing layouts and safe-area clearance. The focused
 logs contain no crash, fatal exception, or uncaught JavaScript failure.
+
+Run 33675599632 passed the complete Xcode 26.6 pipeline for universal-link routing
+commit `4418d29`: Capacitor synced the App plugin, both native targets compiled,
+and the iPhone and iPad launch/content assertions passed. The retained captures
+were inspected manually and show the complete, correctly scaled landing UI with
+safe-area clearance on both device classes. Neither focused log contains a crash,
+fatal exception, uncaught JavaScript failure, or unhandled exception.
 
 ### Phase E — device-quality validation
 

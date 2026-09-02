@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Full square on purpose: iOS applies the final icon mask. -->
+  <rect width="1024" height="1024" fill="#4A1FD6"/>
+  <path
+    d="M512 194 L700 720 M512 194 L324 720 M389 551 H635"
+    fill="none"
+    stroke="#FFE14D"
+    stroke-width="108"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <rect x="712" y="676" width="112" height="112" rx="8" fill="#22E39A" transform="rotate(45 768 732)"/>
+</svg>
