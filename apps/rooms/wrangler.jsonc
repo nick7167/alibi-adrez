@@ -8,5 +8,17 @@
   "durable_objects": {
     "bindings": [{ "name": "ROOMS_DO", "class_name": "RoomDurableObject" }]
   },
+  "ratelimits": [
+    {
+      "name": "ROOM_CREATE_RATE_LIMITER",
+      "namespace_id": "41001",
+      "simple": { "limit": 12, "period": 60 }
+    },
+    {
+      "name": "ROOM_ACCESS_RATE_LIMITER",
+      "namespace_id": "41002",
+      "simple": { "limit": 120, "period": 60 }
+    }
+  ],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomDurableObject"] }]
 }

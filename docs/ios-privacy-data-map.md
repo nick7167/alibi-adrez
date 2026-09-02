@@ -41,7 +41,7 @@ AHA cannot connect it to an account or a person outside that room.
 | Name | Player-entered display name; the UI permits a real first name | Yes, to the room player ID | No | App Functionality |
 | User ID | Random player UUID and hashed reconnect credential | Yes | No | App Functionality |
 | Gameplay Content | Room membership/code, settings, question IDs, answers, guesses, scores, ranks, and game progress | Yes, where player-specific | No | App Functionality |
-| Other Data Types | Selected emoji/avatar and language preference; keep this conservative unless App Store Connect guidance places either elsewhere | Yes | No | App Functionality |
+| Other Data Types | Selected emoji/avatar, language preference, and the SHA-256 client-network key used by the edge rate limiter; keep this conservative unless App Store Connect guidance places a field elsewhere | Yes | No | App Functionality (security) |
 
 The free-text answers are game UGC, so `Gameplay Content` is the better primary
 classification than treating them only as generic free text. Any future
@@ -61,6 +61,7 @@ data for advertising or measurement and is not shared with a data broker.
 | Durable Object | A player who explicitly leaves | Their player record, session hash, score, staging count, and authored answers are removed as part of the leave event. |
 | iOS WebView local storage | Per-room player ID, raw reconnect token, display name, and emoji | Cleared on an explicit leave or an `UNKNOWN_PLAYER` response. It can otherwise survive app restarts, including after the server room expires. |
 | iOS WebView local storage | Locale | Persists until changed or app storage is cleared. |
+| Cloudflare Rate Limiting binding | SHA-256 hash of `CF-Connecting-IP` for room creation/access counters | Configured in 60-second windows. Verify whether Cloudflare retains any associated counter or request data beyond the active window. |
 
 Names and emojis are visible to the other players in the same room. Answers are
 shown according to the game rules; their authorship is hidden during guessing
@@ -75,9 +76,11 @@ sent only when reconnecting.
 
 Cloudflare processes the application traffic and hosts the Worker/Durable
 Object. The application code does not log room content, player IDs, tokens,
-answers, IP addresses, or diagnostics and does not install analytics or crash
-reporting. This code review cannot establish what Cloudflare account-level
-request logs, security products, or observability settings retain.
+answers, raw IP addresses, or diagnostics and does not install analytics or
+crash reporting. The rate guard hashes Cloudflare's client-IP header in memory
+and gives only the hash to edge-local 60-second counters. This code review
+cannot establish what Cloudflare account-level request logs, rate-limit backing
+systems, security products, or observability settings retain.
 
 Before final declarations and policy wording, verify in the production
 Cloudflare account:

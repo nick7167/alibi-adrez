@@ -6,6 +6,43 @@ export { RoomDurableObject };
 
 const cryptoRandom = () => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32;
 
+const bytesToHex = (bytes: ArrayBuffer): string =>
+  [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+
+/**
+ * Cloudflare injects CF-Connecting-IP at the edge. Hash it before handing it to
+ * the short-lived rate counter: the limiter needs a stable actor key, not the
+ * raw network identifier. Local workerd requests do not have this header and
+ * deliberately bypass the deployed-only binding.
+ */
+export async function isRateLimited(request: Request, limiter: RateLimit): Promise<boolean> {
+  const clientIp = request.headers.get("CF-Connecting-IP")?.trim();
+  if (!clientIp) return false;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(clientIp));
+  const outcome = await limiter.limit({ key: bytesToHex(digest) });
+  return !outcome.success;
+}
+
+function tooManyRequests(): Response {
+  return Response.json(
+    { error: "RATE_LIMITED" },
+    { status: 429, headers: { "Retry-After": "60" } },
+  );
+}
+
+async function rateLimitResponse(request: Request, env: Env, url: URL): Promise<Response | null> {
+  if (request.method === "POST" && url.pathname === "/api/rooms") {
+    return (await isRateLimited(request, env.ROOM_CREATE_RATE_LIMITER)) ? tooManyRequests() : null;
+  }
+  const accessesRoom =
+    (request.method === "GET" && /^\/api\/rooms\/[A-Za-z0-9]{4}$/.test(url.pathname)) ||
+    /^\/api\/room\/[A-HJ-KMNP-Z2-9]{4}\/ws$/.test(url.pathname);
+  if (accessesRoom && await isRateLimited(request, env.ROOM_ACCESS_RATE_LIMITER)) {
+    return tooManyRequests();
+  }
+  return null;
+}
+
 function allowedOrigin(request: Request, env: Env): string | null {
   const origin = request.headers.get("Origin");
   if (!origin) return null;
@@ -73,6 +110,9 @@ export default {
     if (request.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
       return new Response(null, { status: 204, headers: corsHeaders(origin ?? "") });
     }
+
+    const limited = await rateLimitResponse(request, env, url);
+    if (limited) return withCors(limited, origin ?? "");
 
     const wsMatch = /^\/api\/room\/([A-HJ-KMNP-Z2-9]{4})\/ws$/.exec(url.pathname);
     if (wsMatch) {

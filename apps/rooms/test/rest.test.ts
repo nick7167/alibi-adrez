@@ -1,6 +1,39 @@
 import { SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { isValidRoomCode } from "@aha/shared";
+import { isRateLimited } from "../src/index";
+
+class FakeRateLimit implements RateLimit {
+  readonly keys: string[] = [];
+
+  constructor(private success: boolean) {}
+
+  async limit(options: RateLimitOptions): Promise<RateLimitOutcome> {
+    this.keys.push(options.key);
+    return { success: this.success };
+  }
+}
+
+describe("rate-limit actor keys", () => {
+  it("bypasses local requests without Cloudflare's client header", async () => {
+    const limiter = new FakeRateLimit(false);
+    expect(await isRateLimited(new Request("https://example.com/api/rooms"), limiter)).toBe(false);
+    expect(limiter.keys).toEqual([]);
+  });
+
+  it("uses a stable hash instead of passing the raw IP to the counter", async () => {
+    const limiter = new FakeRateLimit(false);
+    const request = new Request("https://example.com/api/rooms", {
+      headers: { "CF-Connecting-IP": "203.0.113.7" },
+    });
+    expect(await isRateLimited(request, limiter)).toBe(true);
+    expect(await isRateLimited(request, limiter)).toBe(true);
+    expect(limiter.keys).toHaveLength(2);
+    expect(limiter.keys[0]).toBe(limiter.keys[1]);
+    expect(limiter.keys[0]).not.toContain("203.0.113.7");
+    expect(limiter.keys[0]).toMatch(/^[a-f0-9]{64}$/);
+  });
+});
 
 describe("POST /api/rooms", () => {
   it("returns a valid fresh code", async () => {

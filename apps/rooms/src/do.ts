@@ -15,6 +15,8 @@ import type { Env } from "./env";
 
 const SELF_DESTRUCT_MS = 600_000;
 const WS_READY_STATE_OPEN = 1;
+const SOCKET_MESSAGE_WINDOW_MS = 10_000;
+const SOCKET_MESSAGE_LIMIT = 50;
 const STATE_KEY = "state";
 /**
  * Epoch ms at which an abandoned room deletes itself. Stored in its own key
@@ -41,6 +43,7 @@ const eventDeps = (): EventDeps => ({
 export class RoomDurableObject implements DurableObject {
   private room?: InternalRoom;
   private tail: Promise<unknown> = Promise.resolve();
+  private socketBudgets = new WeakMap<WebSocket, { startedAt: number; count: number }>();
 
   constructor(private ctx: DurableObjectState, private env: Env) {}
 
@@ -217,6 +220,14 @@ export class RoomDurableObject implements DurableObject {
   }
 
   private async handleSocketMessage(ws: WebSocket, raw: string | ArrayBuffer): Promise<void> {
+    // A burst can already have queued more message events when the limiter
+    // closes the socket. Those queued callbacks become no-ops rather than
+    // attempting a second error frame on a closed connection.
+    if (ws.readyState !== WS_READY_STATE_OPEN) return;
+    if (!this.consumeSocketBudget(ws)) {
+      this.rejectAndClose(ws, "RATE_LIMITED");
+      return;
+    }
     const msg = typeof raw === "string" ? parseClientMessage(raw) : null;
     if (msg === null) {
       this.rejectAndClose(ws, "BAD_MESSAGE");
@@ -232,6 +243,23 @@ export class RoomDurableObject implements DurableObject {
       return;
     }
     await this.dispatch(ws, attachment.playerId, msg);
+  }
+
+  /**
+   * A per-connection burst guard keeps one client from monopolizing the
+   * Durable Object's serialized message queue. It is intentionally in-memory:
+   * this protects CPU/queue health, while the edge binding handles repeated
+   * reconnect attempts across object restarts.
+   */
+  private consumeSocketBudget(ws: WebSocket): boolean {
+    const now = Date.now();
+    const current = this.socketBudgets.get(ws);
+    if (current === undefined || now - current.startedAt >= SOCKET_MESSAGE_WINDOW_MS) {
+      this.socketBudgets.set(ws, { startedAt: now, count: 1 });
+      return true;
+    }
+    current.count += 1;
+    return current.count <= SOCKET_MESSAGE_LIMIT;
   }
 
   private async authenticate(ws: WebSocket, msg: ClientMessage & ({ t: "join" } | { t: "reconnect" })): Promise<void> {

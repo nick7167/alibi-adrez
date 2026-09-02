@@ -155,6 +155,13 @@ work:
   origin policy), including the full game, short viewport, cadence, and leaver
   flows.
 
+Reverified on 2026-09-02 after the iPad/privacy and rate-guard work:
+
+- `pnpm typecheck`: passed across the workspace.
+- `pnpm test`: passed, 221 tests total (shared 124, web 62, rooms 35).
+- Playwright: 7/7 passed, including the 1032 x 1376 iPad composition assertion
+  and the full browser game flow.
+
 The generated Capacitor project is under `apps/mobile/ios`. Its project settings
 target iPhone+iPad (`TARGETED_DEVICE_FAMILY = "1,2"`) with iOS 15.0 as the
 minimum. GitHub-hosted Xcode 26.6 has compiled both generic iOS and simulator
@@ -370,6 +377,15 @@ WebSocket browser origins, and gives local `wrangler dev` its own localhost
 override. There is no wildcard CORS. Unit/integration and full Playwright
 regressions pass. Deployment remains explicitly gated.
 
+Rate-limit protection is also implemented on `ios-app` but intentionally not
+marked complete before deployment: edge bindings allow 12 room creations/minute
+and 120 room lookup/WebSocket attempts/minute per SHA-256-hashed Cloudflare client
+IP, while each accepted socket is limited to 50 messages/10 seconds so one client
+cannot monopolize the Durable Object queue. Wrangler 4.125 dry-run recognizes both
+bindings and the Rooms suite covers hashing, local bypass, and flood closure. The
+edge counters are intentionally permissive/location-local and are a safety layer,
+not billing or exact accounting.
+
 The current code-derived privacy inventory and open infrastructure checks are in
 `docs/ios-privacy-data-map.md`. The app target now bundles
 `PrivacyInfo.xcprivacy`; the final signed archive's aggregated privacy report and
@@ -395,8 +411,13 @@ and uploads the evidence. Run 33574292438 proved that the locale fix rendered th
 full landing UI on both device classes; its iPad step intentionally failed because
 the first blank-screen heuristic mistook a sparse, phone-sized tablet layout for a
 blank screen. That finding produced a separate iPad layout assertion and a real
-tablet-scale landing composition. The corrected hosted run is the next required
-evidence before closing the visual launch check.
+tablet-scale landing composition. Run 33576190028 then passed the
+complete Xcode 26.6 workflow: unsigned device and simulator builds, embedded
+privacy-manifest verification, and visible-content launch guards on both iPhone
+and iPad. Its retained screenshots were also reviewed manually; the phone layout
+remained unchanged and the iPad now uses the intended tablet-scale composition.
+The focused simulator logs contained only simulator/WebKit subsystem diagnostics,
+with no application crash or uncaught JavaScript error.
 
 ### Phase E — device-quality validation
 

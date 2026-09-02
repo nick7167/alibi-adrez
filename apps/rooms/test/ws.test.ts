@@ -60,6 +60,16 @@ describe("lobby websocket", () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(inbox[0]).toMatchObject({ t: "error", code: "BAD_MESSAGE" });
   });
+  it("closes a socket that floods the room's serialized message queue", async () => {
+    const { ws, inbox } = await connectAndJoin("WSR", "Burst");
+    for (let i = 0; i < 51; i++) ws.send(JSON.stringify({ v: 1, t: "ping" }));
+    const deadline = Date.now() + 3000;
+    while (!inbox.some((message: any) => message.t === "error") && Date.now() < deadline) {
+      await sleep(10);
+    }
+    expect(inbox.find((message: any) => message.t === "error"))
+      .toMatchObject({ code: "RATE_LIMITED" });
+  });
   it("failed reconnect against an unused code leaves no state behind", async () => {
     const code = "WSZ";
     const { ws, inbox } = await openSocket(code);
