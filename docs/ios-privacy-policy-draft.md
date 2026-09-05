@@ -4,13 +4,18 @@ Prepared 2026-09-05 from `docs/ios-privacy-data-map.md` and the `ios-app`
 implementation. Internal draft only: this file is not a public policy, and its
 existence does not complete the privacy release gate. AHA is the working name.
 
+Controller identity approved by the user on 2026-09-05: Nicklas Andreasen,
+known as Adrez, acting as an individual developer. Adrez is the developer brand,
+not a separate registered company. This approval covers the public identity
+wording below; final app naming and policy publication remain separate gates.
+
 ## Facts required before publication
 
 Replace every bracketed field in both languages with verified public information.
 Do not copy private handoff values into this file without authorization to publish
 them. Resolve these items before adding the policy route or App Store URL:
 
-- Public controller identity and contact details; assess whether a representative
+- Verified public controller contact details; assess whether a representative
   or data protection officer needs to be identified.
 - Legal basis for each purpose: running the game, abuse prevention, and handling
   support/reports. Document the assessment, including any legitimate interests,
@@ -41,7 +46,12 @@ account settings or determine its legal basis.
 
 ### Privatliv i AHA
 
-Gælder fra: [DATO]. Dataansvarlig: [OFFENTLIGT NAVN OG KONTAKTOPLYSNINGER].
+Gælder fra: [DATO].
+
+AHA udvikles og drives af Nicklas Andreasen, kendt som Adrez. Nicklas Andreasen
+er dataansvarlig for den behandling af personoplysninger, der beskrives i denne
+politik.
+
 Spørgsmål om dine oplysninger: [BEKRÆFTET KONTAKT].
 
 AHA er et spil i private rum. Du behøver ikke oprette en konto. Du vælger et
@@ -115,7 +125,12 @@ aktive spilserver.
 
 ### Privacy in AHA
 
-Effective date: [DATE]. Controller: [PUBLIC NAME AND CONTACT DETAILS].
+Effective date: [DATE].
+
+AHA is developed and operated by Nicklas Andreasen, known as Adrez. Nicklas
+Andreasen is responsible for the processing of personal data described in this
+policy and is the data controller.
+
 Questions about your information: [VERIFIED CONTACT].
 
 AHA is a game played in private rooms. You do not need an account. You choose

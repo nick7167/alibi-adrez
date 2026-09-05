@@ -462,10 +462,16 @@ Cloudflare account-level retention still require verification.
 `docs/ios-privacy-policy-draft.md` contains matched Danish/English policy copy,
 prepared from the data map and current Apple/European Commission/Datatilsynet
 guidance on 2026-09-05. It is an internal publication draft with explicit fields
-for controller identity, purpose-specific legal bases, support retention/provider,
+for controller contact details, purpose-specific legal bases, support retention/provider,
 infrastructure retention/transfers, final name, and effective date. Do not publish
 it with those fields unresolved. An accessible in-app link and final public URL
 are still required; no public privacy route or production policy has been added.
+
+On 2026-09-05 the user approved identifying the operator/data controller publicly
+as **Nicklas Andreasen, known as Adrez**, an individual developer. Adrez is the
+developer brand, not a registered company. Both policy languages now use this
+identity. Do not ask for controller-name approval again. Contact verification,
+the other policy facts above, and final app-name approval remain separate gates.
 
 Support now includes a Danish/English action to delete all saved room logins from
 the device. It requires confirmation, explains loss of reconnect/host access and

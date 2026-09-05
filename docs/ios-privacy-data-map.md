@@ -4,6 +4,11 @@ Status: working release-gate document, based on the code on `ios-app` as of
 2026-09-05. It is not yet a final App Store Connect declaration or privacy
 policy.
 
+The user approved the public controller identity on 2026-09-05: Nicklas Andreasen,
+known as Adrez, acting as an individual developer. The bilingual policy draft
+uses this identity. Public contact details and the operational release gates
+below still need verification.
+
 Apple treats data as collected when it is transmitted off-device and retained
 beyond what is needed to service the request in real time. Apple's current
 definitions and disclosure rules are the source of truth:
