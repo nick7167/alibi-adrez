@@ -1,0 +1,25 @@
+{
+  "status": "Prepared, not uploaded. Trademark review, App Store name availability, age rating and final privacy declarations remain release gates.",
+  "brand": "Hvem mon?",
+  "primaryLanguage": "da",
+  "localizations": {
+    "da": {
+      "name": "Hvem mon? Gæt dine venner",
+      "subtitle": "Selskabsspil med anonyme svar",
+      "keywords": "festspil,spørgsmål,spilleaften,gruppe,familie,quiz,sjov,sammen,hyggespil,multiplayer",
+      "promotionalText": "Svar først. Gæt bagefter. Find ud af, hvor godt I egentlig kender hinanden — i et privat rum for 3–16 spillere.",
+      "description": "Hvem i vennegruppen skrev dét?\n\nAlle svarer på spørgsmålene først. Bagefter ser I ét svar ad gangen og gætter, hvem der står bag. Forfatteren er skjult under gætterunden og afsløres bagefter — sammen med pointene.\n\nSAML VENNERNE\nOpret et privat rum, og del rumkoden eller invitationen. I kan spille sammen på iPhone, iPad og i en browser. Ingen konto nødvendig.\n\nALLE HAR NOGET AT BYDE PÅ\nSvar i jeres eget tempo inden for den fælles tidsfrist. Vælg mellem hverdag, holdninger, absurde spørgsmål og milde tilståelser.\n\nHVOR GODT KENDER I HINANDEN?\nGenkender du din vens formuleringer — eller overrasker svaret hele rummet? Gæt, se afsløringen og følg pointene frem til finalen.\n\nPRØV DET SELV\nEr du alene? Start et øvespil med to tydeligt markerede botspillere, og prøv hele forløbet.\n\nSPIL MED OMTANKE\nSkjul eller rapportér et upassende svar eller en spiller. Værten kan fjerne en deltager fra det aktuelle rum. Del kun invitationen med personer, du vil spille med.\n\nGratis for 3–16 spillere. Ingen reklamer eller køb i appen. Spillet kræver internet. Dansk og engelsk er understøttet.\n\nSupport: https://adrez.dev/aha/support\nPrivatliv: https://adrez.dev/aha/privacy",
+      "supportUrl": "https://adrez.dev/aha/support",
+      "privacyPolicyUrl": "https://adrez.dev/aha/privacy"
+    },
+    "en": {
+      "name": "Hvem mon? Guess your friends",
+      "subtitle": "Party game with secret answers",
+      "keywords": "quiz,group,family,multiplayer,room,night,fun,questions,anonymous,writing,reveal",
+      "promotionalText": "Answer first. Guess afterwards. Discover how well you really know each other in a private room for 3–16 players.",
+      "description": "Which of your friends wrote that?\n\nEveryone answers the questions first. Then you see one answer at a time and guess who wrote it. The author is hidden during guessing and revealed afterwards, along with the points.\n\nGET YOUR FRIENDS TOGETHER\nCreate a private room and share its code or invitation. Play together on iPhone, iPad, and in a browser. No account needed.\n\nEVERYONE HAS SOMETHING TO SAY\nAnswer at your own pace within the shared time limit. Choose everyday questions, opinions, absurd scenarios, or mild confessions.\n\nHOW WELL DO YOU KNOW EACH OTHER?\nDo you recognize your friend’s phrasing, or does an answer surprise the whole room? Guess, enjoy the reveal, and follow the scores to the finale.\n\nTRY IT ON YOUR OWN\nStart a practice game with two clearly labeled bot players and try the complete game loop.\n\nPLAY WITH CARE\nHide or report inappropriate answers or players. The host can remove a participant from the current room. Share invitations only with people you want to play with.\n\nFree for 3–16 players. No ads or in-app purchases. Internet connection required. Danish and English supported.\n\nSupport: https://adrez.dev/aha/en/support\nPrivacy: https://adrez.dev/aha/en/privacy",
+      "supportUrl": "https://adrez.dev/aha/en/support",
+      "privacyPolicyUrl": "https://adrez.dev/aha/en/privacy"
+    }
+  }
+}

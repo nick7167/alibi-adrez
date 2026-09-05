@@ -1,5 +1,15 @@
 # AHA iOS privacy data map
 
+Update 2026-09-06: public name **Hvem mon?**; user confirmed Gmail. The exact
+Cloudflare support-address routing rule was verified as forwarding to gmail.com
+without disclosing the destination address. The bilingual public policy is now
+live at `https://adrez.dev/aha/privacy` and `/aha/en/privacy`, linked from the
+renamed web/native landing page. Support retention uses the lifetime of an active
+case and specific necessary follow-up, with limited security/dispute/legal
+exceptions; no automatic cleanup or fixed 90-day promise is claimed. See
+`docs/ios-support-operations.md`. Older unresolved-publication/provider notes below
+are historical; final App Privacy reconciliation and operator validation remain open.
+
 Status: working release-gate document, based on the code on `ios-app` as of
 2026-09-05. It is not yet a final App Store Connect declaration or privacy
 policy.

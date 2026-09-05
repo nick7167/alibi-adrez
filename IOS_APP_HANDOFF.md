@@ -26,6 +26,13 @@ existing external Google Fonts request. It promises neither EU-only processing
 nor an unverified fixed provider-log lifetime. Owner duties and the assessment
 are in `docs/ios-support-operations.md`; there is no automatic inbox cleanup.
 
+Latest root-site source is now `ef41c375b3d137475a769049b23bb2037f8ccc91`, adding
+discoverable root-footer links and underlines on provider references. All 30
+tests and the build passed again; targeted browser checks passed. It is deployed
+at `https://b35b8c71.adrez-personal.pages.dev` and on `adrez.dev`. The source commit
+was presented with its verification status and remains unpushed pending the
+root repository's required post-commit approval. Deployment itself is complete.
+
 Root commit `d9ec7b9c28f94a3afdcbd4154912d58d05130b7d` passed all 30 tests,
 static build and six-route phone/tablet checks and was directly deployed as
 `https://62be52cf.adrez-personal.pages.dev`. Screenshots of the privacy page and
@@ -40,7 +47,29 @@ Native Info.plist/privacy manifest lint, workspace typecheck, all 269 tests
 The new identity/privacy-link browser test and the existing viewport checks passed
 after restoring tablet-scale title sizing. Concurrent local Wrangler instances
 exposed shared SQLite test-state contention; Playwright now uses a per-port
-`--persist-to .wrangler/e2e-<port>` directory. Full suite rerun is in progress.
+`--persist-to .wrangler/e2e-<port>` directory. The full rerun passed all 15 browser
+scenarios, including the author-leaving regression, without database errors.
+
+The renamed web client was built again, dry-run checked, then deployed directly
+from `ios-app` to `aha-web` as version `d9bfbb40-d8a7-4899-8559-79d48d79c21b`.
+Previous version recorded for rollback: `34fce12b-d52c-4b8d-ac5c-fba1973bc622`.
+No AHA `main` branch was modified or pushed. A future deployment of its older
+source would revert these UI changes; coordinate a separately authorized source
+integration rather than silently merging. The live web title, phone/tablet views,
+six root-site URLs, locale/canonical values and decoded email links were checked.
+The mixed native-origin/live-web-proxy production full-game smoke passed again.
+Hosted Xcode run `33997799689` for `e95ef22` compiled device/simulator targets;
+simulator launch evidence is still being collected.
+
+`docs/ios-store-metadata.json` contains Danish and English listing drafts. All
+title/subtitle/keyword/promotional-text/description limits were checked mechanically,
+and keyword fields do not duplicate title/subtitle words. No fabricated social
+proof or measured keyword-volume claims are included; nothing was uploaded to ASC.
+
+The Danish PVSonline trademark search form was re-opened on 2026-09-06 and
+explicitly presents reCAPTCHA. It was not solved or bypassed. TMview rendered no
+usable page in the available browser, and WIPO's earlier automation restriction
+still applies. A human/compliant interactive trademark check remains necessary.
 
 Interactive trademark checks and final App Store name availability remain separate
 release gates. No store record, signing assets or TestFlight upload has been created
