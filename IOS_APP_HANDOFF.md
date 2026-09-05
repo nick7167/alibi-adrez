@@ -1,6 +1,51 @@
 # AHA iOS / App Store handoff
 
-Last updated: 2026-09-05 (Europe/Copenhagen)
+Last updated: 2026-09-06 (Europe/Copenhagen)
+
+### Current decision and publication — 2026-09-06
+
+The user selected **Hvem mon?**, authorized publication of the needed changes,
+and confirmed Gmail as the support provider. Cloudflare's exact support-address
+routing rule was verified as forwarding to gmail.com, without exposing the
+destination address. Do not ask again for a name decision, mailbox receipt, or
+mail provider. Prior unresolved-name/provider notes below are historical.
+
+The approved public name is applied to Danish/English app titles, native display
+name, web manifest, sharing and report text, support/community copy and root-site
+catalog. Technical identifiers (`dev.adrez.aha`, worker names, room URLs,
+localStorage keys) intentionally remain unchanged. The old A-shaped icon/splash
+and favicon still need a deliberate final identity artwork pass; do not claim
+the complete visual rebrand or native release assets are finalized.
+
+The root-site bilingual policy source is
+`/Users/nicklasandreasen/adrez.dev/src/data/aha-privacy.ts`. It names the controller,
+Cloudflare Email Routing and Gmail, states purpose-based support retention,
+distinguishes provider infrastructure from ten-minute active room deletion,
+describes purpose-specific legal bases and rights, and discloses the root site's
+existing external Google Fonts request. It promises neither EU-only processing
+nor an unverified fixed provider-log lifetime. Owner duties and the assessment
+are in `docs/ios-support-operations.md`; there is no automatic inbox cleanup.
+
+Root commit `d9ec7b9c28f94a3afdcbd4154912d58d05130b7d` passed all 30 tests,
+static build and six-route phone/tablet checks and was directly deployed as
+`https://62be52cf.adrez-personal.pages.dev`. Screenshots of the privacy page and
+settled root catalog were inspected. The earlier prepared commit `891aee7` was
+pushed to the root site's GitHub after the user's follow-up approval. The new
+`d9ec7b9` commit was presented with verification status; the root repository's
+post-commit push approval rule still applies to it. Do not overwrite the direct
+deployment from an older checkout. Its existing untracked AGENTS.md remains untouched.
+
+Native Info.plist/privacy manifest lint, workspace typecheck, all 269 tests
+(shared 135 / web 95 / Rooms 39), web/mobile builds and Capacitor sync passed.
+The new identity/privacy-link browser test and the existing viewport checks passed
+after restoring tablet-scale title sizing. Concurrent local Wrangler instances
+exposed shared SQLite test-state contention; Playwright now uses a per-port
+`--persist-to .wrangler/e2e-<port>` directory. Full suite rerun is in progress.
+
+Interactive trademark checks and final App Store name availability remain separate
+release gates. No store record, signing assets or TestFlight upload has been created
+for this app. Broad publication approval does not establish trademark clearance
+or replace a physical iPhone test.
 
 ### Current authorization and production update — 2026-09-05
 
@@ -404,7 +449,7 @@ Update this document as each phase completes.
 - [x] Confirm clean baseline typecheck, unit tests, and web build.
 - [x] Run baseline Playwright tests.
 - [ ] Complete name/IP and App Store name availability research.
-- [ ] Obtain user approval for the final public name only when needed.
+- [x] Obtain user approval for the final public name only when needed.
 - [ ] Confirm bundle ID, SKU naming convention, primary category, and secondary
   category based on competitor/category research.
 - [x] Create an AHA-specific app marketing context using the installed ASO skills.

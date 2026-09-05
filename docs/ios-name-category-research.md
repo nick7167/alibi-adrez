@@ -6,6 +6,17 @@ remain dated 2026-09-01)
 This is a preliminary product-name risk assessment, not legal advice or a
 trademark clearance opinion. Search results and availability can change.
 
+## Decision — 2026-09-06
+
+The user selected **Hvem mon?** and authorized publishing the needed updates.
+Use that public name going forward, retaining `aha` only for stable technical
+identifiers, room URLs and historical records. Prepared Danish listing title:
+`Hvem mon? Gæt dine venner` (25/30), subtitle:
+`Selskabsspil med anonyme svar` (29/30). The brainstorm below is historical.
+Interactive trademark checks and App Store Connect availability remain open;
+name approval does not assert legal clearance. Do not ask the user to select
+between the old shortlist again.
+
 ## User-requested naming brainstorm — 2026-09-05
 
 The user wants to brainstorm before locking the name. Apple account verification

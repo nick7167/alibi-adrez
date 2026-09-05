@@ -84,7 +84,7 @@
 	async function shareCode() {
 		try {
 			if (typeof navigator.share === 'function') {
-				await navigator.share({ title: 'AHA', text: room.code });
+				await navigator.share({ title: m['app.title'](), text: room.code });
 				return;
 			}
 			await navigator.clipboard.writeText(room.code);

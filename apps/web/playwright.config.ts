@@ -16,7 +16,7 @@ export default defineConfig({
 	},
 	webServer: [
 		{
-			command: `pnpm --filter @aha/rooms exec wrangler dev --port ${roomsPort} --var ALLOWED_ORIGINS:http://localhost:${webPort}`,
+			command: `pnpm --filter @aha/rooms exec wrangler dev --port ${roomsPort} --persist-to .wrangler/e2e-${roomsPort} --var ALLOWED_ORIGINS:http://localhost:${webPort}`,
 			url: `http://localhost:${roomsPort}/health`,
 			reuseExistingServer: !process.env.CI,
 			timeout: 120_000

@@ -1,5 +1,13 @@
 # AHA privacy policy — publication draft
 
+**Superseded on 2026-09-06:** the owner selected Hvem mon?, confirmed Gmail and
+authorized publication. The current bilingual policy is maintained in
+`/Users/nicklasandreasen/adrez.dev/src/data/aha-privacy.ts`, at public URLs
+`https://adrez.dev/aha/privacy` and `/aha/en/privacy`. It uses purpose-based support
+retention and accurately separates provider infrastructure from active room data.
+See `docs/ios-support-operations.md` for the assessment and operational obligations.
+The old draft below is preserved as history only; do not publish its placeholders.
+
 Prepared 2026-09-05 from `docs/ios-privacy-data-map.md` and the `ios-app`
 implementation. Internal draft only: this file is not a public policy, and its
 existence does not complete the privacy release gate. AHA is the working name.

@@ -1,10 +1,10 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
-// appId/appName are provisional until the public identity gate is approved.
-// They are local project values only; no Apple identifier has been registered.
+// Public name approved by the owner. Keep the existing technical identifier;
+// no Apple identifier has been registered yet and release clearance is separate.
 const config: CapacitorConfig = {
   appId: 'dev.adrez.aha',
-  appName: 'AHA',
+  appName: 'Hvem mon?',
   webDir: '../web/build-mobile',
   backgroundColor: '#4A1FD6',
   loggingBehavior: 'debug',

@@ -67,13 +67,13 @@ export function redactRoom<T extends RoomView>(
 function localizedReport(lang: Lang, kind: "player" | "answer"): { subject: string; intro: string } {
 	if (lang === "da") {
 		return {
-			subject: `Rapport om ${kind === "player" ? "spiller" : "svar"} i AHA`,
-			intro: "Jeg vil rapportere skadeligt eller stødende indhold i AHA.",
+			subject: `Rapport om ${kind === "player" ? "spiller" : "svar"} i Hvem mon?`,
+			intro: "Jeg vil rapportere skadeligt eller stødende indhold i Hvem mon?.",
 		};
 	}
 	return {
-		subject: `AHA ${kind} report`,
-		intro: "I want to report harmful or offensive content in AHA.",
+		subject: `Hvem mon? ${kind} report`,
+		intro: "I want to report harmful or offensive content in Hvem mon?.",
 	};
 }
 

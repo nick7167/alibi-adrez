@@ -9,7 +9,7 @@
 			sections: [
 				{
 					heading: 'Et trygt privat rum',
-					body: 'AHA er et selskabsspil for inviterede deltagere. Du er ansvarlig for det navn og de svar, du skriver.'
+					body: 'Hvem mon? er et selskabsspil for inviterede deltagere. Du er ansvarlig for det navn og de svar, du skriver.'
 				},
 				{
 					heading: 'Det er ikke tilladt',
@@ -32,7 +32,7 @@
 			sections: [
 				{
 					heading: 'A safe private room',
-					body: 'AHA is a party game for invited participants. You are responsible for the name and answers you enter.'
+					body: 'Hvem mon? is a party game for invited participants. You are responsible for the name and answers you enter.'
 				},
 				{
 					heading: 'Not allowed',

@@ -11,7 +11,7 @@
 		body: 'Denne enhed gemmer dit spillernavn, din emoji og dit login til de rum, du har deltaget i. Du kan slette dem her. Dit sprogvalg og skjulte spillere og svar bevares.',
 		button: 'Slet gemte rumlogin',
 		confirmTitle: 'Slet dine gemte rumlogin?',
-		confirmBody: 'Du mister adgangen til at vende tilbage som samme spiller, også som vært. Forlad aktive spil og luk andre faner med AHA først. Dette sletter kun login på denne enhed, ikke spilindhold i rummene eller sendte supportmails.',
+		confirmBody: 'Du mister adgangen til at vende tilbage som samme spiller, også som vært. Forlad aktive spil og luk andre faner med Hvem mon? først. Dette sletter kun login på denne enhed, ikke spilindhold i rummene eller sendte supportmails.',
 		success: 'Dine gemte rumlogin er slettet fra denne enhed.',
 		failure: 'Ikke alle gemte rumlogin kunne slettes. Prøv igen, eller slet appens eller webstedets data i enhedens indstillinger.'
 	} : {
@@ -19,7 +19,7 @@
 		body: 'This device saves your player name, emoji, and login for rooms you have joined. You can delete them here. Your language and hidden players and answers are kept.',
 		button: 'Delete saved room logins',
 		confirmTitle: 'Delete your saved room logins?',
-		confirmBody: 'You will lose access to rejoin as the same player, including as host. Leave active games and close other AHA tabs first. This only deletes logins on this device, not gameplay content in rooms or support emails you sent.',
+		confirmBody: 'You will lose access to rejoin as the same player, including as host. Leave active games and close other Hvem mon? tabs first. This only deletes logins on this device, not gameplay content in rooms or support emails you sent.',
 		success: 'Your saved room logins have been deleted from this device.',
 		failure: 'Some saved room logins could not be deleted. Try again, or clear the app or website data in your device settings.'
 	});

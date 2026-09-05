@@ -1,6 +1,6 @@
 {
-	"name": "AHA",
-	"short_name": "AHA",
+	"name": "Hvem mon?",
+	"short_name": "Hvem mon?",
 	"description": "Alle svarer på det samme. Hvem skrev hvad?",
 	"start_url": "/",
 	"scope": "/",

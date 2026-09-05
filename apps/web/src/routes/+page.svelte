@@ -128,7 +128,7 @@
 		     the middle. The action block below it stays pinned to the bottom. -->
 		<div class="ho-top flex min-h-0 flex-1 flex-col justify-center">
 		<header class="reveal shrink-0 pt-2 text-center">
-			<h1 class="ho-mark font-display text-[86px] leading-[0.9] font-bold tracking-tight text-action">
+			<h1 class="ho-mark font-display text-[58px] leading-[1.05] font-bold tracking-tight text-action">
 				{m['app.title']()}
 			</h1>
 			<p class="ho-tagline mx-auto mt-3 max-w-[300px] text-[15px] leading-snug font-semibold text-white/85">
@@ -270,6 +270,9 @@
 			<a class="min-h-11 content-center underline underline-offset-4" href="/support">
 				{m['nav.support']()}
 			</a>
+			<a class="min-h-11 content-center underline underline-offset-4" href={currentLocale() === 'da' ? 'https://adrez.dev/aha/privacy' : 'https://adrez.dev/aha/en/privacy'} target="_blank" rel="noopener noreferrer">
+				{currentLocale() === 'da' ? 'Privatliv' : 'Privacy'}
+			</a>
 		</nav>
 
 		<div
@@ -364,7 +367,7 @@
 		}
 
 		.ho-mark {
-			font-size: 52px;
+			font-size: 40px;
 		}
 
 		/* The least load-bearing line on the screen, and 30px of a 420px
@@ -396,7 +399,7 @@
 		}
 
 		.ho-mark {
-			font-size: 144px;
+			font-size: 120px;
 		}
 
 		.ho-tagline {

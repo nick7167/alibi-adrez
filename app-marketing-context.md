@@ -1,14 +1,15 @@
-# AHA app marketing context
+# Hvem mon? app marketing context
 
-Last updated: 2026-09-01 (Europe/Copenhagen)
+Last updated: 2026-09-06 (Europe/Copenhagen)
 
-This document is the shared marketing context for ASO and launch work. Public
-identity is intentionally provisional until the name/IP gate is approved.
+This document is the shared marketing context for ASO and launch work. The user
+approved `Hvem mon?` as the final public name. Trademark clearance and App Store
+record availability remain separate release checks; do not ask for name choice again.
 
 ## App Overview
 
-- **Working app name:** AHA
-- **Recommended public candidate:** `Svarspor: Gæt dine venner`
+- **Public app name:** Hvem mon? (formerly AHA)
+- **Danish listing title:** `Hvem mon? Gæt dine venner`
 - **Apple app ID:** Not created
 - **Bundle ID:** `dev.adrez.aha` (provisional local configuration only)
 - **Recommended primary category:** Games — Trivia
@@ -44,10 +45,10 @@ identity is intentionally provisional until the name/IP gate is approved.
 ## Current ASO State
 
 - **App Store record:** None
-- **Title/subtitle/keyword field:** Not locked
+- **Brand:** User approved; descriptive store metadata prepared, not uploaded
 - **Ratings/rankings:** None; pre-launch
-- **Provisional title:** `Svarspor: Gæt dine venner` (25/30 characters)
-- **Provisional subtitle:** `Festspil med venner` (19/30 characters)
+- **Prepared title:** `Hvem mon? Gæt dine venner` (25/30 characters)
+- **Prepared subtitle:** `Selskabsspil med anonyme svar` (29/30 characters)
 - **Core Danish search themes to validate later:** festspil, selskabsspil,
   venner, gæt hvem, spørgsmål, spilleaften
 
