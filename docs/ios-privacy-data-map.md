@@ -6,8 +6,18 @@ policy.
 
 The user approved the public controller identity on 2026-09-05: Nicklas Andreasen,
 known as Adrez, acting as an individual developer. The bilingual policy draft
-uses this identity. Public contact details and the operational release gates
-below still need verification.
+uses this identity. The user confirmed receipt at the public support mailbox,
+`support@adrez.dev`, on 2026-09-05. Provider, handling schedule and retention still
+need confirmation; mailbox access itself is no longer a blocker.
+
+Production update 2026-09-05: Rooms version
+`20ee6760-960a-407d-a518-1e16146173f1` now runs the audited native origin, server
+filtering and rate-limit code. Both limiter bindings were confirmed in the live
+settings after deployment. The account reports Logpush false, no tail consumers,
+and no explicit observability object. Do not turn this into a claim that
+Cloudflare retains no infrastructure data. No debug tail was opened. Danish and
+English support/community pages are published under `https://adrez.dev/aha/`;
+privacy remains unpublished pending the facts below.
 
 Apple treats data as collected when it is transmitted off-device and retained
 beyond what is needed to service the request in real time. Apple's current

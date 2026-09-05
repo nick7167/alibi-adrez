@@ -2,6 +2,56 @@
 
 Last updated: 2026-09-05 (Europe/Copenhagen)
 
+### Current authorization and production update — 2026-09-05
+
+The user confirms Apple account/verifications are complete (another app is already
+live) and that they can receive messages at `support@adrez.dev`. Do not ask them
+to repeat enrollment or mailbox-access verification. AHA-specific App Store,
+bundle/signing and Codemagic records are still required after final-name approval.
+
+The user explicitly authorized updating/deploying the AHA Rooms backend and
+publishing AHA privacy/support pages on their root website, `adrez.dev`. This
+supersedes older deployment gates below for these exact targets. It does not
+authorize merging/pushing AHA's `main`, touching retired Workers, or selecting a
+final name without the requested brainstorming/approval.
+
+Rooms was deployed from `ios-app` as version
+`20ee6760-960a-407d-a518-1e16146173f1`. Previous production version, recorded for
+rollback: `89391e5b-2d99-4efc-85c0-b4175934bd7c`. The 39 Rooms tests and Wrangler
+dry run passed before deployment. A live test then verified health, exact native
+CORS, rejection of an untrusted origin, room lookup through the existing live web
+proxy, and three disposable players using both the live web WebSocket proxy and
+the native-origin direct endpoint. They completed INTRO → ANSWERING → GUESSING →
+REVEAL → FINALE and returned to LOBBY without protocol errors. Test clients sent
+Leave before closing. This is server/protocol evidence, not a signed iPhone test.
+The live AHA web Worker was not redeployed; its existing UI is preserved.
+
+Root website found at `/Users/nicklasandreasen/adrez.dev`, Astro/Cloudflare Pages
+project `adrez-personal`. Its existing untracked `AGENTS.md` is user-owned and was
+not staged. AHA support/community pages now have Danish and English source routes:
+`/aha/support`, `/aha/community-rules`, `/aha/en/support`,
+`/aha/en/community-rules`. Root source commit: `891aee7d0601adc594e02e7b9951e07aa54ecdf1`.
+All 30 root tests and the static build passed. Browser checks at 390px and 1024px
+verified all four routes, document language, canonical URLs, contact links, one
+main heading and no horizontal overflow; phone screenshot inspected manually.
+Root GitHub push remains gated by that repository's explicit post-commit approval
+instruction; direct Pages deployment is authorized separately.
+The static Pages deployment completed successfully at
+`https://7cab9dc3.adrez-personal.pages.dev`, targeting production branch `main`
+of the root-site Pages project only. It does not involve AHA's `main` branch.
+
+Privacy is not published yet. The user has been asked which mailbox provider
+receives support email and whether daily report checks, a 48-hour reply target,
+and deletion within 90 days after resolution are feasible. Do not invent their
+answer or publish the draft's placeholders. Account inspection before deployment
+found Rooms Logpush disabled, no tail consumers and no explicit observability
+setting; this does not prove all Cloudflare infrastructure records have no
+retention. Public policies must still resolve infrastructure and support facts.
+
+Final naming remains open. The current ASO brainstorm compares Svarspor,
+Hvem mon?, and Bag svaret. No final App Store record or name-dependent assets
+were created in this deployment step.
+
 This document is the source of truth for taking AHA from its existing web game to
 an App Store release. It is intentionally self-contained so a new Codex session can
 continue with minimal user involvement.
@@ -403,8 +453,8 @@ inspection.
 
 ### Phase C — backend and review compliance
 
-- [ ] Allow intentional native HTTPS/WSS transport without broadening trust globally.
-- [ ] Add rate limits and brute-force protections.
+- [x] Allow intentional native HTTPS/WSS transport without broadening trust globally.
+- [x] Add rate limits and brute-force protections.
 - [ ] Implement UGC filtering, reporting, blocking/hiding, host removal/room banning,
   and support escalation.
 - [x] Add the solo practice/reviewer path.
@@ -413,6 +463,9 @@ inspection.
 - [ ] Draft privacy, support, and community-rules pages under canonical URLs such as
   `https://adrez.dev/aha/privacy`, `/support`, and `/community-rules`.
 - [ ] Do not deploy those pages or any Worker without explicit user approval.
+
+Historical pre-deployment notes (deployment and live protocol checks completed
+2026-09-05 as recorded at the top; signed-device checks remain):
 
 The native-origin implementation is present locally but is intentionally not
 marked complete until deployed and tested against the production Worker. The

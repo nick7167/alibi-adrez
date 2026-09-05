@@ -1,9 +1,46 @@
 # iOS name, competitor, and category research
 
-Last checked: 2026-09-01 (Denmark storefront)
+Last checked: 2026-09-05 (Denmark storefront; historical competitor metrics below
+remain dated 2026-09-01)
 
 This is a preliminary product-name risk assessment, not legal advice or a
 trademark clearance opinion. Search results and availability can change.
+
+## User-requested naming brainstorm — 2026-09-05
+
+The user wants to brainstorm before locking the name. Apple account verification
+is complete; do not mistake broad implementation/deployment approval for approval
+of a specific name. ASO router, competitor-analysis and metadata-optimization were
+used to separate a memorable brand from a clear Danish search phrase.
+
+| Direction | Proposed Danish title | Characters | Subtitle | Characters | Assessment |
+| --- | --- | --- | --- | --- | --- |
+| Recommended | Svarspor: Gæt dine venner | 25/30 | Festspil med anonyme svar | 25/30 | Most distinctive; each answer is a clue to its author. More cerebral than a shoutable party name. |
+| Conversational | Hvem mon? Gæt dine venner | 25/30 | Selskabsspil med anonyme svar | 29/30 | Friendly and easy to say; generic phrase makes ownership and search distinction harder. |
+| Reveal-led | Bag svaret: Gæt dine venner | 27/30 | Festspil for 3–16 spillere | 26/30 | Explains the reveal concept; can sound more like an interview or quiz format. |
+
+Counts were verified mechanically, including spaces and punctuation. `Gæt` and
+`venner` convey the core action/relationship; `festspil` or `selskabsspil` supply
+category context. Exact words are not repeated between each paired title and
+subtitle. These are relevance hypotheses, not measured keyword volume/rank
+claims. The anonymity phrase describes the guessing phase only; the description
+and screenshots must explicitly show that authors are subsequently revealed.
+The remaining space is not filled with awkward keyword padding.
+
+On 2026-09-05 Apple's public iTunes Search API returned zero software results for
+each of `Svarspor`, `Hvem mon`, and `Bag svaret` with `country=dk`,
+`entity=software`, `limit=20`. Exact-name web searches did not surface a clear
+same-name game collision. Neither test proves availability, completeness, trademark
+clearance, or a reservation. No refreshed domain/handle claim is made for Hvem mon?.
+The existing interactive trademark checks below remain required.
+
+Primary references: [Apple title/subtitle rules](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information/),
+[Danish App Store search: Svarspor](https://itunes.apple.com/search?term=Svarspor&country=dk&entity=software&limit=20),
+[Hvem mon](https://itunes.apple.com/search?term=Hvem%20mon&country=dk&entity=software&limit=20),
+[Bag svaret](https://itunes.apple.com/search?term=Bag%20svaret&country=dk&entity=software&limit=20).
+Current adjacent-name reference: [AhaGuess on Apple's Brazilian storefront](https://apps.apple.com/br/app/ahaguess-jogo-de-adivinhar/id6801897896).
+The direct Danish AhaGuess page did not load in this session, so this is not a
+new claim about its current Danish availability.
 
 ## Executive recommendation
 
