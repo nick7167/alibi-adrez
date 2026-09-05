@@ -459,6 +459,14 @@ The current code-derived privacy inventory and open infrastructure checks are in
 `PrivacyInfo.xcprivacy`; the final signed archive's aggregated privacy report and
 Cloudflare account-level retention still require verification.
 
+`docs/ios-privacy-policy-draft.md` contains matched Danish/English policy copy,
+prepared from the data map and current Apple/European Commission/Datatilsynet
+guidance on 2026-09-05. It is an internal publication draft with explicit fields
+for controller identity, purpose-specific legal bases, support retention/provider,
+infrastructure retention/transfers, final name, and effective date. Do not publish
+it with those fields unresolved. An accessible in-app link and final public URL
+are still required; no public privacy route or production policy has been added.
+
 Support now includes a Danish/English action to delete all saved room logins from
 the device. It requires confirmation, explains loss of reconnect/host access and
 the separate lifetime of server content, and preserves language and local safety
@@ -556,6 +564,16 @@ image and installed icon still require physical-device inspection as documented 
 `docs/ios-native-assets.md`.
 
 ### Phase E — device-quality validation
+
+Run 33961826814 passed the complete Xcode 26.6 pipeline for room-recovery and
+saved-login cleanup commit `a2ca6f5` on 2026-09-05. Both native targets compiled,
+artwork and embedded privacy-manifest checks passed, and iPhone/iPad launch
+guards and evidence upload succeeded. Both retained screenshots were inspected:
+the complete landing page is visible, the iPad retains its tablet composition,
+and controls remain clear of native safe areas. Focused logs contain simulator
+WebKit privacy-database/list, text-input, and XPC diagnostics, with no crash,
+fatal exception, or uncaught/unhandled JavaScript failure. These are launch
+checks, not signed-device gameplay or production-interoperability evidence.
 
 - [ ] Test full flow on a physical iPhone.
 - [ ] The user has no iPad; use hosted iPad simulator tests, screenshots, layout
