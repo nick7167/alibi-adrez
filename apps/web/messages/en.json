@@ -113,6 +113,7 @@
   "nav.leave": "Leave game",
   "nav.rules": "How to play",
   "nav.support": "Support",
+  "offline.connecting": "Connecting…",
   "offline.retry": "Reconnecting…",
   "offline.title": "Connection lost",
   "reveal.guessed": "said",

@@ -65,6 +65,37 @@ test('community rules and support are reachable from the landing page', async ({
 	await expect(page.getByRole('link', { name: 'support@adrez.dev' })).toBeVisible();
 });
 
+for (const lang of ['en', 'da'] as const) {
+test(`saved room logins require confirmation and safety preferences survive deletion (${lang})`, async ({ page, baseURL }) => {
+	await page.context().addCookies([{ name: 'PARAGLIDE_LOCALE', value: lang, url: baseURL! }]);
+	await open(page, '/support');
+	await page.evaluate(() => {
+		localStorage.setItem('aha:identity:AB23', 'expired login');
+		localStorage.setItem('aha:identity:CD45', 'another login');
+		localStorage.setItem('aha:safety:blocked:AB23', '["hidden-player"]');
+	});
+	const trigger = page.getByTestId('delete-room-logins');
+	await expect(trigger).toHaveText(lang === 'da' ? 'Slet gemte rumlogin' : 'Delete saved room logins');
+	await trigger.click();
+	await expect(page.getByTestId('delete-logins-confirm-cancel')).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(trigger).toBeFocused();
+	expect(await page.evaluate(() => localStorage.getItem('aha:identity:AB23'))).toBe('expired login');
+	await trigger.click();
+	await page.getByTestId('delete-logins-confirm-confirm').click();
+	await expect(page.getByRole('status')).toHaveText(lang === 'da'
+		? 'Dine gemte rumlogin er slettet fra denne enhed.'
+		: 'Your saved room logins have been deleted from this device.');
+	await expect(trigger).toBeFocused();
+	await page.reload();
+	expect(await page.evaluate(() => ({
+		first: localStorage.getItem('aha:identity:AB23'),
+		second: localStorage.getItem('aha:identity:CD45'),
+		blocked: localStorage.getItem('aha:safety:blocked:AB23')
+	}))).toEqual({ first: null, second: null, blocked: '["hidden-player"]' });
+});
+}
+
 test('the current anonymous answer can be hidden, restored, and reported', async ({ browser }) => {
 	const contexts = await Promise.all([
 		browser.newContext({ viewport: { width: 390, height: 844 } }),

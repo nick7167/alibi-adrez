@@ -1,7 +1,7 @@
 # AHA iOS privacy data map
 
 Status: working release-gate document, based on the code on `ios-app` as of
-2026-09-02. It is not yet a final App Store Connect declaration or privacy
+2026-09-05. It is not yet a final App Store Connect declaration or privacy
 policy.
 
 Apple treats data as collected when it is transmitted off-device and retained
@@ -60,7 +60,7 @@ data for advertising or measurement and is not shared with a data broker.
 | Durable Object | Full room state, including pseudonymous identities and gameplay | Deleted ten minutes after all room WebSockets have disconnected. A reconnect cancels the pending deletion. |
 | Durable Object | Answers, guesses, scores, ranks, and question state | Cleared when players return to the lobby; otherwise retained until the room object is deleted. |
 | Durable Object | A player who explicitly leaves | Their player record, session hash, score, staging count, and authored answers are removed as part of the leave event. |
-| iOS WebView local storage | Per-room player ID, raw reconnect token, display name, and emoji | Cleared on an explicit leave or an `UNKNOWN_PLAYER` response. It can otherwise survive app restarts, including after the server room expires. |
+| iOS WebView local storage | Per-room player ID, raw reconnect token, display name, and emoji | Cleared on an explicit leave, an `UNKNOWN_PLAYER` response, or the confirmed Delete saved room logins action on Support. It can otherwise survive app restarts, including after the server room expires. |
 | iOS WebView local storage | Locale | Persists until changed or app storage is cleared. |
 | iOS WebView local storage | Blocked player IDs and hidden answer IDs, keyed by room code | Persists until app storage is cleared. It stays on-device and only changes local presentation. |
 | Cloudflare Rate Limiting binding | SHA-256 hash of `CF-Connecting-IP` for room creation/access counters | Configured in 60-second windows. Verify whether Cloudflare retains any associated counter or request data beyond the active window. |
@@ -104,8 +104,9 @@ the appropriate location, identifier, usage, or diagnostics types. Do not infer
 
 Capacitor iOS 8.5.1 and CapacitorCordova 8.5.1 currently ship dependency
 privacy manifests declaring no tracking, collected data types, tracking
-domains, or required-reason API use. AHA currently has no native plugin beyond
-the Capacitor shell. AHA's app-owned `PrivacyInfo.xcprivacy` declares the five
+domains, or required-reason API use. AHA also includes the Capacitor App plugin
+for incoming room links, as recorded in `docs/ios-universal-links.md`; include it
+in the final aggregate manifest audit. AHA's app-owned `PrivacyInfo.xcprivacy` declares the five
 proposed types above, no tracking, and no required-reason API use. Hosted Xcode
 must compile it into the app, and the final signed archive's aggregated privacy
 report must still be reviewed; this is not copied from Vildsvar.
@@ -121,8 +122,13 @@ native SDK.
 - Verify the support mailbox ownership, access, response process, and retention;
   the in-app UGC filtering/reporting/blocking/host controls are implemented but
   cannot establish those operational facts from code.
-- Decide a user-facing way to clear stale local room identities, or document why
-  explicit leave plus OS app-data controls are sufficient.
+- Implemented: Support offers a Danish/English, confirmed action to delete all
+  saved room identities from this device. It keeps language and local safety
+  preferences. The confirmation explains loss of player/host reconnect access,
+  asks users to leave active games and close other AHA tabs first, and distinguishes
+  local login deletion from room content and support-email deletion. Storage
+  failures are reported rather than presented as successful deletion. Verify
+  the control on the signed iPhone build before release.
 - Archive-validate AHA's own privacy manifest and review Xcode's aggregated
   privacy report.
 - Reconcile the final App Store Connect answers, privacy policy, review notes,

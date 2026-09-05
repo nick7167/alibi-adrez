@@ -116,7 +116,12 @@ export default {
 
     const wsMatch = /^\/api\/room\/([A-HJ-KMNP-Z2-9]{4})\/ws$/.exec(url.pathname);
     if (wsMatch) {
-      const stub = env.ROOMS_DO.get(env.ROOMS_DO.idFromName(wsMatch[1]!));
+      const code = wsMatch[1]!;
+      const meta = await roomMeta(env, code);
+      if (!meta.exists) {
+        return withCors(Response.json({ error: "NOT_FOUND" }, { status: 404 }), origin ?? "");
+      }
+      const stub = env.ROOMS_DO.get(env.ROOMS_DO.idFromName(code));
       return stub.fetch(new Request("https://do/ws", request));
     }
     return withCors(await handleApi(request, env, url), origin ?? "");

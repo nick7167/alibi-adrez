@@ -41,10 +41,22 @@ This is a visual implementation audit, not approval of the public name or final 
 Store positioning. Repeat the comparison when the title, subtitle, screenshots, and
 primary category are final; those elements can change the competitive context.
 
+## Hosted evidence
+
+GitHub Actions run 33677252475 passed on hosted Xcode 26.6 for commit `5fc711f`.
+The workflow's explicit artwork guard verified the source icon and launch PNG
+dimensions/alpha, and both the generic-device and simulator builds compiled the
+asset catalogs. The iPhone and iPad launch/content checks and artifact upload also
+passed. Their settled landing captures were inspected manually and remain complete,
+correctly scaled, and clear of unsafe areas; focused logs contain no crash, fatal,
+uncaught, or unhandled exception.
+
+The settled screenshots do not prove the transient launch image because the smoke
+test deliberately waits for the web UI. That visual check remains physical-device
+work even though Xcode has compiled the launch asset successfully.
+
 ## Remaining release checks
 
-- Hosted Xcode must pass the explicit dimensions/alpha guard and compile the asset
-  catalogs for both generic iOS and the simulator.
 - Capture and inspect the transient launch screen on a physical device; the hosted
   smoke workflow captures the settled landing UI after launch, not the brief splash.
 - Inspect the installed icon on an actual iPhone against light/dark wallpapers and

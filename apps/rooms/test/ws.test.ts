@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 
 async function connectAndJoin(code: string, name: string) {
   const id = env.ROOMS_DO.idFromName(code);
-  const res = await env.ROOMS_DO.get(id).fetch("https://do/ws", {
+  const stub = env.ROOMS_DO.get(id);
+  const init = await stub.fetch("https://do/init", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+  expect([200, 409]).toContain(init.status);
+  const res = await stub.fetch("https://do/ws", {
     headers: { Upgrade: "websocket" },
   });
   expect(res.status).toBe(101);
@@ -83,6 +89,19 @@ describe("lobby websocket", () => {
     ).json()) as { exists: boolean };
     expect(meta.exists).toBe(false);
   });
+  it("rejects a direct first join that did not pass through room initialization", async () => {
+    const code = "WSNY";
+    const { ws, inbox } = await openSocket(code);
+    ws.send(JSON.stringify({ v: 1, t: "join", name: "Bypass", emoji: "🦊" }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(inbox[0]).toMatchObject({ t: "error", code: "UNKNOWN_ROOM" });
+    ws.close();
+    await new Promise((r) => setTimeout(r, 50));
+    const meta = (await (
+      await env.ROOMS_DO.get(env.ROOMS_DO.idFromName(code)).fetch("https://do/meta")
+    ).json()) as { exists: boolean };
+    expect(meta.exists).toBe(false);
+  });
   it("reconnect replays same identity", async () => {
     const first = await connectAndJoin("WSC", "A");
     const welcome = first.inbox[0] as any;
@@ -117,6 +136,12 @@ describe("lobby websocket", () => {
   });
 
   it("proxies /api/room/<code>/ws through the worker to the DO", async () => {
+    const stub = env.ROOMS_DO.get(env.ROOMS_DO.idFromName("WSPX"));
+    const init = await stub.fetch("https://do/init", {
+      method: "POST",
+      body: JSON.stringify({ code: "WSPX" }),
+    });
+    expect(init.status).toBe(200);
     const res = await SELF.fetch("https://example.com/api/room/WSPX/ws", {
       headers: { Upgrade: "websocket" },
     });
@@ -129,6 +154,19 @@ describe("lobby websocket", () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(inbox[0]).toMatchObject({ t: "welcome" });
     ws.close();
+  });
+
+  it("rejects an unknown room before upgrading its public websocket", async () => {
+    const code = "WSNX";
+    const res = await SELF.fetch(`https://example.com/api/room/${code}/ws`, {
+      headers: { Upgrade: "websocket" },
+    });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "NOT_FOUND" });
+    const meta = (await (
+      await env.ROOMS_DO.get(env.ROOMS_DO.idFromName(code)).fetch("https://do/meta")
+    ).json()) as { exists: boolean };
+    expect(meta.exists).toBe(false);
   });
 
   it("rejects a websocket from an untrusted browser origin", async () => {

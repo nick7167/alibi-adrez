@@ -317,7 +317,7 @@ export type ClientMessage =
 
 export type ErrorCode =
   | "BAD_MESSAGE" | "ROOM_FULL" | "NAME_TAKEN"
-  | "NOT_HOST" | "UNKNOWN_PLAYER" | "GAME_STARTED" | "INTERNAL"
+  | "NOT_HOST" | "UNKNOWN_ROOM" | "UNKNOWN_PLAYER" | "GAME_STARTED" | "INTERNAL"
   | "WRONG_PHASE" | "RATE_LIMITED" | "CONTENT_BLOCKED" | "KICKED"
   /** You wrote the answer under scrutiny; you cannot guess on it. */
   | "IS_AUTHOR"

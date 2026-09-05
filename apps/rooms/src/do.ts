@@ -270,12 +270,13 @@ export class RoomDurableObject implements DurableObject {
   }
 
   private async authenticate(ws: WebSocket, msg: ClientMessage & ({ t: "join" } | { t: "reconnect" })): Promise<void> {
-    let room = await this.catchUp();
+    const room = await this.catchUp();
     if (room === undefined) {
-      // First joiner claims an empty-host room even if /init never ran.
-      // Kept in memory until applyEvent succeeds; a failed auth attempt
-      // must not materialize persistent state.
-      room = createRoom(this.ctx.id.name ?? "");
+      // Only the rate-limited POST /api/rooms -> /init path may materialize
+      // room state. Keep this invariant inside the DO as well as at the edge,
+      // so a metadata/upgrade race can never turn an arbitrary code into a room.
+      this.rejectAndClose(ws, msg.t === "join" ? "UNKNOWN_ROOM" : "UNKNOWN_PLAYER");
+      return;
     }
     const result = await applyEvent(room, "", msg, eventDeps());
     if (!result.ok) {
@@ -393,7 +394,8 @@ export class RoomDurableObject implements DurableObject {
    *
    * So a stale room is discarded outright — storage wiped, alarm cleared — and
    * the code behaves as if the room never existed, which is exactly what an
-   * unplayable room is. Whoever connects next creates a fresh one.
+   * unplayable room is. A fresh room must then come through the rate-limited
+   * POST /api/rooms initialization path.
    */
   private async loadRoom(): Promise<InternalRoom | undefined> {
     if (this.room === undefined) {

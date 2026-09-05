@@ -7,7 +7,8 @@
 
 export type Identity = { playerId: string; token: string; name: string; emoji: string };
 
-const storageKey = (code: string) => `aha:identity:${code.trim().toUpperCase()}`;
+const IDENTITY_KEY_PREFIX = 'aha:identity:';
+const storageKey = (code: string) => `${IDENTITY_KEY_PREFIX}${code.trim().toUpperCase()}`;
 
 function isIdentity(v: unknown): v is Identity {
 	if (typeof v !== "object" || v === null) return false;
@@ -44,5 +45,21 @@ export function clearIdentity(code: string): void {
 		localStorage.removeItem(storageKey(code));
 	} catch {
 		// Ignore — nothing to clean up if storage is unavailable.
+	}
+}
+
+/** Explicit device cleanup. Keep safety preferences and unrelated storage intact.
+ * Return failure if storage access/removal fails, including a partial deletion. */
+export function clearSavedIdentities(): boolean {
+	try {
+		const keys: string[] = [];
+		for (let i = 0; i < localStorage.length; i++) {
+			const key = localStorage.key(i);
+			if (key?.startsWith(IDENTITY_KEY_PREFIX)) keys.push(key);
+		}
+		for (const key of keys) localStorage.removeItem(key);
+		return true;
+	} catch {
+		return false;
 	}
 }

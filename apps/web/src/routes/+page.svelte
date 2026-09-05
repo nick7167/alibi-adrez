@@ -17,7 +17,7 @@
 	import { goto } from '$app/navigation';
 	import { m } from '$lib/paraglide/messages';
 	import { currentLocale, setLocale, type Locale } from '$lib/i18n';
-	import { createRoom, isValidCodeInput } from '$lib/api';
+	import { createRoom, getRoomAvailability, isValidCodeInput } from '$lib/api';
 
 	const locales: Locale[] = ['en', 'da'];
 
@@ -70,7 +70,18 @@
 		const target = code.trim().toUpperCase();
 		if (!isValidCodeInput(target) || joining) return;
 		joining = true;
-		await goto(`/room/${target}`);
+		try {
+			const room = await getRoomAvailability(target);
+			if (!room.exists) {
+				toast(m['errors.noRoom']());
+				return;
+			}
+			await goto(`/room/${target}`);
+		} catch {
+			toast(m['errors.generic']());
+		} finally {
+			if (!location.pathname.startsWith('/room/')) joining = false;
+		}
 	}
 
 	$effect(() => {

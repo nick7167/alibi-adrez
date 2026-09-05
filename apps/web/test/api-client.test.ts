@@ -148,3 +148,54 @@ describe("createRoom", () => {
 		await expect(createRoom()).rejects.toThrow(/503/);
 	});
 });
+
+describe("getRoomAvailability", () => {
+	it("returns a validated room status", async () => {
+		const fetchMock = vi.fn(async () =>
+			new Response(JSON.stringify({ exists: true, open: false }), { status: 200 })
+		);
+		const { getRoomAvailability } = await import("../src/lib/api");
+		await expect(getRoomAvailability(" ab23 ", fetchMock)).resolves.toEqual({
+			exists: true,
+			open: false
+		});
+		expect(fetchMock).toHaveBeenCalledWith("/api/rooms/AB23", {
+			signal: expect.any(AbortSignal)
+		});
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	it("treats a 404 as an ordinary missing room", async () => {
+		const fetchMock = vi.fn(async () => new Response("missing", { status: 404 }));
+		const { getRoomAvailability } = await import("../src/lib/api");
+		await expect(getRoomAvailability("AB23", fetchMock)).resolves.toEqual({
+			exists: false,
+			open: false
+		});
+	});
+
+	it("rejects malformed success bodies", async () => {
+		const fetchMock = vi.fn(async () =>
+			new Response(JSON.stringify({ exists: "yes" }), { status: 200 })
+		);
+		const { getRoomAvailability } = await import("../src/lib/api");
+		await expect(getRoomAvailability("AB23", fetchMock)).rejects.toThrow(/room status/);
+	});
+
+	it.each(['response', 'body'])("times out a stalled %s so connection recovery can proceed", async (stage) => {
+		const request: typeof fetch = vi.fn(async (_url, init) => {
+			const stalled = new Promise<never>((_resolve, reject) => {
+				init!.signal!.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+			});
+			if (stage === 'response') return stalled;
+			const response = new Response(null, { status: 200 });
+			vi.spyOn(response, 'json').mockImplementation(() => stalled);
+			return response;
+		});
+		const { getRoomAvailability } = await import("../src/lib/api");
+		const result = expect(getRoomAvailability("AB23", request)).rejects.toMatchObject({ name: 'AbortError' });
+		await vi.advanceTimersByTimeAsync(10_000);
+		await result;
+		expect(vi.getTimerCount()).toBe(0);
+	});
+});

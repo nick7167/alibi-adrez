@@ -1,17 +1,20 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
 	import { SUPPORT_EMAIL } from '$lib/safety';
+	import type { Snippet } from 'svelte';
 
 	let {
 		title,
 		tag,
 		sections,
-		showContact = false
+		showContact = false,
+		children
 	}: {
 		title: string;
 		tag: string;
 		sections: { heading: string; body?: string; bullets?: string[] }[];
 		showContact?: boolean;
+		children?: Snippet;
 	} = $props();
 </script>
 
@@ -65,6 +68,8 @@
 						{/if}
 					</section>
 				{/each}
+
+				{@render children?.()}
 
 				{#if showContact}
 					<a

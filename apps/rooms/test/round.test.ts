@@ -74,6 +74,11 @@ async function untilPhase(c: Client, want: string, timeoutMs = 3000): Promise<vo
 
 /** Seats `names` and returns them; the first is the host. */
 async function seat(code: string, names: string[]): Promise<Client[]> {
+  const init = await stubFor(code).fetch("https://do/init", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+  expect([200, 409]).toContain(init.status);
   const clients: Client[] = [];
   for (const name of names) clients.push(await join(code, name));
   await until(
@@ -129,6 +134,57 @@ async function stored(code: string): Promise<Frame> {
 }
 
 describe("the game loop in the Durable Object", () => {
+  // Run this first. The local Workers test pool can stall its eviction helper
+  // after earlier hibernatable actors have processed socket close callbacks;
+  // the room actors and assertions in this file remain independent.
+  it("survives an eviction mid-round with its live round and deadline intact", async () => {
+    const code = "RDE";
+    const [a, b, c] = await seat(code, ["A", "B", "C"]) as [Client, Client, Client];
+    send(a, { v: 1, t: "updateSettings", patch: { questions: 2, standingsEvery: 0 } });
+    await until(() => view(a)?.settings?.questions === 2, "the settings to land");
+    send(a, { v: 1, t: "startGame" });
+    await untilPhase(a, "INTRO");
+    await expirePhase(code);
+    await untilPhase(a, "ANSWERING");
+    for (const w of [a, b, c]) {
+      for (let q = 0; q < 2; q++) send(w, { v: 1, t: "submitEntry", questionIndex: q, text: `${w.name}${q}` });
+    }
+    await until(
+      () => [a, b, c].every((w) => Object.keys(view(w)?.myAnswers ?? {}).length === 2),
+      "the answers to land",
+    );
+    for (const w of [a, b, c]) send(w, { v: 1, t: "handIn" });
+    await untilPhase(a, "GUESSING");
+
+    const before = await stored(code);
+    const seen = view(a)!;
+
+    // Tear the instance down: in-memory `this.room` goes, durable storage and
+    // the hibernatable sockets stay. Everything below has to come off disk.
+    await evictDurableObject(stubFor(code));
+
+    const after = await stored(code);
+    expect(after.phase).toBe("GUESSING");
+    expect(after.rounds.length).toBe(before.rounds.length);
+    expect(after.rounds[after.rounds.length - 1].answerId)
+      .toBe(before.rounds[before.rounds.length - 1].answerId);
+    expect(after.rounds[after.rounds.length - 1].questionIndex)
+      .toBe(before.rounds[before.rounds.length - 1].questionIndex);
+    expect(after.deadline).toBe(before.deadline); // not re-based by a restart
+
+    // And the restarted instance answers on the same sockets with the same room.
+    const guesser = [a, b, c].find((client) => view(client)!.youWrote === undefined)!;
+    send(guesser, {
+      v: 1, t: "submitGuess",
+      answerId: seen.answer.id,
+      playerId: (view(guesser)!.candidates as string[])[0]!,
+    });
+    await until(() => view(guesser)!.myGuess !== undefined, "a guess to land after the eviction");
+    expect(view(guesser)!.answer.id).toBe(seen.answer.id);
+    expect(view(guesser)!.deadline).toBe(before.deadline);
+    for (const client of [a, b, c]) client.ws.close();
+  });
+
   it("plays a whole game on expiring alarms alone, re-arming through every phase", async () => {
     const code = "RDA";
     const clients = await seat(code, ["A", "B", "C", "D"]);
@@ -248,6 +304,11 @@ describe("the game loop in the Durable Object", () => {
 
   it("plays the complete solo practice game through the real socket", async () => {
     const code = "RDP";
+    const init = await stubFor(code).fetch("https://do/init", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+    expect(init.status).toBe(200);
     const host = await join(code, "Reviewer");
 
     send(host, { v: 1, t: "startPractice" });
@@ -400,6 +461,7 @@ describe("the game loop in the Durable Object", () => {
         expect(view(a)!.candidates as string[]).toContain(d.id);
         expect(view(a)!.roundCount).toBe(4);
         for (const client of [a, b, c]) client.ws.close();
+        await untilIdleArmed(code);
       });
 
     it("resolves the phase when the last player we were waiting on drops", async () => {
@@ -424,55 +486,8 @@ describe("the game loop in the Durable Object", () => {
       c.ws.close();
       await untilPhase(a, "GUESSING");
       for (const client of [a, b]) client.ws.close();
+      await untilIdleArmed(code);
     });
-  });
-
-  it("survives an eviction mid-round with its live round and deadline intact", async () => {
-    const code = "RDE";
-    const [a, b, c] = await seat(code, ["A", "B", "C"]) as [Client, Client, Client];
-    send(a, { v: 1, t: "updateSettings", patch: { questions: 2, standingsEvery: 0 } });
-    await until(() => view(a)?.settings?.questions === 2, "the settings to land");
-    send(a, { v: 1, t: "startGame" });
-    await untilPhase(a, "INTRO");
-    await expirePhase(code);
-    await untilPhase(a, "ANSWERING");
-    for (const w of [a, b, c]) {
-      for (let q = 0; q < 2; q++) send(w, { v: 1, t: "submitEntry", questionIndex: q, text: `${w.name}${q}` });
-    }
-    await until(
-      () => [a, b, c].every((w) => Object.keys(view(w)?.myAnswers ?? {}).length === 2),
-      "the answers to land",
-    );
-    for (const w of [a, b, c]) send(w, { v: 1, t: "handIn" });
-    await untilPhase(a, "GUESSING");
-
-    const before = await stored(code);
-    const seen = view(a)!;
-
-    // Tear the instance down: in-memory `this.room` goes, durable storage and
-    // the hibernatable sockets stay. Everything below has to come off disk.
-    await evictDurableObject(stubFor(code));
-
-    const after = await stored(code);
-    expect(after.phase).toBe("GUESSING");
-    expect(after.rounds.length).toBe(before.rounds.length);
-    expect(after.rounds[after.rounds.length - 1].answerId)
-      .toBe(before.rounds[before.rounds.length - 1].answerId);
-    expect(after.rounds[after.rounds.length - 1].questionIndex)
-      .toBe(before.rounds[before.rounds.length - 1].questionIndex);
-    expect(after.deadline).toBe(before.deadline); // not re-based by a restart
-
-    // And the restarted instance answers on the same sockets with the same room.
-    const guesser = [a, b, c].find((client) => view(client)!.youWrote === undefined)!;
-    send(guesser, {
-      v: 1, t: "submitGuess",
-      answerId: seen.answer.id,
-      playerId: (view(guesser)!.candidates as string[])[0]!,
-    });
-    await until(() => view(guesser)!.myGuess !== undefined, "a guess to land after the eviction");
-    expect(view(guesser)!.answer.id).toBe(seen.answer.id);
-    expect(view(guesser)!.deadline).toBe(before.deadline);
-    for (const client of [a, b, c]) client.ws.close();
   });
 
   describe("the idle self-destruct still arbitrates against the phase deadline", () => {

@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { CODE_RE, clickUntil, joinRoom, open, watch } from './helpers';
 
+test('an unknown room link explains the problem without creating a room', async ({ page }) => {
+	await open(page, '/room/WSNX');
+	await expect(page.getByTestId('missing-room')).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'No room with that code.' })).toBeFocused();
+	await page.getByRole('link', { name: 'Back' }).click();
+	await expect(page).toHaveURL(/\/$/);
+});
+
 test('create → two guests join → all see 3 players → host starts (INTRO splash)', async ({
 	browser
 }) => {

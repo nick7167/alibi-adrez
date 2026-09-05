@@ -16,6 +16,44 @@ export async function createRoom(): Promise<{ code: string }> {
 	return { code };
 }
 
+export interface RoomAvailability {
+	exists: boolean;
+	open: boolean;
+}
+
+/**
+ * Check a room before navigating or opening its socket. A 404 is an ordinary
+ * missing-room result; transport failures and malformed success responses stay
+ * exceptional so callers can distinguish "wrong code" from "service offline".
+ */
+export async function getRoomAvailability(
+	code: string,
+	request: typeof fetch = fetch
+): Promise<RoomAvailability> {
+	// Bound both the initial response and body read so a stalled mobile network
+	// cannot indefinitely prevent the caller from starting socket recovery.
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 10_000);
+	try {
+		const res = await request(apiUrl(`/api/rooms/${code.trim().toUpperCase()}`), {
+			signal: controller.signal
+		});
+		if (res.status === 404) return { exists: false, open: false };
+		if (!res.ok) throw new Error(`getRoomAvailability failed with status ${res.status}`);
+		const data: unknown = await res.json();
+		if (typeof data !== 'object' || data === null) {
+			throw new Error('getRoomAvailability: unexpected response body');
+		}
+		const { exists, open } = data as Record<string, unknown>;
+		if (typeof exists !== 'boolean' || typeof open !== 'boolean') {
+			throw new Error('getRoomAvailability: response is missing room status');
+		}
+		return { exists, open };
+	} finally {
+		clearTimeout(timeout);
+	}
+}
+
 /** Trim/uppercase user input, then validate against the room-code alphabet. */
 export function isValidCodeInput(v: string): boolean {
 	return isValidRoomCode(v.trim().toUpperCase());

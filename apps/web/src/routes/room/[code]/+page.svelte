@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { m } from '$lib/paraglide/messages';
-	import { computeClockOffset, openRoomSocket, type RoomSocket } from '$lib/api';
+	import {
+		computeClockOffset,
+		getRoomAvailability,
+		openRoomSocket,
+		type RoomSocket
+	} from '$lib/api';
 	import { clearIdentity, loadIdentity, saveIdentity } from '$lib/stores/session.svelte';
 	import type { Identity } from '$lib/stores/session.svelte';
 	import { currentLocale } from '$lib/i18n';
@@ -41,6 +46,8 @@
 	let toastMsg = $state<string | null>(null);
 	let blockedPlayerIds = $state<string[]>([]);
 	let hiddenAnswerIds = $state<string[]>([]);
+	let roomExists = $state<boolean | null>(null);
+	let roomPreflightComplete = $state(false);
 
 	let sockRef: RoomSocket | null = null;
 	let pendingIdentity: { name: string; emoji: string } | null = null;
@@ -59,6 +66,28 @@
 	$effect(() => {
 		blockedPlayerIds = loadBlockedPlayers(data.code);
 		hiddenAnswerIds = loadHiddenAnswers(data.code);
+	});
+
+	$effect(() => {
+		const code = data.code;
+		let active = true;
+		roomExists = null;
+		roomPreflightComplete = false;
+		void getRoomAvailability(code)
+			.then((room) => {
+				if (active) roomExists = room.exists;
+			})
+			.catch(() => {
+				// Unavailable transport is different from a confirmed missing room.
+				// The socket retry flow below owns the human-readable outage state.
+				if (active) roomExists = null;
+			})
+			.finally(() => {
+				if (active) roomPreflightComplete = true;
+			});
+		return () => {
+			active = false;
+		};
 	});
 
 	function toast(text: string) {
@@ -106,7 +135,11 @@
 			}
 			case 'error': {
 				joining = false;
-				if (msg.code === 'NAME_TAKEN') {
+				if (msg.code === 'UNKNOWN_ROOM') {
+					clearIdentity(code);
+					sockRef?.close();
+					roomExists = false;
+				} else if (msg.code === 'NAME_TAKEN') {
 					toast(m['errors.nameTaken']());
 					screen = 'join';
 					errorNonce++;
@@ -137,6 +170,7 @@
 	}
 
 	$effect(() => {
+		if (!roomPreflightComplete || roomExists === false) return;
 		const code = data.code;
 		const saved = loadIdentity(code);
 		const sock = openRoomSocket(code, {
@@ -271,19 +305,16 @@
 	    ternary over `field` and adds the matching branch in the head. */
 	const themeColor = $derived('#4A1FD6');
 
-	/* Offline overlay: connection has been down for over 5 seconds.
-	   The very first handshake gets a grace period; once the socket has
-	   been open, any non-open status starts the countdown. */
+	/* Offline overlay: a first connection or a reconnect has been unavailable
+	   for over 5 seconds. A missing room is a separate, immediate state from
+	   the REST preflight and never starts a socket. */
 	let offlineLong = $state(false);
-	let everOpened = false;
 
 	$effect(() => {
 		if (status === 'open') {
-			everOpened = true;
 			offlineLong = false;
 			return;
 		}
-		if (!everOpened && status === 'connecting') return;
 		const start = Date.now();
 		const tick = () => (offlineLong = Date.now() - start > 5000);
 		tick();
@@ -310,7 +341,41 @@
 
 
 <main class="relative flex fill-vp flex-col overflow-hidden bg-field text-white">
-	{#if screen === 'join'}
+	{#if roomExists === false}
+		<section
+			data-testid="missing-room"
+			class="grid fill-vp place-items-center px-6 text-center"
+		>
+			<div class="flex max-w-sm flex-col items-center gap-6 pb-safe">
+				<h1
+					tabindex="-1"
+					use:focusOnMount
+					class="font-display text-4xl font-bold text-action outline-none"
+				>
+					{m['errors.noRoom']()}
+				</h1>
+				<a
+					href="/"
+					class="sticker flex min-h-14 items-center justify-center rounded-full bg-action px-8 font-display text-lg font-bold text-ink"
+				>
+					{m['nav.back']()}
+				</a>
+			</div>
+		</section>
+	{:else if screen === 'join' && status !== 'open'}
+		<section
+			data-testid="room-connecting"
+			class="grid fill-vp place-items-center px-6 text-center"
+			role="status"
+		>
+			<div class="flex flex-col items-center gap-5 pb-safe">
+				<div class="pixel-loader" aria-hidden="true">
+					<span></span><span></span><span></span>
+				</div>
+				<p class="font-display text-xl font-bold text-white">{m['offline.connecting']()}</p>
+			</div>
+		</section>
+	{:else if screen === 'join'}
 		<button
 			type="button"
 			data-testid="back-home"
@@ -409,7 +474,7 @@
 		<Finale room={displayedRoom} you={view.you} onBackToLobby={backToLobby} />
 	{/if}
 
-	{#if offlineLong && screen !== 'INTRO'}
+	{#if roomExists !== false && offlineLong && screen !== 'INTRO'}
 		<div
 			data-testid="offline-overlay"
 			class="fixed inset-0 z-50 grid place-items-center bg-field/95"

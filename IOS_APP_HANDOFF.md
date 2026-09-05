@@ -1,6 +1,6 @@
 # AHA iOS / App Store handoff
 
-Last updated: 2026-09-02 (Europe/Copenhagen)
+Last updated: 2026-09-05 (Europe/Copenhagen)
 
 This document is the source of truth for taking AHA from its existing web game to
 an App Store release. It is intentionally self-contained so a new Codex session can
@@ -336,6 +336,13 @@ substantially milder, while free-text UGC and communication capabilities still n
 accurate disclosure. Apple—not a manually chosen marketing preference—calculates the
 rating from the questionnaire. Do not add an 18+ click-through as a “workaround”.
 
+`docs/ios-age-rating.md` now maps every current questionnaire category to shipped
+code evidence. The conservative draft answers Yes for room-scoped UGC and messaging,
+Infrequent for profanity/crude humor and the single bar reference, and Frequent for
+the score-and-ranking contest present in every game. Apple's current tables therefore
+suggest a global 13+ result, but the checklist remains open until App Store Connect
+calculates the final global and regional ratings from the final binary/content.
+
 ## 9. Implementation sequence
 
 Work through these phases in order, while parallelizing independent checks when safe.
@@ -391,8 +398,8 @@ The default Capacitor app icon and splash artwork have been replaced by
 AHA-specific, opaque RGB assets with reproducible SVG sources. Their dimensions,
 crop strategy, and remaining physical-device checks are recorded in
 `docs/ios-native-assets.md`. This checklist item stays open only because the final
-public display name is still gated and the new assets still need hosted/physical
-native inspection.
+public display name is still gated and the new assets still need physical native
+inspection.
 
 ### Phase C — backend and review compliance
 
@@ -424,6 +431,15 @@ bindings and the Rooms suite covers hashing, local bypass, and flood closure. Th
 edge counters are intentionally permissive/location-local and are a safety layer,
 not billing or exact accounting.
 
+The public WebSocket route now also checks Durable Object metadata before upgrading:
+an unknown but format-valid code returns 404 and cannot let a first socket silently
+create state outside the rate-limited room-creation endpoint. The web/native client
+preflights room availability, presents a localized and focus-managed missing-room
+state, waits for the socket to open before accepting a nickname, and uses the
+existing reconnect overlay for genuine transport outages. Unit/integration tests
+cover response validation and the non-materializing 404; the complete 12-scenario
+Playwright suite covers both the missing-link state and ordinary multi-client play.
+
 The code-side UGC safety set is now implemented on `ios-app`: deterministic
 Danish/English server filtering runs before player names or answers enter room
 state; every participant can locally mask another player and hide/report the
@@ -442,6 +458,19 @@ The current code-derived privacy inventory and open infrastructure checks are in
 `docs/ios-privacy-data-map.md`. The app target now bundles
 `PrivacyInfo.xcprivacy`; the final signed archive's aggregated privacy report and
 Cloudflare account-level retention still require verification.
+
+Support now includes a Danish/English action to delete all saved room logins from
+the device. It requires confirmation, explains loss of reconnect/host access and
+the separate lifetime of server content, and preserves language and local safety
+preferences. Partial storage failures display an error. Unit tests cover multiple
+and malformed saved entries, preservation of other data, and failed deletion/retry;
+browser coverage checks cancellation, focus restoration, deletion, and persistence
+after reload. Signed-device validation remains open.
+
+Verified on 2026-09-05: all 95 web unit tests, workspace typechecking (zero
+errors/warnings), the four safety browser scenarios, and a separate run of the
+cleanup scenario in both Danish and English passed. The Cloudflare web build,
+static mobile build, Capacitor sync, and app privacy-manifest lint also passed.
 
 The solo App Review path is implemented on the real room protocol and Durable
 Object rather than as mocked screens. A lone host sees a public practice action;
@@ -517,6 +546,15 @@ were inspected manually and show the complete, correctly scaled landing UI with
 safe-area clearance on both device classes. Neither focused log contains a crash,
 fatal exception, uncaught JavaScript failure, or unhandled exception.
 
+Run 33677252475 passed the complete pipeline for native-artwork commit `5fc711f`.
+Its new dimensions/alpha guard accepted the opaque 1024x1024 icon and 2732x2732
+launch asset before both Xcode builds compiled the catalogs. iPhone and iPad
+launch/content assertions and evidence upload also passed; the settled captures
+retain the complete landing composition and safe-area clearance, and the focused
+logs contain no crash, fatal, uncaught, or unhandled exception. The transient launch
+image and installed icon still require physical-device inspection as documented in
+`docs/ios-native-assets.md`.
+
 ### Phase E — device-quality validation
 
 - [ ] Test full flow on a physical iPhone.
@@ -528,6 +566,27 @@ fatal exception, uncaught JavaScript failure, or unhandled exception.
 - [ ] Verify VoiceOver labels, Dynamic Type where feasible, contrast, 44pt targets,
   Reduce Motion, and non-color-only state communication.
 - [ ] Confirm no greyed-out or empty-looking primary states in marketing captures.
+
+Code-side network-loss coverage now includes exponential WebSocket reconnect,
+re-authentication on every replacement socket, queued-message ordering, permanent
+caller shutdown, a delayed localized outage overlay, REST room preflight, and a
+focused missing-room UI. The Phase E network checkbox remains open for airplane-mode,
+Wi-Fi/cellular transition, background/foreground, room-expiry, and recovery checks
+on a signed physical iPhone against the deployed backend.
+
+Room availability preflight now aborts after ten seconds, including a stalled
+response-body read, so a hanging mobile request cannot indefinitely prevent socket
+recovery or leave the landing-page join action busy. Regression tests cover both
+stall stages and timer cleanup. On 2026-09-05, all 266 unit/integration tests passed
+(shared 135, web 92, Rooms 39), workspace typechecking passed with zero errors or
+warnings, and the static mobile build and Capacitor iOS sync passed. All 12
+Playwright scenarios passed on isolated ports 5187/8797, including the complete
+reviewer/multiplayer journeys and the author-leaving-mid-round regression.
+Local `/usr/bin/git` currently fails
+because the Command Line Tools installation lacks `xcrun`; the worktree HEAD was
+verified directly as `refs/heads/ios-app`, and the existing Dulwich installation at
+`/private/tmp/aha-dulwich` was used for read-only status/diff inspection. Existing
+uncommitted iOS changes were preserved.
 
 ### Phase F — ASO, screenshots, and listing
 
