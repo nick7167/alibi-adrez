@@ -2,6 +2,43 @@
 
 Last updated: 2026-09-06 (Europe/Copenhagen)
 
+### Apple/Codemagic setup — 2026-09-06
+
+The user approved the prepared root-site push and explicitly requested beginning
+App Store setup, then said to continue. Root commit `ef41c37` (including its
+`d9ec7b9` ancestor) is now pushed to `nick7167/adrez-personal:main`. No AHA
+`main` changes or pushes were made.
+
+Secure account inventory succeeded without printing credential values. Apple
+registered the unused `dev.adrez.aha` bundle ID with description `Hvem mon`
+(resource ID `Y7S62QDT83`). Keeping the existing technical identifier is deliberate;
+the public name does not require a reverse-domain identifier change. This is an
+App ID registration, NOT an App Store app record or name-clearance finding.
+
+Created a separate Codemagic application in the existing account team:
+`https://codemagic.io/app/6a9ca41794d126108b294467`. The service derives its display
+name `alibi-adrez` from the existing GitHub repository; this is the correct AHA/iOS
+repository, not a retired Worker deployment. Verified repository URL, file-based
+configuration, and an empty build schedule. Always select `ios-app` and workflow
+`aha-testflight`; do not run another branch. No signed build was started.
+
+Apple reports zero profiles for this bundle ID and two existing Apple Distribution
+certificates, expiring September 2027. None was altered or revoked. The documented
+Codemagic REST schema does not expose code-signing identity management. Its settings
+UI is needed to confirm the certificate with a held private key and fetch/upload a
+new App Store profile for this bundle. Do not assume an Apple certificate listing
+proves that its private key exists in Codemagic. Do not copy Vildsvar's profile.
+
+Hosted Xcode run `33997799689` is fully successful. Downloaded and inspected both
+iPhone/iPad screenshots: approved name, complete controls, locale switcher and
+community/support/privacy links render with safe-area clearance. Focused logs
+contain no crash/fatal/uncaught/exception/terminated matches. This is unsigned
+simulator evidence, not a signed upload or physical iPhone test.
+
+`docs/ios-app-store-next-steps.md` records the remaining interactive name check,
+App Store record fields, signing setup and beta-first release sequence. No final
+App Store record, profile, TestFlight build or review submission exists yet.
+
 ### Current decision and publication — 2026-09-06
 
 The user selected **Hvem mon?**, authorized publication of the needed changes,
@@ -30,8 +67,8 @@ Latest root-site source is now `ef41c375b3d137475a769049b23bb2037f8ccc91`, addin
 discoverable root-footer links and underlines on provider references. All 30
 tests and the build passed again; targeted browser checks passed. It is deployed
 at `https://b35b8c71.adrez-personal.pages.dev` and on `adrez.dev`. The source commit
-was presented with its verification status and remains unpushed pending the
-root repository's required post-commit approval. Deployment itself is complete.
+was presented with its verification status and subsequently pushed after the
+user's explicit approval (see latest setup entry). Deployment itself is complete.
 
 Root commit `d9ec7b9c28f94a3afdcbd4154912d58d05130b7d` passed all 30 tests,
 static build and six-route phone/tablet checks and was directly deployed as
@@ -39,7 +76,7 @@ static build and six-route phone/tablet checks and was directly deployed as
 settled root catalog were inspected. The earlier prepared commit `891aee7` was
 pushed to the root site's GitHub after the user's follow-up approval. The new
 `d9ec7b9` commit was presented with verification status; the root repository's
-post-commit push approval rule still applies to it. Do not overwrite the direct
+post-commit push approval was subsequently received and the commit pushed. Do not overwrite the direct
 deployment from an older checkout. Its existing untracked AGENTS.md remains untouched.
 
 Native Info.plist/privacy manifest lint, workspace typecheck, all 269 tests
@@ -58,8 +95,8 @@ source would revert these UI changes; coordinate a separately authorized source
 integration rather than silently merging. The live web title, phone/tablet views,
 six root-site URLs, locale/canonical values and decoded email links were checked.
 The mixed native-origin/live-web-proxy production full-game smoke passed again.
-Hosted Xcode run `33997799689` for `e95ef22` compiled device/simulator targets;
-simulator launch evidence is still being collected.
+Hosted Xcode run `33997799689` for `e95ef22` passed device/simulator compilation
+and both simulator launches; screenshots were downloaded and inspected.
 
 `docs/ios-store-metadata.json` contains Danish and English listing drafts. All
 title/subtitle/keyword/promotional-text/description limits were checked mechanically,
@@ -72,8 +109,9 @@ usable page in the available browser, and WIPO's earlier automation restriction
 still applies. A human/compliant interactive trademark check remains necessary.
 
 Interactive trademark checks and final App Store name availability remain separate
-release gates. No store record, signing assets or TestFlight upload has been created
-for this app. Broad publication approval does not establish trademark clearance
+release gates. The technical bundle ID and Codemagic project now exist, but no
+store record, provisioning profile or TestFlight upload has been created for this
+app. Broad publication approval does not establish trademark clearance
 or replace a physical iPhone test.
 
 ### Current authorization and production update — 2026-09-05

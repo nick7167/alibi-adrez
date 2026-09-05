@@ -11,7 +11,7 @@ record availability remain separate release checks; do not ask for name choice a
 - **Public app name:** Hvem mon? (formerly AHA)
 - **Danish listing title:** `Hvem mon? Gæt dine venner`
 - **Apple app ID:** Not created
-- **Bundle ID:** `dev.adrez.aha` (provisional local configuration only)
+- **Bundle ID:** `dev.adrez.aha` (registered with Apple on 2026-09-06)
 - **Recommended primary category:** Games — Trivia
 - **Recommended secondary category:** Entertainment
 - **Platform:** Universal iPhone/iPad, interoperable web version
