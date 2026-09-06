@@ -43,19 +43,18 @@ dev server from *another* project on that port will silently be used instead.
 
 ### Playtesting on your own
 
-The game needs 3 players, so `scripts/bots.mjs` seats bots that answer every
-question and guess at random, letting one person play a real game:
+The game needs 3 independent player sessions. Open the local app in three
+separate browser profiles, or combine the iOS app with two separate browser
+sessions. Enter a different nickname in each session and use the same room code.
 
 ```
 pnpm --filter @aha/rooms dev          # terminal 1
 pnpm dev:web                          # terminal 2
 # open http://localhost:5173, create a room, JOIN it, note the code
-node scripts/bots.mjs ABCD 4          # terminal 3 — four bots
 ```
 
-Join in the browser **before** running it: the first player to join is the
-host, and only the host can change settings or start. Ctrl-C removes the bots
-with a real `leave`, which is also how you exercise the leaver path by hand.
+The first player to join is the host. Set one question, three rounds and a
+60-second guess timer for a short manual test. There is no bot or practice mode.
 
 ## Frontend conventions
 

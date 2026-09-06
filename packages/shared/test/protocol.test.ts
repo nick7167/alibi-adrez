@@ -33,9 +33,9 @@ describe("parseClientMessage", () => {
     expect(parseClientMessage('{"v":1,"t":"kick","targetPlayerId":""}')).toBeNull();
     expect(parseClientMessage('{"v":1,"t":"kick"}')).toBeNull();
   });
-  it("parses the visible solo-practice start message", () => {
+  it("rejects the retired solo-practice start message", () => {
     expect(parseClientMessage('{"v":1,"t":"startPractice"}'))
-      .toEqual({ v: 1, t: "startPractice" });
+      .toBeNull();
   });
 });
 

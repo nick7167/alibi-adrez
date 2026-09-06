@@ -1,5 +1,6 @@
 import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { createRoom } from "@aha/shared";
 import { expireIdle, expirePhase, stubFor, until } from "./helpers";
 
 /**
@@ -302,84 +303,46 @@ describe("the game loop in the Durable Object", () => {
     for (const client of [host, b, c]) client.ws.close();
   });
 
-  it("plays the complete solo practice game through the real socket", async () => {
-    const code = "RDP";
-    const init = await stubFor(code).fetch("https://do/init", {
-      method: "POST",
-      body: JSON.stringify({ code }),
+  it("rejects the retired practice command without creating participants", async () => {
+    const code = "NOPRACTICE";
+    const [host] = await seat(code, ["Host"]);
+    send(host!, { v: 1, t: "startPractice" });
+    await until(() => host!.inbox.some(frame => frame.t === "error" && frame.code === "BAD_MESSAGE"), "retired command rejection");
+    const room = await stored(code);
+    expect(room.players).toHaveLength(1);
+    expect(room.phase).toBe("LOBBY");
+    host!.ws.close();
+  });
+
+  it("cleans up persisted legacy practice seats while keeping the human session", async () => {
+    const code = "LEGACYPRACTICE";
+    // Seed an older room directly before the actor has loaded any room state.
+    // Existing eviction coverage above separately verifies cache loss.
+    await runInDurableObject(stubFor(code), async (_instance, state) => {
+      const room = {
+        ...createRoom(code),
+        hostId: "human",
+        players: [
+          { id: "human", name: "Host", emoji: "🦊", lang: "en" },
+          { id: "retired-bot", name: "Maja", emoji: "🐸", lang: "en", isBot: true }
+        ],
+        sessions: { human: { playerId: "human", tokenHash: "preserved-test-hash" } }
+      };
+      room.phase = "ANSWERING";
+      room.deadline = Date.now() + 60_000;
+      room.entries = { "retired-bot": { 0: { answerId: "old-answer", text: "Old demo answer" } } };
+      await state.storage.put("state", room);
+      await state.storage.setAlarm(room.deadline);
     });
-    expect(init.status).toBe(200);
-    const host = await join(code, "Reviewer");
-
-    send(host, { v: 1, t: "startPractice" });
-    await untilPhase(host, "INTRO", 10_000);
-    expect(view(host)?.players).toHaveLength(3);
-    expect((view(host)?.players as Frame[]).filter((player) => player.isBot === true)).toHaveLength(2);
-
-    const seeded = await stored(code);
-    const bots = (seeded.players as Frame[]).filter((player) => player.isBot === true);
-    expect(bots).toHaveLength(2);
-    for (const bot of bots) {
-      expect(Object.keys(seeded.entries[bot.id] as Frame)).toHaveLength(3);
-      expect(seeded.handedIn[bot.id]).toBe(true);
-      expect(seeded.sessions[bot.id]).toBeUndefined();
-    }
-
-    expect(await expirePhase(code), "practice INTRO must have armed its alarm").toBe(true);
-    await untilPhase(host, "ANSWERING", 10_000);
-    expect(view(host)?.questions).toHaveLength(3);
-    for (let questionIndex = 0; questionIndex < 3; questionIndex++) {
-      send(host, {
-        v: 1,
-        t: "submitEntry",
-        questionIndex,
-        text: `reviewer answer ${questionIndex}`,
-      });
-    }
-    await until(
-      () => Object.keys(view(host)?.myAnswers ?? {}).length === 3,
-      "all reviewer answers to land",
-    );
-    send(host, { v: 1, t: "handIn" });
-    await until(
-      () => phase(host) === "GUESSING" || phase(host) === "REVEAL",
-      "practice guessing to begin",
-      10_000,
-    );
-
-    for (let guard = 0; guard < 20 && phase(host) !== "FINALE"; guard++) {
-      if (phase(host) === "GUESSING") {
-        const guessing = view(host)!;
-        expect(guessing.youWrote).toBeUndefined();
-        expect(guessing.candidates).toHaveLength(2);
-        send(host, {
-          v: 1,
-          t: "submitGuess",
-          answerId: guessing.answer.id,
-          playerId: guessing.candidates[0],
-        });
-        await untilPhase(host, "REVEAL", 10_000);
-      }
-      if (phase(host) === "REVEAL") {
-        expect(view(host)?.awarded).toHaveLength(3);
-        expect(await expirePhase(code), "practice REVEAL must have armed its alarm").toBe(true);
-        await until(() => phase(host) !== "REVEAL", "practice reveal to hand over", 10_000);
-      }
-      if (phase(host) === "STANDINGS") {
-        expect(await expirePhase(code), "practice STANDINGS must have armed its alarm").toBe(true);
-        await until(() => phase(host) !== "STANDINGS", "practice standings to hand over", 10_000);
-      }
-    }
-
-    expect(phase(host)).toBe("FINALE");
-    const revealFrames = host.inbox.filter(
-      (frame) => frame.t === "state" && frame.room?.phase === "REVEAL",
-    );
-    expect(new Set(revealFrames.map((frame) => frame.room.answer.id)).size).toBe(3);
-    for (const frame of revealFrames) expect(frame.room.awarded).toHaveLength(3);
-    expect((view(host)?.scoreboard as Frame[]).reduce((sum, line) => sum + line.score, 0)).toBeGreaterThan(0);
-    host.ws.close();
-  }, 15_000);
+    await stubFor(code).fetch("https://do/meta");
+    const room = await stored(code);
+    expect(room.players).toHaveLength(1);
+    expect(room.players[0].id).toBe("human");
+    expect(room.sessions.human.tokenHash).toBe("preserved-test-hash");
+    expect(room.phase).toBe("LOBBY");
+    expect(room.deadline).toBeNull();
+    expect(room.entries).toEqual({});
+  });
 
   it("shows the standings beat on the cadence the host set", async () => {
     const code = "RDI";

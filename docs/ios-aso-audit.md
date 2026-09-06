@@ -85,7 +85,8 @@ and compound indexing works identically to English plurals.
 | Alternative B EN | Hvem mon? Party with friends | Guess who wrote each answer | Party-led; no claim of demand superiority |
 
 The full canonical descriptions explain author reveal, private rooms, 3–16 players,
-cross-platform play, no accounts, four prompt themes, practice and moderation.
+cross-platform play, no accounts, four prompt themes and moderation. The release
+candidate has no practice or bot mode.
 No invented awards, reviews or download counts are added. No keyword stuffing in
 the description: its job is explaining the experience and persuading the reader.
 

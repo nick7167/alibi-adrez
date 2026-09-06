@@ -2,6 +2,24 @@
 
 Last updated: 2026-09-06 (Europe/Copenhagen)
 
+### Practice bots removed for App Store release — 2026-09-06
+
+The owner explicitly requested removal of the bot implementation and approved
+continuing toward App Store submission. The shipped code no longer exposes the
+practice mode, bot participant field, seeded practice answers, automatic bot
+guesses, or the development bot script. Normal 3–16 player rooms remain
+interoperable across iOS and web. A compatibility guard removes bot seats left
+by an older persisted room and returns that room to the lobby; it does not
+create new bots. No AHA `main` branch, live web worker, Rooms worker, or root
+website deployment was made.
+
+Listing copy and App Review notes now describe the bot-free product. The
+focused regression suite passed (131 shared, 95 web, 40 Rooms tests; 266 total)
+and typechecking completed with zero errors and warnings. A no-practice browser
+check was added; its result must be recorded before signing. A fresh signed
+build, App Store privacy/review declarations, and public review submission are
+still pending. Do not claim the app is submitted until ASC reports that state.
+
 ### Physical iPhone feedback: join navigation overlap — 2026-09-06
 
 The owner tested build 1 and reported the name/avatar card almost covering the

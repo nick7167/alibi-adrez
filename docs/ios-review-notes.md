@@ -1,76 +1,61 @@
-# AHA iOS App Review notes (draft)
+# Hvem mon? App Review notes
 
-Status: code-side draft for the `ios-app` branch as of 2026-09-02. Do not paste
-this into App Store Connect until the production backend, public URLs, support
-mailbox, signed build, and final public app name have been verified.
+Updated 2026-09-06. The owner requested removal of practice bots and approved
+submission after testing. Use these notes with the new bot-free binary only.
 
 ## Review access
 
-AHA does not require an account, login, purchase, location, or special hardware.
-The normal multiplayer game uses a four-character private room code and requires
-at least three people. A public, production-safe solo path is included so a single
-reviewer can evaluate the complete app without additional devices:
+Hvem mon? is a private multiplayer party game for 3 to 16 players. There is no
+account registration, login, purchase, advertisement or practice/bot mode.
+One reviewer can control three independent sessions manually:
 
-1. Launch the app and tap **Create room**.
-2. Choose any nickname and avatar, then enter the lobby.
-3. Tap **Practice with 2 bots**. In Danish the action is **Øv med 2 bots**.
-4. Answer the three displayed prompts and tap the hand-in action.
-5. When an answer written by a bot appears, choose who you think wrote it. Bot
-   guesses are automatic. The game continues through reveal, an intermediate
-   standings screen, and final standings.
-6. Tap **Back to lobby** after the finale. The two generated participants are
-   labeled **Bot** and can be used to inspect the participant safety controls.
-7. Tap the X in the lobby to leave the room and return home.
+1. Launch the iOS app. Select EN on the home screen for English, if needed.
+2. Tap Create room, enter a nickname and choose an avatar, then tap Enter.
+3. Open https://aha.adrez.dev in two independent browser sessions, for example
+   Safari and Chrome, or a normal window and a private window. Two ordinary tabs
+   in the same profile share a saved identity and should not be used.
+4. In each browser, choose Join room, enter the four-character code shown in the
+   iOS lobby, and join with a different nickname.
+5. On the iOS host, set Questions to 1 and Rounds to 3. Under timing settings,
+   set Guess time to 60 seconds to allow time to switch between sessions.
+6. Tap Start. In each session, type a different answer and tap I'm done.
+7. In each guessing round, the author waits while the other two sessions select
+   who they think wrote the displayed answer. If time expires, the round still
+   advances. All sessions show the author reveal and scoring.
+8. After the final round, tap Back to lobby to play again. Use the X to leave.
 
-This is not a prerecorded or mock demo. It uses the shipped WebSocket protocol,
-Durable Object room state, normal timers, scoring, reconnect handling, and the
-same UI as a multiplayer game. Reloading or backgrounding during the answering
-phase reconnects the same room identity and restores answers already sent to the
-server. If a real person joins a finished practice lobby, the generated bot seats
-are removed before the ordinary multiplayer lobby continues.
+These are ordinary, publicly available multiplayer sessions. All players use the
+same live backend and rules. There are no hidden reviewer credentials, special
+room codes, automated opponents or review-only features.
 
 ## User-generated content and safety
 
-The only user-generated content is a player's chosen nickname and short answers
-shared inside a private room. The server rejects a deterministic set of clearly
-objectionable Danish and English terms before a nickname or answer enters room
-state.
+Names and short written answers are shared only within an invited private room.
+There is no public feed, random matchmaking or public chat. Authorship is hidden
+during guessing and revealed afterwards inside the same room.
 
-- On a participant row, tap the ellipsis to hide/show that participant locally,
-  prepare a report email, or—when reviewing as host—remove them from the room.
-- On an answer card during guessing or reveal, tap the ellipsis to hide/show the
-  answer locally or prepare a report email.
-- Reports open a localized, prefilled email addressed to `support@adrez.dev`. The
-  user reviews and sends it from their mail app; opening the action does not send
-  data silently.
-- Host removal revokes the participant's current room session and closes active
-  sockets. Because rooms are private and pseudonymous, this is a room-session
-  removal rather than an account-level platform ban.
-- Community rules and support are linked from the app's landing screen in both
-  English and Danish.
+The server filters a deterministic set of objectionable Danish and English terms.
+Participant menus allow local hiding, reporting and, for the host, removal from
+the room. Answer menus allow hiding and reporting. Removal revokes the current
+room session and closes its sockets; this is not an account-level ban.
 
-Before submission, replace this paragraph with verified operational facts for the
-support mailbox, response target, report retention/deletion, and final canonical
-support/community URLs. Do not claim those operational controls are live from the
-code alone.
+Reports open an editable email draft addressed to support@adrez.dev. The player
+chooses whether to send it using their configured mail app. Support and privacy
+pages identify Nicklas Andreasen, known as Adrez, as the individual operator.
+No unverified support response-time guarantee is claimed.
 
-## Room privacy and lifetime
+Community rules: https://adrez.dev/aha/en/community-rules
+Support: https://adrez.dev/aha/en/support
+Privacy: https://adrez.dev/aha/en/privacy
 
-Players are pseudonymous and no account profile is created. Answers are anonymous
-to other players during guessing and attributed to their author only during the
-reveal inside that room. The room backend stores the live nickname, answers,
-guesses, scores, room/session identifiers, and reconnect-token hashes needed to run
-the game. When the last socket disconnects, the room is scheduled for deletion
-after ten minutes; reconnecting before then cancels that idle deletion timer.
+## Privacy and recovery
 
-The app contains no advertising SDK and no cross-app tracking. Final App Store
-privacy answers must be reconciled against `docs/ios-privacy-data-map.md`, the
-signed archive's aggregated privacy report, the deployed Cloudflare configuration,
-and the published privacy policy before submission.
+The service stores pseudonymous player identities, game content and hashed
+reconnect credentials needed to operate the room. Room data is deleted ten minutes
+after the last connection closes, unless a player reconnects first. Returning to
+the lobby clears the previous game's answers and scores. Provider infrastructure
+and support correspondence have separate retention described in the policy.
 
-## Mixed web and native play
-
-The iOS app and web app use the same room protocol and backend. A web player and an
-iOS player can join the same code and complete the same game. Production review
-notes should include the verified public web URL only after the native-origin
-allowlist and both cross-platform directions have been tested against production.
+The app stores room logins locally for reconnecting. Support includes a confirmed
+Delete saved room logins action. No advertising, analytics or tracking SDK is used.
+Final App Privacy answers must match the audited data map before submission.

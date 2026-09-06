@@ -4,7 +4,7 @@ import {
   applyEvent,
   createRoom,
   parseClientMessage,
-  playPracticeBotGuesses,
+  returnToLobby,
   resolveIfEveryoneReady,
   snapshotForPlayer,
   type ClientMessage,
@@ -204,12 +204,6 @@ export class RoomDurableObject implements DurableObject {
       await this.save(room);
       this.broadcastState(room);
     }
-    const automated = playPracticeBotGuesses(room, eventDeps());
-    if (automated.changed) {
-      room = automated.room;
-      await this.save(room);
-      this.broadcastState(room);
-    }
     return room;
   }
 
@@ -309,7 +303,6 @@ export class RoomDurableObject implements DurableObject {
       case "kick":
       case "updateSettings":
       case "startGame":
-      case "startPractice":
       case "returnToLobby":
       case "setLang":
       case "submitEntry":
@@ -332,8 +325,7 @@ export class RoomDurableObject implements DurableObject {
           await this.rescheduleAlarm(room);
           return;
         }
-        const automated = playPracticeBotGuesses(result.room, eventDeps());
-        const finalRoom = automated.room;
+        const finalRoom = result.room;
         await this.save(finalRoom);
         if (msg.t === "kick") this.disconnectPlayer(msg.targetPlayerId, "KICKED");
         this.broadcastState(finalRoom);
@@ -404,6 +396,20 @@ export class RoomDurableObject implements DurableObject {
         await this.ctx.storage.deleteAll();
         await this.ctx.storage.deleteAlarm();
         return undefined;
+      }
+      // Compatibility cleanup only: older builds could persist practice seats.
+      // Keep real players and sessions, without leaving an unfinished bot game.
+      if (stored?.players.some((player) => "isBot" in player && player.isBot === true)) {
+        stored.players = stored.players.filter((player) => !("isBot" in player && player.isBot === true));
+        for (const id of Object.keys(stored.sessions)) {
+          if (!stored.players.some((player) => player.id === id)) delete stored.sessions[id];
+        }
+        if (!stored.players.some((player) => player.id === stored.hostId)) {
+          stored.hostId = stored.players[0]?.id ?? "";
+        }
+        returnToLobby(stored, eventDeps());
+        await this.ctx.storage.put(STATE_KEY, stored);
+        await this.rescheduleAlarm(stored);
       }
       this.room = stored;
     }
