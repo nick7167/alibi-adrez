@@ -376,28 +376,7 @@
 			</div>
 		</section>
 	{:else if screen === 'join'}
-		<button
-			type="button"
-			data-testid="back-home"
-			aria-label={m['nav.back']()}
-			onclick={() => void goto('/')}
-			class="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 grid size-11 place-items-center rounded-full border-2 border-white/30 bg-white/10 text-white"
-		>
-			<svg
-				width="20"
-				height="20"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="3"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				aria-hidden="true"
-			>
-				<path d="M15 5 8 12l7 7" />
-			</svg>
-		</button>
-		<JoinForm pending={joining} errorNonce={errorNonce} onJoin={join} />
+		<JoinForm pending={joining} errorNonce={errorNonce} onJoin={join} onBack={() => void goto('/')} />
 	{:else if displayedRoom?.phase === 'LOBBY' && view}
 		<Lobby
 			isHost={view.isHost}

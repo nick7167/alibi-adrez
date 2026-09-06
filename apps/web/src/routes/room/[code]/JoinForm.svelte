@@ -5,8 +5,9 @@
 	let {
 		pending = false,
 		errorNonce = 0,
-		onJoin
-	}: { pending?: boolean; errorNonce?: number; onJoin: (name: string, emoji: string) => void } =
+		onJoin,
+		onBack
+	}: { pending?: boolean; errorNonce?: number; onJoin: (name: string, emoji: string) => void; onBack: () => void } =
 		$props();
 
 	let name = $state('');
@@ -48,9 +49,25 @@
 		<span class="absolute top-[46%] left-[4%] h-2 w-2 rotate-45 bg-action opacity-25"></span>
 	</div>
 
-	<div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 pt-safe">
+	<!-- Reserve navigation space outside the scrolling form, including with the keyboard up. -->
+	<header class="join-navigation relative z-20 shrink-0 px-4 pb-4">
+		<button
+			type="button"
+			data-testid="back-home"
+			aria-label={m['nav.back']()}
+			onclick={onBack}
+			class="grid size-11 place-items-center rounded-full border-2 border-white/30 bg-white/10 text-white"
+		>
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+				<path d="M15 5 8 12l7 7" />
+			</svg>
+		</button>
+	</header>
+
+	<div data-testid="join-scroll" class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 pb-2">
 		<section
-			class="pop-in relative z-10 mx-auto mt-4 w-full max-w-md rounded-[24px] bg-surface p-5 text-ink shadow-[0_6px_0_rgba(22,11,61,0.45)] sm:p-6"
+			data-testid="join-card"
+			class="pop-in relative z-10 mx-auto w-full max-w-md rounded-[24px] bg-surface p-5 text-ink shadow-[0_6px_0_rgba(22,11,61,0.45)] sm:p-6"
 		>
 			<h1 class="text-center font-display text-[32px] leading-tight font-bold tracking-tight text-ink">
 				{m['join.title']()}
@@ -118,6 +135,10 @@
 </div>
 
 <style>
+	.join-navigation {
+		padding-top: max(1rem, env(safe-area-inset-top));
+	}
+
 	.pop-in {
 		animation: pop-in 350ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 	}

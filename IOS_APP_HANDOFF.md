@@ -2,6 +2,25 @@
 
 Last updated: 2026-09-06 (Europe/Copenhagen)
 
+### Physical iPhone feedback: join navigation overlap — 2026-09-06
+
+The owner tested build 1 and reported the name/avatar card almost covering the
+top-left Back control after Create room. Other initial impressions were positive;
+this does not establish that full mixed-device gameplay passed.
+
+Moved the Back control into JoinForm's own non-shrinking navigation row, above
+the scrolling form, with safe-area top padding and a 16px gap. The footer remains
+pinned and the avatar area scrolls independently. No game rules or strings changed.
+Frontend-design skill was used for a narrowly scoped layout fix, preserving the
+approved purple visual identity. Eight browser regressions passed (DA/EN at
+390x844, 390x420, 320x420 and 1032x1376), checking navigation clearance, 44px
+target, tap interception, input/submit visibility and navigation after scrolling.
+These emulate 59px safe-area padding and keyboard-height viewports, not a real
+iOS software keyboard. DA/EN phone screenshots were visually inspected.
+All 269 unit/integration tests and typechecking (zero errors/warnings) passed;
+mobile build and Capacitor sync passed. A new signed build is still required to
+deliver this fix to the owner's TestFlight installation. Do not claim build 1 fixed.
+
 ### First TestFlight build and Danish copy live in ASC — 2026-09-06
 
 This entry supersedes the older missing-record and unsigned-build notes below.
