@@ -15,10 +15,14 @@ website deployment was made.
 
 Listing copy and App Review notes now describe the bot-free product. The
 focused regression suite passed (131 shared, 95 web, 40 Rooms tests; 266 total)
-and typechecking completed with zero errors and warnings. A no-practice browser
-check was added; its result must be recorded before signing. A fresh signed
-build, App Store privacy/review declarations, and public review submission are
-still pending. Do not claim the app is submitted until ASC reports that state.
+and typechecking completed with zero errors and warnings. The no-practice browser
+check passed. Fresh signed Apple build 3
+(`46cafbf3-22a5-4ced-bd3b-54fe645dd707`) is VALID. Review contact details,
+bot-free notes, content rights and revised localizations are saved in ASC. The
+existing review-submission draft is READY_FOR_REVIEW, but Apple's API returns a
+conflict when attaching this version and forbids deleting that draft with the
+current key. The app is therefore not yet submitted; finish the final submission
+in App Store Connect once the draft accepts version 1.0.
 
 ### Physical iPhone feedback: join navigation overlap — 2026-09-06
 
