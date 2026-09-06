@@ -22,9 +22,15 @@ mobile build and Capacitor sync passed. A new signed build is still required to
 deliver this fix to the owner's TestFlight installation. Do not claim build 1 fixed.
 
 Fix commit `695bfe6766036672649d7424c4fbef7c8c3ca4bb` was pushed only to
-`ios-app`. Hosted Xcode run `34060477603` and signed Codemagic build
-`6a9dd7e208bccd785f5832c5` are in progress. Continue monitoring these exact runs;
-do not launch a duplicate build. No main branch or production deployment changed.
+`ios-app`. Signed Codemagic build `6a9dd7e208bccd785f5832c5` succeeded including
+publication. Apple build 2 (`325cf19e-df10-4aa2-becf-8a2fda0efaff`) is VALID and
+IN_BETA_TESTING, confirmed present in Hvem mon Internal. DA/en-GB What to Test
+notes describe the navigation fix, and the App Store draft now references build 2.
+The owner has been told to update TestFlight and recheck the join screen.
+Hosted Xcode run `34060477603` has passed device and simulator compilation and
+is still completing launch checks. Continue monitoring that exact run; do not
+launch a duplicate signed build. No main branch or production deployment changed.
+Retained Danish browser evidence is in `docs/ios-validation/join-navigation/`.
 
 ### First TestFlight build and Danish copy live in ASC — 2026-09-06
 
