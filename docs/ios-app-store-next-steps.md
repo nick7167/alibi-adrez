@@ -10,6 +10,10 @@ technical release step. The app-launch skill informs this staged checklist.
 - Approved root-site source commit `ef41c37` is pushed.
 - Apple API and Codemagic account access are verified.
 - Apple bundle ID `dev.adrez.aha` is registered (description `Hvem mon`).
+- Apple App Store profile `Hvem mon App Store` is active for `dev.adrez.aha`,
+  reusing the valid account-level distribution certificate linked to Vildsvar.
+  The Vildsvar profile and certificate were not modified. The user's screenshot
+  confirms the Codemagic import and green matching-certificate indicator.
 - Separate [Codemagic application](https://codemagic.io/app/6a9ca41794d126108b294467)
   exists, linked to the correct repository, with no scheduled builds.
 - Hosted Xcode run `33997799689` passed native compilation and iPhone/iPad launches;
@@ -45,13 +49,11 @@ session is available to this agent. See
 
 ## Signing and first beta
 
-1. In Codemagic Team settings → codemagic.yaml settings → Code signing identities,
-   confirm an existing valid Apple Distribution certificate has its private key
-   available. Do not revoke existing certificates or copy another app's profile.
-2. Create an App Store provisioning profile for `dev.adrez.aha` using that
-   certificate in Apple's Certificates, Identifiers & Profiles; fetch/upload it
-   into Codemagic. Confirm the matching-certificate indicator succeeds. Follow
-   [Codemagic's signing guide](https://docs.codemagic.io/yaml-code-signing/signing-ios/).
+1. Certificate association is confirmed by the user's green Codemagic indicator.
+   Do not revoke existing certificates or copy another app's profile.
+2. The separate `Hvem mon App Store` profile is imported as
+   `hvemmon-app-store-profile`, bundle `dev.adrez.aha`. No further fetch is needed;
+   the signed build must still prove the complete signing configuration.
 3. Confirm the existing account-level `vildsvar-app-store-connect` integration is
    available to this new Codemagic project. Its name is historical; the bundle,
    profile and App Store record must belong to Hvem mon?.
@@ -67,7 +69,8 @@ session is available to this agent. See
 ## Before public review
 
 - Final icon/splash artwork still needs the approved-brand pass.
-- Capture actual app screenshots and enter prepared DA/EN metadata.
+- Compare the promotional captures in `app-store/` with the signed candidate,
+  upload the final images, and enter prepared DA/EN metadata.
 - Complete accurate privacy, content-rights, age-rating and review-contact answers.
 - Confirm moderation/support operations and physical iPhone results.
 - Submit only after all release gates pass. Public release date remains flexible.

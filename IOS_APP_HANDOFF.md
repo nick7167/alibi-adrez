@@ -2,6 +2,62 @@
 
 Last updated: 2026-09-06 (Europe/Copenhagen)
 
+### ASO and promotional artwork — 2026-09-06
+
+Completed 24 promotional RGB PNGs: six per language (DA/EN) and device (iPhone
+1320×2868, iPad 2064×2752), in `docs/app-store/final/`. Both language overview
+images were visually inspected. The original poster design uses this app's
+purple/yellow identity, not Vildsvar artwork. Both device families now enlarge
+and rearrange actual UI crops. These are browser-based
+captures of the shared app, not signed-native device evidence. Compare with the
+signed candidate before uploading. README, editable HTML, source captures and
+scenario provenance are retained in `docs/app-store/`.
+
+The opt-in `playwright.store.config.ts` capture suite passed both real five-player
+games and all 24 renders, including answer/author/score assertions and headline
+clearance. PNG dimensions and absence of alpha passed; web typecheck reports zero
+errors/warnings. Normal E2E discovery still contains exactly the existing 15 tests.
+No application behavior changed in this artwork pass.
+
+User feedback rejected the first draft's changing backgrounds, passive answer
+card and frozen confetti over room codes. The revised campaign uses a consistent
+deep-purple/bright-purple/yellow palette, stronger cross-platform room copy and
+larger gameplay close-ups. Writing captures show actual partial typing and the
+real caret. Normal-motion capture waits for confetti opacity zero, rather than
+freezing it with reduced motion. Room-code crops exclude the unrelated leave
+button at the edge. The original mixed-colour draft must not be uploaded.
+The underlying app's reduced-motion confetti behavior remains an accessibility
+follow-up; only capture behavior was changed in this screenshot request.
+
+ASO skills produced `docs/ios-aso-audit.md`; DA/EN keywords were refined and field
+limits checked including UTF-8 bytes. Public search samples are documented without
+invented volume/rank figures. Metadata and artwork remain local, not uploaded.
+The Danish registry form loaded normally and showed two CAPTCHA frames; no
+challenge was bypassed. TMview produced no usable page and WIPO's restriction
+remains. Name clearance, the legacy native icon/splash replacement, final store
+record, signed build and physical iPhone testing remain release gates.
+
+### App-specific provisioning profile — 2026-09-06
+
+The user confirmed Codemagic displays one iOS certificate named `Vildsvar
+Distribution` and one profile reference `vildsvar-app-store-profile`. Read-only
+Apple inspection found the active `Vildsvar App Store` profile and its single
+valid Distribution certificate, expiring 2027-09-01. Reusing this account-level
+certificate is intentional; the old profile was not copied or changed.
+
+Created a NEW `IOS_APP_STORE` profile named `Hvem mon App Store`, Apple resource
+`K7CQ8GLCL6`, state `ACTIVE`, for `dev.adrez.aha` using that certificate. Verified
+the new profile's bundle and certificate relationships separately. Apple initially
+returned HTTP 500; a read confirmed no profile existed before one retry succeeded.
+No certificate or existing profile was modified/revoked; no build was started.
+
+The user's screenshot confirms `hvemmon-app-store-profile` for `dev.adrez.aha`
+is imported in Codemagic with the green matching-certificate indicator and expiry
+2027-09-01. Do not ask the user to repeat this step. Signed build validation is
+still pending. Keep the Vildsvar entries unchanged.
+This supersedes older zero-profile notes below. If Associated Domains is enabled
+later for universal links, regenerate/refetch this app's profile before signing.
+
 ### Apple/Codemagic setup — 2026-09-06
 
 The user approved the prepared root-site push and explicitly requested beginning

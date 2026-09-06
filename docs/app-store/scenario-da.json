@@ -1,0 +1,23 @@
+{
+  "language": "da",
+  "names": [
+    "Freja",
+    "Mikkel",
+    "Sofie",
+    "Jonas",
+    "Emma"
+  ],
+  "prompt": "Et ord, du siger alt for tit.",
+  "promptId": "word-you-overuse",
+  "responses": [
+    "Seriøst",
+    "Altså",
+    "Hyggeligt",
+    "Præcis",
+    "Måske"
+  ],
+  "author": "Sofie",
+  "correctGuesser": "Freja",
+  "scoreTotal": 5,
+  "source": "Actual local game; no text, votes or scores altered after capture."
+}

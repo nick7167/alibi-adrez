@@ -1,0 +1,23 @@
+{
+  "language": "en",
+  "names": [
+    "Freja",
+    "Mikkel",
+    "Sofie",
+    "Jonas",
+    "Emma"
+  ],
+  "prompt": "The item of clothing you wear far too often.",
+  "promptId": "most-worn-clothing",
+  "responses": [
+    "My soft jumper with a hole",
+    "The same black jeans",
+    "An oversized hoodie",
+    "Socks that never match",
+    "My old raincoat"
+  ],
+  "author": "Jonas",
+  "correctGuesser": "Freja",
+  "scoreTotal": 5,
+  "source": "Actual local game; no text, votes or scores altered after capture."
+}
