@@ -32,6 +32,11 @@ build and Capacitor sync passed, and three targeted browser scenarios passed.
 An initial parallel typecheck saw Paraglide-generated files being rewritten by
 the browser dev server; a standalone rerun finished with zero errors/warnings.
 Approved artwork hashes were rechecked without modifying any screenshot.
+Release preparation commit `ad9811282ea84c5c941ebc50bd0b230ac7ce78a4` was pushed
+only to `ios-app`. Hosted Xcode validation run `34044530327` is in progress:
+`https://github.com/nick7167/alibi-adrez/actions/runs/34044530327`.
+Check its conclusion and native artifacts on continuation; do not mistake it for
+a signed Codemagic build or TestFlight upload. No production deployment occurred.
 
 ### Approved screenshot archive and alternatives — historical 2026-09-06
 
