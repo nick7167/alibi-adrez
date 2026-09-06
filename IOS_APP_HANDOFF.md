@@ -21,6 +21,11 @@ All 269 unit/integration tests and typechecking (zero errors/warnings) passed;
 mobile build and Capacitor sync passed. A new signed build is still required to
 deliver this fix to the owner's TestFlight installation. Do not claim build 1 fixed.
 
+Fix commit `695bfe6766036672649d7424c4fbef7c8c3ca4bb` was pushed only to
+`ios-app`. Hosted Xcode run `34060477603` and signed Codemagic build
+`6a9dd7e208bccd785f5832c5` are in progress. Continue monitoring these exact runs;
+do not launch a duplicate build. No main branch or production deployment changed.
+
 ### First TestFlight build and Danish copy live in ASC — 2026-09-06
 
 This entry supersedes the older missing-record and unsigned-build notes below.
