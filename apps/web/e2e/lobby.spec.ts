@@ -53,6 +53,12 @@ test('create → two guests join → all see 3 players → host starts (INTRO sp
 
 	// 6. All three clients see the same three-player lobby.
 	await expect(host.getByTestId('player-card')).toHaveCount(3);
+	// Reduced motion must not freeze decorative confetti over the room code.
+	await host.emulateMedia({ reducedMotion: 'reduce' });
+	await expect.poll(() => host.locator('.confetti-bit').evaluateAll(nodes =>
+		nodes.length > 0 && nodes.every(node => getComputedStyle(node).opacity === '0')
+	)).toBe(true);
+	await host.emulateMedia({ reducedMotion: 'no-preference' });
 	await expect(guest.getByTestId('player-card')).toHaveCount(3);
 	await expect(guest2.getByTestId('player-card')).toHaveCount(3);
 	// Target the name explicitly: the host's row also carries a "Host" stamp,

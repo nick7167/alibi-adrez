@@ -1,5 +1,20 @@
 # Native iOS icon and launch assets
 
+## Final-name update — 2026-09-06
+
+The approved Hvem mon? purple campaign supersedes the provisional A-shaped mark
+described historically below. Icon, launch source and iOS-branch favicon now show
+a dark-purple question mark on a tilted yellow rounded tile, against the product
+purple. This follows the approved screenshots' visual identity. No new competing
+icon concepts or A/B testing are part of this release step.
+
+Run `node scripts/render-native-assets.mjs` to render all native PNGs and assert
+1024×1024 / 2732×2732 RGB without alpha. Existing technical asset filenames remain
+stable. Physical-device launch/icon inspection and current hosted validation are
+still required; the older hosted evidence below covers the previous artwork.
+
+## Historical provisional assets
+
 Prepared 2026-09-02 on the `ios-app` branch. These assets replace Capacitor's blue
 placeholder artwork without deciding the final public App Store/display name.
 

@@ -2,6 +2,51 @@
 
 Last updated: 2026-09-06 (Europe/Copenhagen)
 
+### Final purple selection and release preparation — 2026-09-06
+
+The user rejected both alternate concepts, requested their removal, then selected
+the original purple campaign for release and asked to proceed with TestFlight and
+App Store preparation. The rejected concepts and their tooling were moved out of
+the workspace to `/private/tmp/hvemmon-rejected-concepts.RcJ9pS/` (recoverable until
+temporary storage is cleared). The replacement image-generation request was
+interrupted and abandoned. Do not resume alternate artwork generation.
+
+The approved screenshots remain unchanged in `docs/app-store/final/`, with their
+exact archive at `docs/app-store/concepts/01-purple-original/`. The native icon,
+splash and iOS-branch favicon now use the purple/yellow question-mark identity;
+`scripts/render-native-assets.mjs` regenerates opaque, size-checked PNGs. Technical
+asset filenames remain unchanged intentionally. Reduced-motion lobby confetti now
+has zero opacity, with a passing browser regression, rather than freezing over
+the code. Codemagic's workflow display name is now Hvem mon? TestFlight.
+
+Apple API inventory on 2026-09-06 still returns zero app records for `dev.adrez.aha`.
+Official Apple documentation explicitly requires creating the initial record on
+the App Store Connect website, not through its API. No authenticated interactive
+browser tool is available here. This and the unresolved interactive trademark
+checks are real user/external gates, not incomplete signing setup. Do not start
+an upload workflow that cannot succeed without the record. No TestFlight upload
+or App Store review submission has occurred.
+
+Local verification: all 269 tests passed (135 shared / 95 web / 39 Rooms), mobile
+build and Capacitor sync passed, and three targeted browser scenarios passed.
+An initial parallel typecheck saw Paraglide-generated files being rewritten by
+the browser dev server; a standalone rerun finished with zero errors/warnings.
+Approved artwork hashes were rechecked without modifying any screenshot.
+
+### Approved screenshot archive and alternatives — historical 2026-09-06
+
+The user approved the revised purple campaign and requested two completely
+different six-screen concepts while preserving it. The approved 24 images remain
+unchanged in `docs/app-store/final/`; an exact copy plus SHA-256 manifest is stored
+in `docs/app-store/concepts/01-purple-original/`. Two separate DA/EN iPhone/iPad
+alternatives (48 additional PNGs) are in `02-social-dossier/` and
+`03-game-night-live/`: cream/red printed editorial evidence boards versus
+mint/black/hot-pink kinetic event posters. Each has six feature screens and both
+language overview images. Reproduction and provenance are in the concepts README.
+These are alternatives, not a replacement decision or an Apple upload. No app
+code or production resource changed. Do not overwrite the approved set when
+iterating alternatives.
+
 ### ASO and promotional artwork — 2026-09-06
 
 Completed 24 promotional RGB PNGs: six per language (DA/EN) and device (iPhone

@@ -3,7 +3,7 @@
 # exist, and the separate AHA Codemagic application has been configured.
 workflows:
   aha-testflight:
-    name: AHA TestFlight
+    name: Hvem mon? TestFlight
     instance_type: mac_mini_m2
     max_build_duration: 60
 

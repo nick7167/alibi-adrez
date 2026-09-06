@@ -898,6 +898,10 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
+		.confetti-bit {
+			opacity: 0;
+		}
+
 		.pop-in,
 		.reveal,
 		.confetti-bit {

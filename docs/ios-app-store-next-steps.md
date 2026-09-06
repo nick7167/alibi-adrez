@@ -68,7 +68,8 @@ session is available to this agent. See
 
 ## Before public review
 
-- Final icon/splash artwork still needs the approved-brand pass.
+- Final icon/splash source now matches the approved purple question-mark campaign;
+  verify the compiled artwork in the release candidate.
 - Compare the promotional captures in `app-store/` with the signed candidate,
   upload the final images, and enter prepared DA/EN metadata.
 - Complete accurate privacy, content-rights, age-rating and review-contact answers.
