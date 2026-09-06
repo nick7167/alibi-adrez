@@ -10,14 +10,14 @@ record availability remain separate release checks; do not ask for name choice a
 
 - **Public app name:** Hvem mon? (formerly AHA)
 - **Danish listing title:** `Hvem mon? Gæt dine venner`
-- **Apple app ID:** Not created
+- **Apple app ID:** 6809198474
 - **Bundle ID:** `dev.adrez.aha` (registered with Apple on 2026-09-06)
 - **Recommended primary category:** Games — Trivia
 - **Recommended secondary category:** Entertainment
 - **Platform:** Universal iPhone/iPad, interoperable web version
 - **Price model:** Free for 1.0; no ads or purchases
 - **Launch date:** Not yet launched; flexible after the release candidate is stable
-- **Current version:** 0.1.0 pre-release
+- **Current version:** 1.0 (1), internal TestFlight
 
 ## Value Proposition
 
@@ -44,8 +44,8 @@ record availability remain separate release checks; do not ask for name choice a
 
 ## Current ASO State
 
-- **App Store record:** None
-- **Brand:** User approved; descriptive store metadata prepared, not uploaded
+- **App Store record:** 6809198474, preparing for submission
+- **Brand:** User approved; Danish/en-GB metadata and 24 purple screenshots uploaded
 - **Ratings/rankings:** None; pre-launch
 - **Prepared title:** `Hvem mon? Gæt dine venner` (25/30 characters)
 - **Prepared subtitle:** `Selskabsspil med anonyme svar` (29/30 characters)
@@ -81,6 +81,10 @@ record availability remain separate release checks; do not ask for name choice a
 - **Languages:** Danish primary; English supported in-app
 
 ## Positioning Guardrails
+
+- Write natural, professional Danish. Avoid unnecessary dashes, stiff translations,
+  keyword stuffing and all-capital paragraph headings. Danish description and beta
+  copy were revised and saved in ASC on 2026-09-06 at the user's request.
 
 - Say “anonymt i runden,” not globally anonymous: authors are revealed later to
   the private room.

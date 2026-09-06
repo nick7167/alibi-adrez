@@ -1,0 +1,258 @@
+{
+  "appId": "6809198474",
+  "versionId": "01a7f353-c065-4b6b-96a8-206087b23846",
+  "localizations": [
+    {
+      "lang": "da",
+      "locale": "da",
+      "id": "e0d855d5-e285-4837-b203-d902f3d1790c"
+    },
+    {
+      "lang": "en",
+      "locale": "en-GB",
+      "id": "4bed994f-4222-4179-8e05-db7d88fc0445"
+    }
+  ],
+  "screenshots": [
+    {
+      "id": "8d777e34-0bba-4ebe-a9d6-13c8f3e7d950",
+      "setId": "b97afc53-3146-48e8-9607-e5c049653e25",
+      "lang": "da",
+      "device": "iphone",
+      "fileName": "hvemmon-da-iphone-01.png",
+      "checksum": "6e9be2e733bcddd91d2a17901f0b9a85",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "b2f7210d-53ec-494c-8197-2bd9f122d26e",
+      "setId": "b97afc53-3146-48e8-9607-e5c049653e25",
+      "lang": "da",
+      "device": "iphone",
+      "fileName": "hvemmon-da-iphone-02.png",
+      "checksum": "b6c59f6f508d65c6d24da57dff97fba9",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "87ed1c89-a7f0-453b-a7a5-876226221b4d",
+      "setId": "b97afc53-3146-48e8-9607-e5c049653e25",
+      "lang": "da",
+      "device": "iphone",
+      "fileName": "hvemmon-da-iphone-03.png",
+      "checksum": "14c14ba21238023d652cce505671445f",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "29f9ce60-ae49-438e-96a1-265830f12ec0",
+      "setId": "b97afc53-3146-48e8-9607-e5c049653e25",
+      "lang": "da",
+      "device": "iphone",
+      "fileName": "hvemmon-da-iphone-04.png",
+      "checksum": "fe8d4b6c7c9da34ee4781be9e35b25ff",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "28423a6f-9c96-45e1-a7dd-1e93fe1db48e",
+      "setId": "b97afc53-3146-48e8-9607-e5c049653e25",
+      "lang": "da",
+      "device": "iphone",
+      "fileName": "hvemmon-da-iphone-05.png",
+      "checksum": "7e5ca1791e252c041180e07b0b31ef61",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "96ad6b5a-c849-41bd-b9c8-1147ce6118e5",
+      "setId": "b97afc53-3146-48e8-9607-e5c049653e25",
+      "lang": "da",
+      "device": "iphone",
+      "fileName": "hvemmon-da-iphone-06.png",
+      "checksum": "2ef8c58a46ad03ef5e26dd89a97611f9",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "bf89c967-5cc4-432c-b1ef-3513461a8e6d",
+      "setId": "12f8ba83-ef16-4c2e-ae31-fe06bc3fb68e",
+      "lang": "da",
+      "device": "ipad",
+      "fileName": "hvemmon-da-ipad-01.png",
+      "checksum": "d2e3bc4b0b1b41486270188bc6cf198e",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "935db4ad-43ad-40cf-93b1-bde38c53df31",
+      "setId": "12f8ba83-ef16-4c2e-ae31-fe06bc3fb68e",
+      "lang": "da",
+      "device": "ipad",
+      "fileName": "hvemmon-da-ipad-02.png",
+      "checksum": "f7cbd6d6f2ee093bce188ef53d666247",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "5fd5c07c-8f4e-456f-a9d4-e20111c8b970",
+      "setId": "12f8ba83-ef16-4c2e-ae31-fe06bc3fb68e",
+      "lang": "da",
+      "device": "ipad",
+      "fileName": "hvemmon-da-ipad-03.png",
+      "checksum": "db37f2d8bfd4429d98bebdec6ec51683",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "a821f5c0-0cbc-4264-acdf-2f298e50a5fe",
+      "setId": "12f8ba83-ef16-4c2e-ae31-fe06bc3fb68e",
+      "lang": "da",
+      "device": "ipad",
+      "fileName": "hvemmon-da-ipad-04.png",
+      "checksum": "37738b0515443b40d327756b41ed704c",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "86e38e6c-d775-46ca-92af-5d064f597d93",
+      "setId": "12f8ba83-ef16-4c2e-ae31-fe06bc3fb68e",
+      "lang": "da",
+      "device": "ipad",
+      "fileName": "hvemmon-da-ipad-05.png",
+      "checksum": "8fd9a07f180d06feb7d5bb0874749386",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "caec1b65-c5db-4fec-be47-08257fa73cf8",
+      "setId": "12f8ba83-ef16-4c2e-ae31-fe06bc3fb68e",
+      "lang": "da",
+      "device": "ipad",
+      "fileName": "hvemmon-da-ipad-06.png",
+      "checksum": "0cfb89c981fc405b80c4fa92406fdf7a",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "c30c37d7-90e6-4435-be96-d74a5fcc4a00",
+      "setId": "8dacbaba-74f2-4336-a393-23c111fb3ed6",
+      "lang": "en",
+      "device": "iphone",
+      "fileName": "hvemmon-en-iphone-01.png",
+      "checksum": "466298997c17c3a404dc44cf358f7b52",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "1bd4c36f-72cd-4b89-b828-24f7c7cb2d5e",
+      "setId": "8dacbaba-74f2-4336-a393-23c111fb3ed6",
+      "lang": "en",
+      "device": "iphone",
+      "fileName": "hvemmon-en-iphone-02.png",
+      "checksum": "2b829639738fa213bc877ce6b1bad14c",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "95124484-81de-43eb-aa95-5e20377fda52",
+      "setId": "8dacbaba-74f2-4336-a393-23c111fb3ed6",
+      "lang": "en",
+      "device": "iphone",
+      "fileName": "hvemmon-en-iphone-03.png",
+      "checksum": "caeb989e777325cd94276afa1743cb67",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "dcc197f4-8670-4e59-bbd0-3f0d2564d7ba",
+      "setId": "8dacbaba-74f2-4336-a393-23c111fb3ed6",
+      "lang": "en",
+      "device": "iphone",
+      "fileName": "hvemmon-en-iphone-04.png",
+      "checksum": "6f88477c8472871abc013be0075fd626",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "c39fe1a4-f94e-4d7f-845d-689cce8b8302",
+      "setId": "8dacbaba-74f2-4336-a393-23c111fb3ed6",
+      "lang": "en",
+      "device": "iphone",
+      "fileName": "hvemmon-en-iphone-05.png",
+      "checksum": "87e5f53f123b7b3306d54d55e9f1eeb2",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "0efcc94d-c90c-4f53-80b9-a22102f4411b",
+      "setId": "8dacbaba-74f2-4336-a393-23c111fb3ed6",
+      "lang": "en",
+      "device": "iphone",
+      "fileName": "hvemmon-en-iphone-06.png",
+      "checksum": "ceaa73c42230b76e95d408e1f93008a0",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "9b469809-5abf-4944-bb35-f6cae6d3af8e",
+      "setId": "02d85dc5-23d3-46c6-a9f0-e91d81248a88",
+      "lang": "en",
+      "device": "ipad",
+      "fileName": "hvemmon-en-ipad-01.png",
+      "checksum": "eb193fcbe5efd60e0211d468718a2166",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "a5fe389e-3768-4a81-9750-aaca3330f9df",
+      "setId": "02d85dc5-23d3-46c6-a9f0-e91d81248a88",
+      "lang": "en",
+      "device": "ipad",
+      "fileName": "hvemmon-en-ipad-02.png",
+      "checksum": "ff5c7762c166b6b9d2e07ed9e7c7f92e",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "c3227051-88c3-4eaa-947a-0cd1b3781f7f",
+      "setId": "02d85dc5-23d3-46c6-a9f0-e91d81248a88",
+      "lang": "en",
+      "device": "ipad",
+      "fileName": "hvemmon-en-ipad-03.png",
+      "checksum": "979851c0d68ff495fd07f40854e33004",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "1510da6e-4e31-4565-9fe4-c9a0184a5cc5",
+      "setId": "02d85dc5-23d3-46c6-a9f0-e91d81248a88",
+      "lang": "en",
+      "device": "ipad",
+      "fileName": "hvemmon-en-ipad-04.png",
+      "checksum": "f463aec9bfa706b88840cab1af6ad0b4",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "39624c8b-bb2b-44c2-a396-46886c7a4fd6",
+      "setId": "02d85dc5-23d3-46c6-a9f0-e91d81248a88",
+      "lang": "en",
+      "device": "ipad",
+      "fileName": "hvemmon-en-ipad-05.png",
+      "checksum": "3380951d5468b98a99e1c87c8b5853e7",
+      "state": "COMPLETE",
+      "errors": []
+    },
+    {
+      "id": "d88f6980-b82b-41ee-9525-c65a60bfc267",
+      "setId": "02d85dc5-23d3-46c6-a9f0-e91d81248a88",
+      "lang": "en",
+      "device": "ipad",
+      "fileName": "hvemmon-en-ipad-06.png",
+      "checksum": "9a02024dfac01f15230bc80e0c242334",
+      "state": "COMPLETE",
+      "errors": []
+    }
+  ]
+}

@@ -2,6 +2,43 @@
 
 Last updated: 2026-09-06 (Europe/Copenhagen)
 
+### First TestFlight build and Danish copy live in ASC — 2026-09-06
+
+This entry supersedes the older missing-record and unsigned-build notes below.
+The user replied "Done" after the record/name-check request. Treat this as owner
+confirmation, not an independent legal opinion. Verified ASC app `6809198474`,
+bundle `dev.adrez.aha`, primary locale `da`, version 1.0. Danish and en-GB metadata,
+all 24 approved purple screenshots, Games/Trivia and Entertainment categories,
+copyright and MANUAL release are saved. Screenshot processing is COMPLETE for all
+24; public asset IDs and checksums are in `docs/ios-store-upload-state.json`.
+
+Hosted Xcode run `34044530327` succeeded; both simulator captures were inspected.
+Codemagic build `6a9d910727f4f755191f7ed2` succeeded including signed IPA and
+publication, using `ios-app` release source `ad981128`. Apple build
+`60395c78-28e1-456f-8f8d-7c324b316024`, build number 1, is VALID and
+READY_FOR_BETA_TESTING, with non-exempt encryption false. It is attached to draft
+version `01a7f353-c065-4b6b-96a8-206087b23846` and available to the internal group
+`Hvem mon Internal` (`d2540cb5-1197-4300-b299-82985b267a12`). The owner is now
+the group's sole tester with EMAIL invitation state INVITED. Reusing either old
+app's tester resource failed with 409; creating an app-specific tester using the
+verified owner's email succeeded. No other tester or Vildsvar resource changed.
+
+User explicitly requests natural, professional Danish throughout, without
+unnecessary double dashes or translated marketing phrasing. Metadata optimization
+skill used to retain approved title/subtitle/keywords while rewriting description
+and promotional text. Copy was saved and read back from ASC; all field limits pass.
+Danish beta description and DA/en-GB What to Test notes are also saved. Keep this
+tone in all future public writing. Approved artwork remains unchanged.
+
+Age-rating questionnaire saved from the content audit; exact answers and Apple's
+returned regional ratings are in `docs/ios-age-rating-saved.json`. The appInfo API
+currently returns TWELVE_PLUS globally, FOURTEEN in Brazil, TWELVE in Korea; do not
+substitute a guessed 13+ value. Final privacy declarations, review contact/notes,
+pricing/availability and physical iPhone gameplay still need completion before
+public review. Ask the owner to accept the TestFlight invitation and complete a
+mixed iOS/web game, keyboard and resume checks. No public or external beta review
+submission occurred, and no production deployment or AHA main change occurred.
+
 ### Final purple selection and release preparation — 2026-09-06
 
 The user rejected both alternate concepts, requested their removal, then selected

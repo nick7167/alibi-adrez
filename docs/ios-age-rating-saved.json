@@ -1,0 +1,41 @@
+{
+  "appId": "6809198474",
+  "answers": {
+    "advertising": false,
+    "alcoholTobaccoOrDrugUseOrReferences": "INFREQUENT",
+    "contests": "FREQUENT",
+    "gambling": false,
+    "gamblingSimulated": "NONE",
+    "gunsOrOtherWeapons": "NONE",
+    "healthOrWellnessTopics": false,
+    "lootBox": false,
+    "medicalOrTreatmentInformation": "NONE",
+    "messagingAndChat": true,
+    "parentalControls": false,
+    "profanityOrCrudeHumor": "INFREQUENT",
+    "ageAssurance": false,
+    "sexualContentGraphicAndNudity": "NONE",
+    "sexualContentOrNudity": "NONE",
+    "socialMedia": false,
+    "socialMediaAgeRestricted": false,
+    "horrorOrFearThemes": "NONE",
+    "matureOrSuggestiveThemes": "NONE",
+    "unrestrictedWebAccess": false,
+    "userGeneratedContent": true,
+    "violenceCartoonOrFantasy": "NONE",
+    "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+    "violenceRealistic": "NONE",
+    "ageRatingOverrideV2": "NONE",
+    "koreaAgeRatingOverride": "NONE"
+  },
+  "calculated": {
+    "appStoreState": "PREPARE_FOR_SUBMISSION",
+    "state": "PREPARE_FOR_SUBMISSION",
+    "appStoreAgeRating": "TWELVE_PLUS",
+    "australiaAgeRating": null,
+    "brazilAgeRating": "FOURTEEN",
+    "brazilAgeRatingV2": "SELF_RATED_FOURTEEN",
+    "franceAgeRating": null,
+    "koreaAgeRating": "TWELVE"
+  }
+}
